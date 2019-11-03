@@ -18,11 +18,39 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* output assembler */
+    /* use Intel syntax */
     printf(".intel_syntax noprefix\n");
+
+    /* start main function */
     printf(".global _main\n");
     printf("_main:\n");
-    printf("  mov rax, %d\n", atoi(argv[1]));
+
+    /* parse argument and output assembler code */
+    char *p = argv[1];
+    printf("  mov rax, %ld\n", strtol(p, &p, 10));
+    while(*p)
+    {
+        if(*p == '+')
+        {
+            /* addition */
+            p++;
+            printf("  add rax, %ld\n", strtol(p, &p, 10));
+        }
+        else if(*p == '-')
+        {
+            /* subtraction */
+            p++;
+            printf("  sub rax, %ld\n", strtol(p, &p, 10));
+        }
+        else
+        {
+            /* Other characters are prohibited. */
+            fprintf(stderr, "unexpected character: '%c'\n", *p);
+            return 1;
+        }
+    }
+
+    /* exit main function */
     printf("  ret\n");
 
     return 0;
