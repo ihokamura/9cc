@@ -26,6 +26,10 @@ typedef enum {
     ND_SUB, // subtraction(-)
     ND_MUL, // multiplication(*)
     ND_DIV, // division(/)
+    ND_EQ,  // equal to(==)
+    ND_NEQ, // not equal to(!=)
+    ND_L,   // less than(<)
+    ND_LEQ, // less than or equal to(<=)
     ND_NUM, // integer
 } NodeKind;
 
@@ -36,6 +40,7 @@ struct Token {
     Token *next;    // next input token
     int val;        // value of token (only for TK_NUM)
     char *str;      // token string
+    int len;        // length of token string
 };
 
 // structure for node in AST
@@ -56,6 +61,9 @@ char *user_input;
 
 // function prototype
 Node *expr(void);
+Node *equality(void);
+Node *relational(void);
+Node *add(void);
 Node *mul(void);
 Node *unary(void);
 Node *primary(void);
@@ -87,9 +95,13 @@ consume a operator
 * If the next token is a given operator, this function parses the token and returns true.
 * Otherwise, it returns false.
 */
-bool consume(char op)
+bool consume(const char *op)
 {
-    if((token->kind != TK_RESERVED) || (token->str[0] != op))
+    if(
+        (token->kind != TK_RESERVED) || 
+        (token->len != strlen(op)) || 
+        (memcmp(token->str, op, token->len) != 0)
+        )
     {
         return false;
     }
@@ -105,11 +117,15 @@ parse an operator
 * If the next token is a given operator, this function parses the token.
 * Otherwise, it reports an error.
 */
-void expect(char op)
+void expect(const char *op)
 {
-    if((token->kind != TK_RESERVED) || token->str[0] != op)
+    if(
+        (token->kind != TK_RESERVED) || 
+        (token->len != strlen(op)) || 
+        (memcmp(token->str, op, token->len) != 0)
+        )
     {
-        error_at(token->str, "not '%c'.", op);
+        error_at(token->str, "not '%s'.", op);
     }
 
     token = token->next;
@@ -139,12 +155,13 @@ int expect_number(void)
 /*
 make a new token and concatenate it to the current token
 */
-Token *new_token(TokenKind kind, Token *cur_tok, char *str)
+Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
 {
     Token *new_tok = calloc(1, sizeof(Token));
 
     new_tok->kind = kind;
     new_tok->str = str;
+    new_tok->len = len;
     cur_tok->next = new_tok;
 
     return new_tok;
@@ -172,15 +189,28 @@ Token *tokenize(char *str)
 
         // parse an operator
         if(
+            (memcmp(str, "==", 2) == 0) || 
+            (memcmp(str, "!=", 2) == 0) || 
+            (memcmp(str, "<=", 2) == 0) || 
+            (memcmp(str, ">=", 2) == 0)
+            )
+        {
+            current = new_token(TK_RESERVED, current, str, 2);
+            str += 2;
+            continue;
+        }
+        if(
             (*str == '+') || 
             (*str == '-') || 
             (*str == '*') || 
             (*str == '/') || 
             (*str == '(') || 
-            (*str == ')')
+            (*str == ')') || 
+            (*str == '<') || 
+            (*str == '>')
             )
         {
-            current = new_token(TK_RESERVED, current, str);
+            current = new_token(TK_RESERVED, current, str, 1);
             str++;
             continue;
         }
@@ -188,7 +218,7 @@ Token *tokenize(char *str)
         // parse a number
         if(isdigit(*str))
         {
-            current = new_token(TK_NUM, current, str);
+            current = new_token(TK_NUM, current, str, 0);
             current->val = strtol(str, &str, 10);
             continue;
         }
@@ -197,7 +227,7 @@ Token *tokenize(char *str)
         error_at(token->str, "cannot tokenize.");
     }
 
-    new_token(TK_EOF, current, str);
+    new_token(TK_EOF, current, str, 0);
 
     return head.next;
 }
@@ -234,20 +264,92 @@ Node *new_node_num(int val)
 
 /*
 make an expression
-* expr = mul ("+" mul | "-" mul)*
+* expr = equality
 */
 Node *expr(void)
+{
+    return equality();
+}
+
+
+/*
+make an equality
+* equality = relational ("==" relational | "!=" relational)*
+*/
+Node *equality(void)
+{
+    Node *node = relational();
+
+    // parse tokens while finding a relational expression
+    while(true)
+    {
+        if(consume("=="))
+        {
+            node = new_node(ND_EQ, node, relational());
+        }
+        else if(consume("!="))
+        {
+            node = new_node(ND_NEQ, node, relational());
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+
+/*
+make a relational expression
+* relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+*/
+Node *relational(void)
+{
+    Node *node = add();
+
+    // parse tokens while finding an addition term
+    while(true)
+    {
+        if(consume("<"))
+        {
+            node = new_node(ND_L, node, add());
+        }
+        else if(consume("<="))
+        {
+            node = new_node(ND_LEQ, node, add());
+        }
+        else if(consume(">"))
+        {
+            node = new_node(ND_L, add(), node);
+        }
+        else if(consume(">="))
+        {
+            node = new_node(ND_LEQ, add(), node);
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+
+/*
+make an addition term
+* add = mul ("+" mul | "-" mul)*
+*/
+Node *add(void)
 {
     Node *node = mul();
 
     // parse tokens while finding a term
     while(true)
     {
-        if(consume('+'))
+        if(consume("+"))
         {
             node = new_node(ND_ADD, node, mul());
         }
-        else if(consume('-'))
+        else if(consume("-"))
         {
             node = new_node(ND_SUB, node, mul());
         }
@@ -260,7 +362,7 @@ Node *expr(void)
 
 
 /*
-make a term
+make a multiplication term
 * mul = unary ("*" unary | "/" unary)*
 */
 Node *mul(void)
@@ -270,11 +372,11 @@ Node *mul(void)
     // parse tokens while finding a primary
     while(true)
     {
-        if(consume('*'))
+        if(consume("*"))
         {
             node = new_node(ND_MUL, node, unary());
         }
-        else if(consume('/'))
+        else if(consume("/"))
         {
             node = new_node(ND_DIV, node, unary());
         }
@@ -293,11 +395,11 @@ make an unary
 Node *unary(void)
 {
     // parse sign
-    if(consume('+'))
+    if(consume("+"))
     {
         return primary();
     }
-    else if(consume('-'))
+    else if(consume("-"))
     {
         return new_node(ND_SUB, new_node_num(0), primary());
     }
@@ -314,12 +416,12 @@ make a primary
 */
 Node *primary(void)
 {
-    if(consume('('))
+    if(consume("("))
     {
         // expression in brackets
         Node *node = expr();
  
-        expect(')');
+        expect(")");
  
         return node;
     }
@@ -367,6 +469,30 @@ void gen(const Node *node)
         case ND_DIV:
             printf("  cqo\n");
             printf("  idiv rdi\n");
+            break;
+
+        case ND_EQ:
+            printf("  cmp rax, rdi\n");
+            printf("  sete al\n");
+            printf("  movzx rax, al\n");
+            break;
+
+        case ND_NEQ:
+            printf("  cmp rax, rdi\n");
+            printf("  setne al\n");
+            printf("  movzx rax, al\n");
+            break;
+
+        case ND_L:
+            printf("  cmp rax, rdi\n");
+            printf("  setl al\n");
+            printf("  movzx rax, al\n");
+            break;
+
+        case ND_LEQ:
+            printf("  cmp rax, rdi\n");
+            printf("  setle al\n");
+            printf("  movzx rax, al\n");
             break;
 
         default:
