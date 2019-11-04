@@ -57,6 +57,7 @@ char *user_input;
 // function prototype
 Node *expr(void);
 Node *mul(void);
+Node *unary(void);
 Node *primary(void);
 
 
@@ -260,27 +261,49 @@ Node *expr(void)
 
 /*
 make a term
-* mul = primary ("*" primary | "/" primary)*
+* mul = unary ("*" unary | "/" unary)*
 */
 Node *mul(void)
 {
-    Node *node = primary();
+    Node *node = unary();
 
     // parse tokens while finding a primary
     while(true)
     {
         if(consume('*'))
         {
-            node = new_node(ND_MUL, node, mul());
+            node = new_node(ND_MUL, node, unary());
         }
         else if(consume('/'))
         {
-            node = new_node(ND_DIV, node, mul());
+            node = new_node(ND_DIV, node, unary());
         }
         else
         {
             return node;
         }
+    }
+}
+
+
+/*
+make an unary
+* unary = ("+" | "-")? primary
+*/
+Node *unary(void)
+{
+    // parse sign
+    if(consume('+'))
+    {
+        return primary();
+    }
+    else if(consume('-'))
+    {
+        return new_node(ND_SUB, new_node_num(0), primary());
+    }
+    else
+    {
+        return primary();
     }
 }
 
