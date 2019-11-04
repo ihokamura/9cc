@@ -31,15 +31,23 @@ struct Token {
 
 // currently parsing token
 Token *token;
+// input expression
+char *user_input;
 
 
 /*
 report an error
+* This function never returns.
 */
-void error(const char *fmt, ...)
+void error_at(char *loc, const char *fmt, ...)
 {
-    va_list ap;
+    // emphasize the position where the error is detected
+    int pos = (loc - user_input) / sizeof(user_input[0]);
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s ^", pos, "");
 
+    // print the error message
+    va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
@@ -75,7 +83,7 @@ void expect(char op)
 {
     if((token->kind != TK_RESERVED) || token->str[0] != op)
     {
-        error("not '%c'.", op);
+        error_at(token->str, "not '%c'.", op);
     }
 
     token = token->next;
@@ -91,7 +99,7 @@ int expect_number(void)
 {
     if(token->kind != TK_NUM)
     {
-        error("not a number.");
+        error_at(token->str, "not a number.");
     }
 
     int val = token->val;
@@ -161,7 +169,7 @@ Token *tokenize(char *str)
         }
 
         // Other characters are not accepted as a token.
-        error("cannot tokenize.");
+        error_at(token->str, "cannot tokenize.");
     }
 
     new_token(TK_EOF, current, str);
@@ -182,7 +190,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // tokenize input
+    // save and tokenize input
+    user_input = argv[1];
     token = tokenize(argv[1]);
 
     // use Intel syntax
