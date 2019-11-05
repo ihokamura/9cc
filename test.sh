@@ -19,20 +19,36 @@ try()
     fi
 }
 
-try 0 "0"
-try 42 "42"
-try 21 "5+20-4"
-try 41 " 12 + 34 - 5 "
-try 47 "5 + 6 * 7"
-try 15 "5 * (9 - 6)"
-try 4 "(3 + 5) / 2"
-try 10 "-10 + 20"
-try 1 "+1 * -2 - (-3)"
-try 1 "42 == 6 * 7"
-try 0 "42 != 6 * 7"
-try 0 "42 < 6 * 7"
-try 1 "42 <= 6 * 7"
-try 0 "42 > 6 * 7"
-try 1 "42 >= 6 * 7"
+# only number
+try 0 "0;"
+try 42 "42;"
+
+# operators in the same priority
+try 21 "5+20-4;"
+
+# space
+try 41 "12 + 34 - 5;"
+try 41 "  12  +  34  -  5;  "
+
+# operators in different priorities
+try 47 "5 + 6 * 7;"
+try 15 "5 * (9 - 6);"
+try 4 "(3 + 5) / 2;"
+
+# unary operator
+try 10 "-10 + 20;"
+try 1 "+1 * -2 - (-3);"
+
+# comparision operator
+try 1 "42 == 6 * 7;"
+try 0 "42 != 6 * 7;"
+try 0 "42 < 6 * 7;"
+try 1 "42 <= 6 * 7;"
+try 0 "42 > 6 * 7;"
+try 1 "42 >= 6 * 7;"
+
+# local variable
+try 3 "a = 1; b = 2; a + b;"
+try 3 "x = 42; y = x / 2; q = (x - y) / 7;"
 
 echo OK

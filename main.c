@@ -30,22 +30,12 @@ int main(int argc, char **argv)
     // parse input
     char *user_input = argv[1];
     tokenize(user_input);
+
     // construct syntax tree
     construct();
 
-    // use Intel syntax
-    printf(".intel_syntax noprefix\n");
-
-    // start main function
-    printf(".global _main\n");
-    printf("_main:\n");
-
     // output assembler according to the syntax tree
     generate();
-
-    // pop return value from stack and exit main function
-    printf("  pop rax\n");
-    printf("  ret\n");
 
     return 0;
 }

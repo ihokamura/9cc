@@ -21,7 +21,6 @@
 
 
 // function prototype
-static void error_at(char *loc, const char *fmt, ...);
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 
 
@@ -53,6 +52,26 @@ bool consume(const char *op)
 
 
 /*
+consume an identifier
+* If the next token is an identifier, this function parses the identifier and returns the token.
+* Otherwise, it returns NULL.
+*/
+Token *consume_ident(void)
+{
+    if(token->kind != TK_IDENT)
+    {
+        return NULL;
+    }
+
+    Token *ident_tok = token;
+
+    token = token->next;
+
+    return ident_tok;
+}
+
+
+/*
 parse an operator
 * If the next token is a given operator, this function parses the token.
 * Otherwise, it reports an error.
@@ -65,7 +84,7 @@ void expect(const char *op)
         (memcmp(token->str, op, token->len) != 0)
         )
     {
-        error_at(token->str, "not '%s'.", op);
+        report_error(token->str, "not '%s'.", op);
     }
 
     token = token->next;
@@ -81,7 +100,7 @@ int expect_number(void)
 {
     if(token->kind != TK_NUM)
     {
-        error_at(token->str, "not a number.");
+        report_error(token->str, "not a number.");
     }
 
     int val = token->val;
@@ -134,10 +153,20 @@ void tokenize(char *str)
             (*str == '(') || 
             (*str == ')') || 
             (*str == '<') || 
-            (*str == '>')
+            (*str == '>') || 
+            (*str == '=') ||
+            (*str == ';')
             )
         {
             current = new_token(TK_RESERVED, current, str, 1);
+            str++;
+            continue;
+        }
+
+        // parse an identifer
+        if(islower(*str))
+        {
+            current = new_token(TK_IDENT, current, str, 1);
             str++;
             continue;
         }
@@ -151,7 +180,7 @@ void tokenize(char *str)
         }
 
         // Other characters are not accepted as a token.
-        error_at(token->str, "cannot tokenize.");
+        report_error(token->str, "cannot tokenize.");
     }
 
     new_token(TK_EOF, current, str, 0);
@@ -161,15 +190,27 @@ void tokenize(char *str)
 
 
 /*
+check if the current token is the end of input
+*/
+bool at_eof(void)
+{
+    return (token->kind == TK_EOF);
+}
+
+
+/*
 report an error
 * This function never returns.
 */
-static void error_at(char *loc, const char *fmt, ...)
+void report_error(char *loc, const char *fmt, ...)
 {
-    // emphasize the position where an error is detected
-    int pos = (loc - user_input) / sizeof(user_input[0]);
-    fprintf(stderr, "%s\n", user_input);
-    fprintf(stderr, "%*s ^", pos, "");
+    if(loc != NULL)
+    {
+        // emphasize the position where an error is detected
+        int pos = (loc - user_input) / sizeof(user_input[0]);
+        fprintf(stderr, "%s\n", user_input);
+        fprintf(stderr, "%*s ^", pos, "");
+    }
 
     // print the error message
     va_list ap;
