@@ -35,10 +35,14 @@ static Node *primary(void);
 static void gen(const Node *node);
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
+static Node *new_node_lvar(const Token *tok);
+static int get_offset(const Token *tok);
 
 
 // global variable
 static Node *codes[100]; // root nodes of syntax tree for each statements
+static LVar *locals; // list of local variables
+static int locals_size; // number of local variables
 
 
 /*
@@ -46,6 +50,11 @@ construct syntax tree
 */
 void construct(void)
 {
+    // initialize list of local variables (make a dummy node)
+    locals = calloc(1, sizeof(LVar));
+    locals->next = NULL;
+    locals->offset = 0;
+
     program();
 }
 
@@ -62,10 +71,10 @@ void generate(void)
     printf(".global _main\n");
     printf("_main:\n");
 
-    // prologue: allocate stack for 26 local variables
+    // prologue: allocate stack for local variables
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
-    printf("  sub rsp, 208\n");
+    printf("  sub rsp, %d\n", 8 * locals_size);
 
     // body
     for(size_t i = 0; i < sizeof(codes) / sizeof(codes[0]) && codes[i] != NULL; i++)
@@ -300,18 +309,10 @@ static Node *primary(void)
     }
 
     // identifier
-    // It is currently assumed that
-    // * an identifier consists of one lower-case character
-    // * character code of the environment is the ASCII code
     Token *tok = consume_ident();
     if(tok != NULL)
     {
-        Node *node = calloc(1, sizeof(Node));
-
-        node->kind = ND_LVAR;
-        node->offset = (tok->str[0] - 'a' + 1) * 8;
-
-        return node;
+        return new_node_lvar(tok);
     }
 
     // number
@@ -452,4 +453,49 @@ static Node *new_node_num(int val)
     node->val = val;
 
     return node;
+}
+
+
+/*
+make a new node for local variable
+*/
+static Node *new_node_lvar(const Token *tok)
+{
+    Node *node = calloc(1, sizeof(Node));
+
+    node->kind = ND_LVAR;
+    node->offset = get_offset(tok);
+
+    return node;
+}
+
+
+/*
+get offset of local variable from base pointer
+*/
+static int get_offset(const Token *tok)
+{
+    for(LVar *lvar = locals; lvar != NULL; lvar = lvar->next)
+    {
+        if(
+            (lvar->len == tok->len) && 
+            (memcmp(tok->str, lvar->name, lvar->len) == 0)
+            )
+        {
+            // find local variable in the list
+            return lvar->offset;
+        }
+    }
+
+    // add local variable to the list
+    LVar *lvar = calloc(1, sizeof(LVar));
+
+    lvar->next = locals;
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+    lvar->offset = locals->offset + 8;
+    locals = lvar;
+    locals_size++;
+
+    return lvar->offset;
 }

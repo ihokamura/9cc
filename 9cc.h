@@ -61,6 +61,15 @@ struct Node {
     int offset;    // offset from base pointer (only for ND_LVAR)
 };
 
+// structure for local variable
+typedef struct LVar LVar;
+struct LVar {
+    LVar *next; // next element
+    char *name; // name of local variable
+    int len;    // length of name
+    int offset; // offset from base pointer (rbp)
+};
+
 
 // function prototype
 // codegen.c

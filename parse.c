@@ -22,6 +22,8 @@
 
 // function prototype
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
+static int is_operator(const char *str);
+static int is_ident(const char *str);
 
 
 // global variable
@@ -134,40 +136,20 @@ void tokenize(char *str)
         }
 
         // parse an operator
-        if(
-            (memcmp(str, "==", 2) == 0) || 
-            (memcmp(str, "!=", 2) == 0) || 
-            (memcmp(str, "<=", 2) == 0) || 
-            (memcmp(str, ">=", 2) == 0)
-            )
+        int len = is_operator(str);
+        if(len > 0)
         {
-            current = new_token(TK_RESERVED, current, str, 2);
-            str += 2;
-            continue;
-        }
-        if(
-            (*str == '+') || 
-            (*str == '-') || 
-            (*str == '*') || 
-            (*str == '/') || 
-            (*str == '(') || 
-            (*str == ')') || 
-            (*str == '<') || 
-            (*str == '>') || 
-            (*str == '=') ||
-            (*str == ';')
-            )
-        {
-            current = new_token(TK_RESERVED, current, str, 1);
-            str++;
+            current = new_token(TK_RESERVED, current, str, len);
+            str += len;
             continue;
         }
 
         // parse an identifer
-        if(islower(*str))
+        len = is_ident(str);
+        if(len > 0)
         {
-            current = new_token(TK_IDENT, current, str, 1);
-            str++;
+            current = new_token(TK_IDENT, current, str, len);
+            str += len;
             continue;
         }
 
@@ -235,4 +217,57 @@ static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
     cur_tok->next = new_tok;
 
     return new_tok;
+}
+
+
+/*
+check if the following string is an operator
+*/
+static int is_operator(const char *str)
+{
+    int len = 0;
+
+    if(
+        (memcmp(str, "==", 2) == 0) || 
+        (memcmp(str, "!=", 2) == 0) || 
+        (memcmp(str, "<=", 2) == 0) || 
+        (memcmp(str, ">=", 2) == 0)
+        )
+    {
+        len = 2;
+    }
+    else if(
+        (*str == '+') || 
+        (*str == '-') || 
+        (*str == '*') || 
+        (*str == '/') || 
+        (*str == '(') || 
+        (*str == ')') || 
+        (*str == '<') || 
+        (*str == '>') || 
+        (*str == '=') ||
+        (*str == ';')
+        )
+    {
+        len = 1;
+    }
+
+    return len;
+}
+
+
+/*
+check if the following string is an identifier
+*/
+static int is_ident(const char *str)
+{
+    int len = 0;
+
+    while(isalpha(*str) || (*str == '_'))
+    {
+        len++;
+        str++;
+    }
+
+    return len;
 }

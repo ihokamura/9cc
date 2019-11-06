@@ -50,5 +50,6 @@ try 1 "42 >= 6 * 7;"
 # local variable
 try 3 "a = 1; b = 2; a + b;"
 try 3 "x = 42; y = x / 2; q = (x - y) / 7;"
+try 4 "alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha;"
 
 echo OK
