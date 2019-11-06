@@ -52,4 +52,8 @@ try 3 "a = 1; b = 2; a + b;"
 try 3 "x = 42; y = x / 2; q = (x - y) / 7;"
 try 4 "alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha;"
 
+# return statement
+try 42 "return 42;"
+try 4 "alpha = 2; beta = 5 * alpha; return beta - 3 * alpha; return 0;"
+
 echo OK

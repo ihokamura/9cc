@@ -20,6 +20,7 @@
 // kind of token
 typedef enum {
     TK_RESERVED, // operator
+    TK_RETURN,   // keyword `return`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
@@ -36,6 +37,7 @@ typedef enum {
     ND_L,      // strict order comparision (<)
     ND_LEQ,    // order comparision (<=)
     ND_ASSIGN, // assignment expression (=)
+    ND_RETURN, // return statement
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -77,6 +79,7 @@ void construct(void);
 void generate(void);
 // parse.c
 bool consume(const char *op);
+bool consume_keyword(TokenKind kind);
 Token *consume_ident(void);
 void expect(const char *op);
 int expect_number(void);

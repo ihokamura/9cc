@@ -85,7 +85,7 @@ void generate(void)
         // pop return value to avoid stack overflow
         printf("  pop rax\n");
     }
-    
+
     // epilogue: release stack and exit main function
     // The return value is stored in rax.
     printf("  mov rsp, rbp\n");
@@ -114,13 +114,27 @@ static void program(void)
 
 /*
 make a statement
-* stmt = expr ";"
+* stmt = expr ";" | "return" expr ";"
 */
 static Node *stmt(void)
 {
-    Node *node = expr();
+    Node *node;
 
-    expect(";");
+    if(consume_keyword(TK_RETURN))
+    {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+    }
+    else
+    {
+        node = expr();
+    }
+
+    if(!consume(";"))
+    {
+        report_error(NULL, "expected ';'\n");
+    }
 
     return node;
 }
@@ -360,6 +374,14 @@ static void gen(const Node *node)
             printf("  pop rax\n");
             printf("  mov [rax], rdi\n");
             printf("  push rdi\n");
+            return;
+
+        case ND_RETURN:
+            gen(node->lhs);
+            printf("  pop rax\n");
+            printf("  mov rsp, rbp\n");
+            printf("  pop rbp\n");
+            printf("  ret\n");
             return;
 
         default:

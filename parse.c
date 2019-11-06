@@ -54,6 +54,24 @@ bool consume(const char *op)
 
 
 /*
+consume a keyword
+* If the next token is a keyword, this function parses the keyword and returns true.
+* Otherwise, it returns false.
+*/
+bool consume_keyword(TokenKind kind)
+{
+    if(token->kind != kind)
+    {
+        return false;
+    }
+
+    token = token->next;
+
+    return true;
+}
+
+
+/*
 consume an identifier
 * If the next token is an identifier, this function parses the identifier and returns the token.
 * Otherwise, it returns NULL.
@@ -140,6 +158,15 @@ void tokenize(char *str)
         if(len > 0)
         {
             current = new_token(TK_RESERVED, current, str, len);
+            str += len;
+            continue;
+        }
+
+        // parse keyword `return`
+        len = 6;
+        if((memcmp(str, "return", len) == 0) && (!isalnum(str[len])))
+        {
+            current = new_token(TK_RETURN, current, str, len);
             str += len;
             continue;
         }
