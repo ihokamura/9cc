@@ -55,5 +55,7 @@ try 4 "alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha;"
 # return statement
 try 42 "return 42;"
 try 4 "alpha = 2; beta = 5 * alpha; return beta - 3 * alpha; return 0;"
+try 0 "alpha = 2; beta = 5 * alpha; return_beta - 3 * alpha; return 0;"
+try 9 "a1 = 1; a2 = 2; b_11 = 3; b_22 = 4; a = a1 + a2; b = b_11 * b_22; return a + b / a2;"
 
 echo OK

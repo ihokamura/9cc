@@ -36,12 +36,12 @@ consume an operator
 * If the next token is a given operator, this function parses the token and returns true.
 * Otherwise, it returns false.
 */
-bool consume(const char *op)
+bool consume_operator(const char *op)
 {
     if(
         (token->kind != TK_RESERVED) || 
         (token->len != strlen(op)) || 
-        (memcmp(token->str, op, token->len) != 0)
+        (strncmp(token->str, op, token->len) != 0)
         )
     {
         return false;
@@ -101,7 +101,7 @@ void expect(const char *op)
     if(
         (token->kind != TK_RESERVED) || 
         (token->len != strlen(op)) || 
-        (memcmp(token->str, op, token->len) != 0)
+        (strncmp(token->str, op, token->len) != 0)
         )
     {
         report_error(token->str, "not '%s'.", op);
@@ -164,7 +164,7 @@ void tokenize(char *str)
 
         // parse keyword `return`
         len = 6;
-        if((memcmp(str, "return", len) == 0) && (!isalnum(str[len])))
+        if((strncmp(str, "return", len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
         {
             current = new_token(TK_RETURN, current, str, len);
             str += len;
@@ -255,10 +255,10 @@ static int is_operator(const char *str)
     int len = 0;
 
     if(
-        (memcmp(str, "==", 2) == 0) || 
-        (memcmp(str, "!=", 2) == 0) || 
-        (memcmp(str, "<=", 2) == 0) || 
-        (memcmp(str, ">=", 2) == 0)
+        (strncmp(str, "==", 2) == 0) || 
+        (strncmp(str, "!=", 2) == 0) || 
+        (strncmp(str, "<=", 2) == 0) || 
+        (strncmp(str, ">=", 2) == 0)
         )
     {
         len = 2;
@@ -290,10 +290,17 @@ static int is_ident(const char *str)
 {
     int len = 0;
 
-    while(isalpha(*str) || (*str == '_'))
+    if(isalpha(*str) || (*str == '_'))
     {
         len++;
         str++;
+
+        // there may be a digit after second character
+        while(isalnum(*str) || (*str == '_'))
+        {
+            len++;
+            str++;
+        }
     }
 
     return len;

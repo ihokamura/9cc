@@ -131,7 +131,7 @@ static Node *stmt(void)
         node = expr();
     }
 
-    if(!consume(";"))
+    if(!consume_operator(";"))
     {
         report_error(NULL, "expected ';'\n");
     }
@@ -159,7 +159,7 @@ static Node *assign(void)
     Node *node = equality();
 
     // parse assignment
-    if(consume("="))
+    if(consume_operator("="))
     {
         node = new_node(ND_ASSIGN, node, assign());
     }
@@ -179,11 +179,11 @@ static Node *equality(void)
     // parse tokens while finding a relational expression
     while(true)
     {
-        if(consume("=="))
+        if(consume_operator("=="))
         {
             node = new_node(ND_EQ, node, relational());
         }
-        else if(consume("!="))
+        else if(consume_operator("!="))
         {
             node = new_node(ND_NEQ, node, relational());
         }
@@ -206,19 +206,19 @@ static Node *relational(void)
     // parse tokens while finding an addition term
     while(true)
     {
-        if(consume("<"))
+        if(consume_operator("<"))
         {
             node = new_node(ND_L, node, add());
         }
-        else if(consume("<="))
+        else if(consume_operator("<="))
         {
             node = new_node(ND_LEQ, node, add());
         }
-        else if(consume(">"))
+        else if(consume_operator(">"))
         {
             node = new_node(ND_L, add(), node);
         }
-        else if(consume(">="))
+        else if(consume_operator(">="))
         {
             node = new_node(ND_LEQ, add(), node);
         }
@@ -241,11 +241,11 @@ static Node *add(void)
     // parse tokens while finding a term
     while(true)
     {
-        if(consume("+"))
+        if(consume_operator("+"))
         {
             node = new_node(ND_ADD, node, mul());
         }
-        else if(consume("-"))
+        else if(consume_operator("-"))
         {
             node = new_node(ND_SUB, node, mul());
         }
@@ -268,11 +268,11 @@ static Node *mul(void)
     // parse tokens while finding a primary
     while(true)
     {
-        if(consume("*"))
+        if(consume_operator("*"))
         {
             node = new_node(ND_MUL, node, unary());
         }
-        else if(consume("/"))
+        else if(consume_operator("/"))
         {
             node = new_node(ND_DIV, node, unary());
         }
@@ -291,11 +291,11 @@ make an unary
 static Node *unary(void)
 {
     // parse sign
-    if(consume("+"))
+    if(consume_operator("+"))
     {
         return primary();
     }
-    else if(consume("-"))
+    else if(consume_operator("-"))
     {
         return new_node(ND_SUB, new_node_num(0), primary());
     }
@@ -313,7 +313,7 @@ make a primary
 static Node *primary(void)
 {
     // expression in brackets
-    if(consume("("))
+    if(consume_operator("("))
     {
         Node *node = expr();
  
@@ -501,7 +501,7 @@ static int get_offset(const Token *tok)
     {
         if(
             (lvar->len == tok->len) && 
-            (memcmp(tok->str, lvar->name, lvar->len) == 0)
+            (strncmp(tok->str, lvar->name, lvar->len) == 0)
             )
         {
             // find local variable in the list

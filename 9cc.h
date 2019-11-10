@@ -78,7 +78,7 @@ struct LVar {
 void construct(void);
 void generate(void);
 // parse.c
-bool consume(const char *op);
+bool consume_operator(const char *op);
 bool consume_keyword(TokenKind kind);
 Token *consume_ident(void);
 void expect(const char *op);
