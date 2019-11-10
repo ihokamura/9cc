@@ -23,6 +23,7 @@ typedef enum {
     TK_RETURN,   // keyword `return`
     TK_IF,       // keyword `if`
     TK_ELSE,     // keyword `else`
+    TK_WHILE,    // keyword `while`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
@@ -42,6 +43,7 @@ typedef enum {
     ND_RETURN, // return statement
     ND_IF,     // if statement
     ND_IFELSE, // if-else statement
+    ND_WHILE,  // while statement
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;

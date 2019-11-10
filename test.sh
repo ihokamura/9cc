@@ -63,4 +63,7 @@ try 6 "tmp = 3; condition = 1; if(condition == 1) tmp = tmp * 2; return tmp;"
 try 6 "tmp = 3; condition = 1; if(condition != 0) tmp = tmp * 2; else tmp = tmp * 3; return tmp;"
 try 9 "tmp = 3; condition = 0; if(condition) tmp = tmp * 2; else tmp = tmp * 3; return tmp;"
 
+# while statement
+try 5 "count = 0; while(count < 5) count = count + 1; return count;"
+
 echo OK

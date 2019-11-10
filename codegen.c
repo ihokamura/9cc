@@ -115,7 +115,7 @@ static void program(void)
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)?
+* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt
 */
 static Node *stmt(void)
 {
@@ -137,6 +137,17 @@ static Node *stmt(void)
         {
             node->kind = ND_IF;
         }
+
+        return node;
+    }
+    else if(consume_keyword(TK_WHILE))
+    {
+        expect("(");
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_WHILE;
+        node->cond = expr();
+        expect(")");
+        node->lhs = stmt();
 
         return node;
     }
@@ -423,6 +434,18 @@ static void gen(const Node *node)
             printf("  jmp .Lend%d\n", label_number);
             printf(".Lelse%d:\n", label_number);
             gen(node->rhs);
+            printf(".Lend%d:\n", label_number);
+            label_number++;
+            return;
+
+        case ND_WHILE:
+            printf(".Lbegin%d:\n", label_number);
+            gen(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je  .Lend%d\n", label_number);
+            gen(node->lhs);
+            printf("  jmp .Lbegin%d\n", label_number);
             printf(".Lend%d:\n", label_number);
             label_number++;
             return;
