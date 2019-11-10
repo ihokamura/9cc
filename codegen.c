@@ -43,6 +43,7 @@ static int get_offset(const Token *tok);
 static Node *codes[100]; // root nodes of syntax tree for each statements
 static LVar *locals; // list of local variables
 static int locals_size; // number of local variables
+static int label_number; // serial number of labels
 
 
 /*
@@ -114,13 +115,32 @@ static void program(void)
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";"
+* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)?
 */
 static Node *stmt(void)
 {
     Node *node;
 
-    if(consume_keyword(TK_RETURN))
+    if(consume_keyword(TK_IF))
+    {
+        expect("(");
+        node = calloc(1, sizeof(Node));
+        node->cond = expr();
+        expect(")");
+        node->lhs = stmt();
+        if(consume_keyword(TK_ELSE))
+        {
+            node->kind = ND_IFELSE;
+            node->rhs = stmt();
+        }
+        else
+        {
+            node->kind = ND_IF;
+        }
+
+        return node;
+    }
+    else if(consume_keyword(TK_RETURN))
     {
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
@@ -382,6 +402,29 @@ static void gen(const Node *node)
             printf("  mov rsp, rbp\n");
             printf("  pop rbp\n");
             printf("  ret\n");
+            return;
+
+        case ND_IF:
+            gen(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je  .Lend%d\n", label_number);
+            gen(node->lhs);
+            printf(".Lend%d:\n", label_number);
+            label_number++;
+            return;
+
+        case ND_IFELSE:
+            gen(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je  .Lelse%d\n", label_number);
+            gen(node->lhs);
+            printf("  jmp .Lend%d\n", label_number);
+            printf(".Lelse%d:\n", label_number);
+            gen(node->rhs);
+            printf(".Lend%d:\n", label_number);
+            label_number++;
             return;
 
         default:

@@ -23,10 +23,21 @@
 // function prototype
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 static int is_operator(const char *str);
+static int is_keyword(const char *str, TokenKind *kind);
 static int is_ident(const char *str);
 
 
 // global variable
+static const char *keyword_string_list[] = {
+    "return",
+    "if",
+    "else",
+};
+static const TokenKind keyword_kind_list[] = {
+    TK_RETURN,
+    TK_IF,
+    TK_ELSE,
+};
 static char *user_input; // input of compiler
 static Token *token; // currently parsing token
 
@@ -162,11 +173,12 @@ void tokenize(char *str)
             continue;
         }
 
-        // parse keyword `return`
-        len = 6;
-        if((strncmp(str, "return", len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
+        // parse keyword
+        TokenKind tok_kind;
+        len = is_keyword(str, &tok_kind);
+        if(len > 0)
         {
-            current = new_token(TK_RETURN, current, str, len);
+            current = new_token(tok_kind, current, str, len);
             str += len;
             continue;
         }
@@ -280,6 +292,27 @@ static int is_operator(const char *str)
     }
 
     return len;
+}
+
+
+/*
+check if the following string is a keyword
+*/
+static int is_keyword(const char *str, TokenKind *kind)
+{
+    for(int i = 0; i < sizeof(keyword_string_list) / sizeof(keyword_string_list[0]); i++)
+    {
+        // parse keyword
+        const char *keyword = keyword_string_list[i];
+        size_t len = strlen(keyword);
+        if((strncmp(str, keyword, len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
+        {
+            *kind = keyword_kind_list[i];
+            return len;
+        }
+    }
+
+    return 0;
 }
 
 

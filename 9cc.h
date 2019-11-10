@@ -21,6 +21,8 @@
 typedef enum {
     TK_RESERVED, // operator
     TK_RETURN,   // keyword `return`
+    TK_IF,       // keyword `if`
+    TK_ELSE,     // keyword `else`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
@@ -38,6 +40,8 @@ typedef enum {
     ND_LEQ,    // order comparision (<=)
     ND_ASSIGN, // assignment expression (=)
     ND_RETURN, // return statement
+    ND_IF,     // if statement
+    ND_IFELSE, // if-else statement
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -61,6 +65,7 @@ struct Node {
     Node *rhs;     // right hand side
     int val;       // value of node (only for ND_NUM)
     int offset;    // offset from base pointer (only for ND_LVAR)
+    Node *cond;    // condition (only for ND_IF, ND_IFELSE)
 };
 
 // structure for local variable
