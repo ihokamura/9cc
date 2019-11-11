@@ -24,6 +24,7 @@ typedef enum {
     TK_IF,       // keyword `if`
     TK_ELSE,     // keyword `else`
     TK_WHILE,    // keyword `while`
+    TK_FOR,      // keyword `for`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
@@ -44,6 +45,7 @@ typedef enum {
     ND_IF,     // if statement
     ND_IFELSE, // if-else statement
     ND_WHILE,  // while statement
+    ND_FOR,    // for statement
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -62,12 +64,14 @@ struct Token {
 // structure for node in AST
 typedef struct Node Node;
 struct Node {
-    NodeKind kind; // kind of node
-    Node *lhs;     // left hand side
-    Node *rhs;     // right hand side
-    int val;       // value of node (only for ND_NUM)
-    int offset;    // offset from base pointer (only for ND_LVAR)
-    Node *cond;    // condition (only for ND_IF, ND_IFELSE)
+    NodeKind kind;  // kind of node
+    Node *lhs;      // left hand side
+    Node *rhs;      // right hand side
+    int val;        // value of node (only for ND_NUM)
+    int offset;     // offset from base pointer (only for ND_LVAR)
+    Node *cond;     // condition (only for ND_IF, ND_IFELSE, ND_WHILE, ND_FOR)
+    Node *preexpr;  // pre-expression (only for ND_FOR)
+    Node *postexpr; // post-expression (only for ND_FOR)
 };
 
 // structure for local variable

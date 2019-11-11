@@ -66,4 +66,8 @@ try 9 "tmp = 3; condition = 0; if(condition) tmp = tmp * 2; else tmp = tmp * 3; 
 # while statement
 try 5 "count = 0; while(count < 5) count = count + 1; return count;"
 
+# for statement
+try 5 "for(count = 0; count < 5; count = count + 1) dummy = 1; return count;"
+try 3 "count = 0; for(; count + 2 < 5; ) count = count + 1; return count;"
+
 echo OK

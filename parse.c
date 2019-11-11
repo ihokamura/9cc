@@ -33,12 +33,14 @@ static const char *keyword_string_list[] = {
     "if",
     "else",
     "while",
+    "for",
 };
 static const TokenKind keyword_kind_list[] = {
     TK_RETURN,
     TK_IF,
     TK_ELSE,
     TK_WHILE,
+    TK_FOR,
 };
 static char *user_input; // input of compiler
 static Token *token; // currently parsing token

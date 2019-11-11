@@ -115,7 +115,7 @@ static void program(void)
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt
+* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 */
 static Node *stmt(void)
 {
@@ -147,6 +147,52 @@ static Node *stmt(void)
         node->kind = ND_WHILE;
         node->cond = expr();
         expect(")");
+        node->lhs = stmt();
+
+        return node;
+    }
+    else if(consume_keyword(TK_FOR))
+    {
+        // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
+        // clause-1, expression-2 and/or expression-3 may be empty.
+        expect("(");
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_FOR;
+
+        if(consume_operator(";"))
+        {
+            node->preexpr = NULL;
+        }
+        else
+        {
+            // parse clause-1
+            node->preexpr = expr();
+            expect(";");
+        }
+
+        if(consume_operator(";"))
+        {
+            node->cond = NULL;
+        }
+        else
+        {
+            // parse expression-2
+            node->cond = expr();
+            expect(";");
+        }
+
+        if(consume_operator(")"))
+        {
+            node->postexpr = NULL;
+        }
+        else
+        {
+            // parse expression-3
+            node->postexpr = expr();
+            expect(")");
+        }
+
+        // parse loop body
         node->lhs = stmt();
 
         return node;
@@ -445,6 +491,29 @@ static void gen(const Node *node)
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", label_number);
             gen(node->lhs);
+            printf("  jmp .Lbegin%d\n", label_number);
+            printf(".Lend%d:\n", label_number);
+            label_number++;
+            return;
+
+        case ND_FOR:
+            if(node->preexpr != NULL)
+            {
+                gen(node->preexpr);
+            }
+            printf(".Lbegin%d:\n", label_number);
+            if(node->cond != NULL)
+            {
+                gen(node->cond);
+            }
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je  .Lend%d\n", label_number);
+            gen(node->lhs);
+            if(node->postexpr != NULL)
+            {
+                gen(node->postexpr);
+            }
             printf("  jmp .Lbegin%d\n", label_number);
             printf(".Lend%d:\n", label_number);
             label_number++;
