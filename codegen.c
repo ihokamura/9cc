@@ -37,6 +37,7 @@ static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_lvar(const Token *tok);
 static int get_offset(const Token *tok);
+static void add_statement(Block *block);
 
 
 // global variable
@@ -115,7 +116,7 @@ static void program(void)
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
 */
 static Node *stmt(void)
 {
@@ -194,6 +195,19 @@ static Node *stmt(void)
 
         // parse loop body
         node->lhs = stmt();
+
+        return node;
+    }
+    else if(consume_operator("{"))
+    {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_BLOCK;
+
+        // parse statements until reaching '}'
+        while(!consume_operator("}"))
+        {
+            add_statement(&node->block);
+        }
 
         return node;
     }
@@ -519,6 +533,15 @@ static void gen(const Node *node)
             label_number++;
             return;
 
+        case ND_BLOCK:
+            for(int i = 0; i < node->block.size; i++)
+            {
+                gen(node->block.statements[i]);
+                // pop result of current statement
+                printf("  pop rax\n");
+            }
+            return;
+
         default:
             break;
     }
@@ -655,4 +678,25 @@ static int get_offset(const Token *tok)
     locals_size++;
 
     return lvar->offset;
+}
+
+
+/*
+add statement to block
+*/
+static void add_statement(Block *block)
+{
+    const int realloc_size = 500;
+    if(block->size >= block->reserved)
+    {
+        // extend container
+        block->reserved += realloc_size;
+        block->statements = realloc(block->statements, block->reserved * sizeof(Node *));
+    }
+
+    // parse and save statement
+    Node *node = calloc(1, sizeof(Node));
+    node = stmt();
+    block->statements[block->size] = node;
+    block->size++;
 }

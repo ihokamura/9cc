@@ -70,4 +70,8 @@ try 5 "count = 0; while(count < 5) count = count + 1; return count;"
 try 5 "for(count = 0; count < 5; count = count + 1) dummy = 1; return count;"
 try 3 "count = 0; for(; count + 2 < 5; ) count = count + 1; return count;"
 
+# compound statement
+try 5 "tmp = 2; condition = 1; if(condition == 1) {tmp = 2; tmp = 2 * tmp + 1;} else {tmp = 0;} return tmp;"
+try 2 "tmp = 2; condition = 1; if(condition != 1) {tmp = 2; tmp = 2 * tmp + 1;} else {} return tmp;"
+
 echo OK

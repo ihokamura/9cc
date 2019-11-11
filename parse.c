@@ -288,7 +288,9 @@ static int is_operator(const char *str)
         (*str == ')') || 
         (*str == '<') || 
         (*str == '>') || 
-        (*str == '=') ||
+        (*str == '=') || 
+        (*str == '{') || 
+        (*str == '}') || 
         (*str == ';')
         )
     {

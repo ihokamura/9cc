@@ -46,6 +46,7 @@ typedef enum {
     ND_IFELSE, // if-else statement
     ND_WHILE,  // while statement
     ND_FOR,    // for statement
+    ND_BLOCK,  // block (compound statement)
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -61,8 +62,17 @@ struct Token {
     int len;        // length of token string
 };
 
-// structure for node in AST
+// structure for node in AST (forward declaration)
 typedef struct Node Node;
+
+// structure for block
+typedef struct Block {
+    struct Node **statements; // container of statements in block
+    int size;                 // current number of statements in block
+    int reserved;             // reserved number of elements in container of statements
+} Block;
+
+// structure for node in AST
 struct Node {
     NodeKind kind;  // kind of node
     Node *lhs;      // left hand side
@@ -72,6 +82,7 @@ struct Node {
     Node *cond;     // condition (only for ND_IF, ND_IFELSE, ND_WHILE, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)
+    Block block;    // block of statements (only for ND_BLOCK)
 };
 
 // structure for local variable
