@@ -42,6 +42,24 @@ static const TokenKind keyword_kind_list[] = {
     TK_WHILE,
     TK_FOR,
 };
+static const char *operator_string_list[] = {
+    "==",
+    "!=",
+    "<=",
+    ">=",
+    "+",
+    "-",
+    "*",
+    "/",
+    "(",
+    ")",
+    "<",
+    ">",
+    "=",
+    "{",
+    "}",
+    ";",
+};
 static char *user_input; // input of compiler
 static Token *token; // currently parsing token
 
@@ -111,7 +129,7 @@ parse an operator
 * If the next token is a given operator, this function parses the token.
 * Otherwise, it reports an error.
 */
-void expect(const char *op)
+void expect_operator(const char *op)
 {
     if(
         (token->kind != TK_RESERVED) || 
@@ -208,8 +226,8 @@ void tokenize(char *str)
         report_error(token->str, "cannot tokenize.");
     }
 
+    // end token stream
     new_token(TK_EOF, current, str, 0);
-
     token = head.next;
 }
 
@@ -268,36 +286,17 @@ check if the following string is an operator
 */
 static int is_operator(const char *str)
 {
-    int len = 0;
-
-    if(
-        (strncmp(str, "==", 2) == 0) || 
-        (strncmp(str, "!=", 2) == 0) || 
-        (strncmp(str, "<=", 2) == 0) || 
-        (strncmp(str, ">=", 2) == 0)
-        )
+    for(int i = 0; i < sizeof(operator_string_list) / sizeof(operator_string_list[0]); i++)
     {
-        len = 2;
-    }
-    else if(
-        (*str == '+') || 
-        (*str == '-') || 
-        (*str == '*') || 
-        (*str == '/') || 
-        (*str == '(') || 
-        (*str == ')') || 
-        (*str == '<') || 
-        (*str == '>') || 
-        (*str == '=') || 
-        (*str == '{') || 
-        (*str == '}') || 
-        (*str == ';')
-        )
-    {
-        len = 1;
+        const char *op = operator_string_list[i];
+        size_t len = strlen(op);
+        if(strncmp(str, op, len) == 0)
+        {
+            return len;
+        }
     }
 
-    return len;
+    return 0;
 }
 
 

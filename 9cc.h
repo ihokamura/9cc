@@ -68,8 +68,8 @@ typedef struct Node Node;
 // structure for block
 typedef struct Block {
     struct Node **statements; // container of statements in block
-    int size;                 // current number of statements in block
-    int reserved;             // reserved number of elements in container of statements
+    size_t size;              // current number of statements in block
+    size_t reserved;          // reserved number of elements in container of statements
 } Block;
 
 // structure for node in AST
@@ -103,7 +103,7 @@ void generate(void);
 bool consume_operator(const char *op);
 bool consume_keyword(TokenKind kind);
 Token *consume_ident(void);
-void expect(const char *op);
+void expect_operator(const char *op);
 int expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);

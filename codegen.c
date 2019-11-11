@@ -32,7 +32,7 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
-static void gen(const Node *node);
+static void generate_part(const Node *node);
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_lvar(const Token *tok);
@@ -41,7 +41,7 @@ static void add_statement(Block *block);
 
 
 // global variable
-static Node *codes[100]; // root nodes of syntax tree for each statements
+static Block codes; // root nodes of syntax tree for each statements
 static LVar *locals; // list of local variables
 static int locals_size; // number of local variables
 static int label_number; // serial number of labels
@@ -79,10 +79,10 @@ void generate(void)
     printf("  sub rsp, %d\n", 8 * locals_size);
 
     // body
-    for(size_t i = 0; i < sizeof(codes) / sizeof(codes[0]) && codes[i] != NULL; i++)
+    for(size_t i = 0; i < codes.size; i++)
     {
         // generate assembler code for each statements
-        gen(codes[i]);
+        generate_part(codes.statements[i]);
 
         // pop return value to avoid stack overflow
         printf("  pop rax\n");
@@ -102,15 +102,10 @@ make a program
 */
 static void program(void)
 {
-    size_t loop_max = sizeof(codes) / sizeof(codes[0]) - 1;
-    size_t i = 0;
-
-    while(!at_eof() && (i < loop_max))
+    while(!at_eof())
     {
-        codes[i] = stmt();
-        i++;
+        add_statement(&codes);
     }
-    codes[i] = NULL;
 }
 
 
@@ -124,10 +119,10 @@ static Node *stmt(void)
 
     if(consume_keyword(TK_IF))
     {
-        expect("(");
+        expect_operator("(");
         node = calloc(1, sizeof(Node));
         node->cond = expr();
-        expect(")");
+        expect_operator(")");
         node->lhs = stmt();
         if(consume_keyword(TK_ELSE))
         {
@@ -143,11 +138,11 @@ static Node *stmt(void)
     }
     else if(consume_keyword(TK_WHILE))
     {
-        expect("(");
+        expect_operator("(");
         node = calloc(1, sizeof(Node));
         node->kind = ND_WHILE;
         node->cond = expr();
-        expect(")");
+        expect_operator(")");
         node->lhs = stmt();
 
         return node;
@@ -156,7 +151,7 @@ static Node *stmt(void)
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
-        expect("(");
+        expect_operator("(");
         node = calloc(1, sizeof(Node));
         node->kind = ND_FOR;
 
@@ -168,7 +163,7 @@ static Node *stmt(void)
         {
             // parse clause-1
             node->preexpr = expr();
-            expect(";");
+            expect_operator(";");
         }
 
         if(consume_operator(";"))
@@ -179,7 +174,7 @@ static Node *stmt(void)
         {
             // parse expression-2
             node->cond = expr();
-            expect(";");
+            expect_operator(";");
         }
 
         if(consume_operator(")"))
@@ -190,7 +185,7 @@ static Node *stmt(void)
         {
             // parse expression-3
             node->postexpr = expr();
-            expect(")");
+            expect_operator(")");
         }
 
         // parse loop body
@@ -408,7 +403,7 @@ static Node *primary(void)
     {
         Node *node = expr();
  
-        expect(")");
+        expect_operator(")");
  
         return node;
     }
@@ -428,7 +423,7 @@ static Node *primary(void)
 /*
 generate assembler code for lvalue
 */
-static void gen_lvalue(const Node *node)
+static void generate_lvalue(const Node *node)
 {
     if(node->kind != ND_LVAR)
     {
@@ -441,9 +436,9 @@ static void gen_lvalue(const Node *node)
 }
 
 /*
-generate assembler code which emulates stack machine
+generate assembler code of a node, which emulates stack machine
 */
-static void gen(const Node *node)
+static void generate_part(const Node *node)
 {
     switch(node->kind)
     {
@@ -452,15 +447,15 @@ static void gen(const Node *node)
             return;
 
         case ND_LVAR:
-            gen_lvalue(node);
+            generate_lvalue(node);
             printf("  pop rax\n");
             printf("  mov rax, [rax]\n");
             printf("  push rax\n");
             return;
 
         case ND_ASSIGN:
-            gen_lvalue(node->lhs);
-            gen(node->rhs);
+            generate_lvalue(node->lhs);
+            generate_part(node->rhs);
             printf("  pop rdi\n");
             printf("  pop rax\n");
             printf("  mov [rax], rdi\n");
@@ -468,7 +463,7 @@ static void gen(const Node *node)
             return;
 
         case ND_RETURN:
-            gen(node->lhs);
+            generate_part(node->lhs);
             printf("  pop rax\n");
             printf("  mov rsp, rbp\n");
             printf("  pop rbp\n");
@@ -476,35 +471,35 @@ static void gen(const Node *node)
             return;
 
         case ND_IF:
-            gen(node->cond);
+            generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", label_number);
-            gen(node->lhs);
+            generate_part(node->lhs);
             printf(".Lend%d:\n", label_number);
             label_number++;
             return;
 
         case ND_IFELSE:
-            gen(node->cond);
+            generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lelse%d\n", label_number);
-            gen(node->lhs);
+            generate_part(node->lhs);
             printf("  jmp .Lend%d\n", label_number);
             printf(".Lelse%d:\n", label_number);
-            gen(node->rhs);
+            generate_part(node->rhs);
             printf(".Lend%d:\n", label_number);
             label_number++;
             return;
 
         case ND_WHILE:
             printf(".Lbegin%d:\n", label_number);
-            gen(node->cond);
+            generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", label_number);
-            gen(node->lhs);
+            generate_part(node->lhs);
             printf("  jmp .Lbegin%d\n", label_number);
             printf(".Lend%d:\n", label_number);
             label_number++;
@@ -513,20 +508,20 @@ static void gen(const Node *node)
         case ND_FOR:
             if(node->preexpr != NULL)
             {
-                gen(node->preexpr);
+                generate_part(node->preexpr);
             }
             printf(".Lbegin%d:\n", label_number);
             if(node->cond != NULL)
             {
-                gen(node->cond);
+                generate_part(node->cond);
             }
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", label_number);
-            gen(node->lhs);
+            generate_part(node->lhs);
             if(node->postexpr != NULL)
             {
-                gen(node->postexpr);
+                generate_part(node->postexpr);
             }
             printf("  jmp .Lbegin%d\n", label_number);
             printf(".Lend%d:\n", label_number);
@@ -534,9 +529,9 @@ static void gen(const Node *node)
             return;
 
         case ND_BLOCK:
-            for(int i = 0; i < node->block.size; i++)
+            for(size_t i = 0; i < node->block.size; i++)
             {
-                gen(node->block.statements[i]);
+                generate_part(node->block.statements[i]);
                 // pop result of current statement
                 printf("  pop rax\n");
             }
@@ -547,8 +542,8 @@ static void gen(const Node *node)
     }
 
     // compile LHS and RHS
-    gen(node->lhs);
-    gen(node->rhs);
+    generate_part(node->lhs);
+    generate_part(node->rhs);
 
     // pop RHS to rdi and LHS to rax
     printf("  pop rdi\n");
@@ -686,7 +681,7 @@ add statement to block
 */
 static void add_statement(Block *block)
 {
-    const int realloc_size = 500;
+    const size_t realloc_size = 500;
     if(block->size >= block->reserved)
     {
         // extend container
