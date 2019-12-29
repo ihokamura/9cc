@@ -47,6 +47,7 @@ typedef enum {
     ND_WHILE,  // while statement
     ND_FOR,    // for statement
     ND_BLOCK,  // block (compound statement)
+    ND_FUNC,   // function
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -83,6 +84,7 @@ struct Node {
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)
     Block block;    // block of statements (only for ND_BLOCK)
+    char *ident;    // identifier (only for ND_FUNC)
 };
 
 // structure for local variable

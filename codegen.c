@@ -35,6 +35,7 @@ static Node *primary(void);
 static void generate_part(const Node *node);
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
+static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
 static int get_offset(const Token *tok);
 static void add_statement(Block *block);
@@ -394,7 +395,7 @@ static Node *unary(void)
 
 /*
 make a primary
-* primary = num | ident | "(" expr ")"
+* `primary = num | ident ("(" ")")? | "(" expr ")"`
 */
 static Node *primary(void)
 {
@@ -412,7 +413,19 @@ static Node *primary(void)
     Token *tok = consume_ident();
     if(tok != NULL)
     {
-        return new_node_lvar(tok);
+        if(consume_operator("("))
+        {
+            // function
+            Node *node = new_node_func(tok);
+            expect_operator(")");
+
+            return node;
+        }
+        else
+        {
+            // local variable
+            return new_node_lvar(tok);
+        }
     }
 
     // number
@@ -537,6 +550,11 @@ static void generate_part(const Node *node)
             }
             return;
 
+        case ND_FUNC:
+            // call function
+            printf("  call _%s\n", node->ident);
+            return;
+
         default:
             break;
     }
@@ -626,6 +644,21 @@ static Node *new_node_num(int val)
 
     node->kind = ND_NUM;
     node->val = val;
+
+    return node;
+}
+
+
+/*
+make a new node for function call
+*/
+static Node *new_node_func(const Token *tok)
+{
+    Node *node = calloc(1, sizeof(Node));
+
+    node->kind = ND_FUNC;
+    node->ident = calloc(tok->len, (sizeof(char) + 1));
+    strncpy(node->ident, tok->str, tok->len);
 
     return node;
 }
