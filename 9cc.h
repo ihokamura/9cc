@@ -85,6 +85,7 @@ struct Node {
     Node *postexpr; // post-expression (only for ND_FOR)
     Block block;    // block of statements (only for ND_BLOCK)
     char *ident;    // identifier (only for ND_FUNC)
+    Node *args[6];  // arguments (only for ND_FUNC)
 };
 
 // structure for local variable

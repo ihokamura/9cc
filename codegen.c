@@ -395,7 +395,7 @@ static Node *unary(void)
 
 /*
 make a primary
-* `primary = num | ident ("(" ")")? | "(" expr ")"`
+* `primary = num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"`
 */
 static Node *primary(void)
 {
@@ -417,7 +417,23 @@ static Node *primary(void)
         {
             // function
             Node *node = new_node_func(tok);
-            expect_operator(")");
+            if(consume_operator(")"))
+            {
+                for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
+                {
+                    node->args[i] = NULL;
+                }
+            }
+            else
+            {
+                // arguments
+                node->args[0] = expr();
+                for(size_t i = 1; (i < sizeof(node->args) / sizeof(node->args[0])) && consume_operator(","); i++)
+                {
+                    node->args[i] = expr();
+                }
+                expect_operator(")");
+            }
 
             return node;
         }
@@ -551,6 +567,20 @@ static void generate_part(const Node *node)
             return;
 
         case ND_FUNC:
+            // evaluate arguments
+            {
+                size_t argc = 0;
+                for(size_t i = 0; (i < sizeof(node->args) / sizeof(node->args[0])) && (node->args[i] != NULL); i++)
+                {
+                    generate_part(node->args[i]);
+                    argc++;
+                }
+                static const char *register_names[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+                for(size_t i = argc; i > 0; i--)
+                {
+                    printf("  pop %s\n", register_names[i - 1]);
+                }
+            }
             // note that x86-64 ABI requires rsp to be a multiple of 16 before function calls
             printf("  mov rax, rsp\n");
             printf("  and rax, 0xF\n");

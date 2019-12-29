@@ -100,5 +100,9 @@ try 2 "tmp = 2; condition = 1; if(condition != 1) {tmp = 2; tmp = 2 * tmp + 1;} 
 try_func 0 "testfunc1(); return 0;"
 try_func 3 "alpha = 1; beta = 2; testfunc1(); return alpha + beta;"
 try_func 6 "alpha = 1; beta = 2; gamma = 3; testfunc1(); return alpha + beta + gamma;"
+try_func 0 "testfunc2(1); return 0;"
+try_func 3 "alpha = 1; beta = 2; testfunc3(alpha, beta); return alpha + beta;"
+try_func 3 "alpha = 2; beta = 1; testfunc4(alpha, beta, alpha + beta, alpha - beta, alpha * beta, alpha / beta); return alpha + beta;"
+try_func 123 "alpha = 2; beta = 1; return testfunc4(alpha, beta, alpha + beta, alpha - beta, alpha * beta, alpha / beta);"
 
 echo OK
