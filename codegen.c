@@ -71,8 +71,8 @@ void generate(void)
     printf(".intel_syntax noprefix\n");
 
     // start main function
-    printf(".global _main\n");
-    printf("_main:\n");
+    printf(".global main\n");
+    printf("main:\n");
 
     // prologue: allocate stack for local variables
     printf("  push rbp\n");
@@ -552,7 +552,7 @@ static void generate_part(const Node *node)
 
         case ND_FUNC:
             // call function
-            printf("  call _%s\n", node->ident);
+            printf("  call %s\n", node->ident);
             return;
 
         default:
@@ -590,25 +590,25 @@ static void generate_part(const Node *node)
         case ND_EQ:
             printf("  cmp rax, rdi\n");
             printf("  sete al\n");
-            printf("  movzx rax, al\n");
+            printf("  movzb rax, al\n");
             break;
 
         case ND_NEQ:
             printf("  cmp rax, rdi\n");
             printf("  setne al\n");
-            printf("  movzx rax, al\n");
+            printf("  movzb rax, al\n");
             break;
 
         case ND_L:
             printf("  cmp rax, rdi\n");
             printf("  setl al\n");
-            printf("  movzx rax, al\n");
+            printf("  movzb rax, al\n");
             break;
 
         case ND_LEQ:
             printf("  cmp rax, rdi\n");
             printf("  setle al\n");
-            printf("  movzx rax, al\n");
+            printf("  movzb rax, al\n");
             break;
 
         default:

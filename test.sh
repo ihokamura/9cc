@@ -31,7 +31,7 @@ try_func()
     ./tmp
     actual="$?"
 
-    rm test_functions.s test_functions.o
+    rm test_functions.o
 
     if [ "$actual" = "$expected" ]; then
         echo "$input => $actual"
