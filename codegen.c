@@ -551,8 +551,26 @@ static void generate_part(const Node *node)
             return;
 
         case ND_FUNC:
-            // call function
+            // note that x86-64 ABI requires rsp to be a multiple of 16 before function calls
+            printf("  mov rax, rsp\n");
+            printf("  and rax, 0xF\n");
+            printf("  cmp rax, 0\n");
+            printf("  je  .Lbegin%dA\n", label_number);
+            printf("  sub rsp, 8\n");
+            printf("  je  .Lbegin%dB\n", label_number);
+            // case A: rsp has already been aligned
+            printf(".Lbegin%dA:\n", label_number);
+            printf("  mov rax, 0\n");
             printf("  call %s\n", node->ident);
+            printf("  jmp .Lend%d\n", label_number);
+            // case B: rsp has not been aligned yet
+            printf(".Lbegin%dB:\n", label_number);
+            printf("  mov rax, 0\n");
+            printf("  call %s\n", node->ident);
+            printf("  add rsp, 8\n");
+            printf(".Lend%d:\n", label_number);
+            printf("  push rax\n");
+            label_number++;
             return;
 
         default:

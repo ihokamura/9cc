@@ -98,5 +98,7 @@ try 2 "tmp = 2; condition = 1; if(condition != 1) {tmp = 2; tmp = 2 * tmp + 1;} 
 
 # function call
 try_func 0 "testfunc1(); return 0;"
+try_func 3 "alpha = 1; beta = 2; testfunc1(); return alpha + beta;"
+try_func 6 "alpha = 1; beta = 2; gamma = 3; testfunc1(); return alpha + beta + gamma;"
 
 echo OK
