@@ -40,7 +40,6 @@ static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
-static void add_statement(Block *block, const Node *node);
 static Function *new_function(const Token *tok);
 
 
@@ -108,24 +107,31 @@ static Function *func(void)
     Token *tok = consume_ident();
     if(tok != NULL)
     {
+        // parse arguments
         expect_operator("(");
 
         // make a new function
         current_function = new_function(tok);
 
-        // parse arguments
-        Token *arg = consume_ident();
+        Node head;
+        head.next = NULL;
+        Node *cursor = &head;
+
+        Token *arg;
+        arg = consume_ident();
         if(arg != NULL)
         {
-            add_statement(&current_function->body, new_node_lvar(arg));
+            cursor->next = new_node_lvar(arg);
+            cursor = cursor->next;
             current_function->argc++;
 
             for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
             {
-                Token *arg = consume_ident();
+                arg = consume_ident();
                 if(arg != NULL)
                 {
-                    add_statement(&current_function->body, new_node_lvar(arg));
+                    cursor->next = new_node_lvar(arg);
+                    cursor = cursor->next;
                     current_function->argc++;
                 }
                 else
@@ -135,20 +141,23 @@ static Function *func(void)
             }
         }
         expect_operator(")");
+
+        // parse body
+        expect_operator("{");
+        while(!consume_operator("}"))
+        {
+            cursor->next = stmt();
+            cursor = cursor->next;
+        }
+        current_function->body = head.next;
+
+        return current_function;
     }
     else
     {
         report_error(NULL, "expected function definition\n");
+        return NULL;
     }
-
-    // parse body
-    expect_operator("{");
-    while(!consume_operator("}"))
-    {
-        add_statement(&current_function->body, stmt());
-    }
-
-    return current_function;
 }
 
 
@@ -241,11 +250,17 @@ static Node *stmt(void)
         node = calloc(1, sizeof(Node));
         node->kind = ND_BLOCK;
 
+        Node head;
+        head.next = NULL;
+        Node *cursor = &head;
+
         // parse statements until reaching '}'
         while(!consume_operator("}"))
         {
-            add_statement(&node->block, stmt());
+            cursor->next = stmt();
+            cursor = cursor->next;
         }
+        node->body = head.next;
 
         return node;
     }
@@ -528,9 +543,9 @@ static void generate_func(const Function *func)
     }
 
     // body
-    for(size_t i = 0; i < func->body.size; i++)
+    for(Node *node = func->body; node != NULL; node = node->next)
     {
-        generate_node(func->body.statements[i]);
+        generate_node(node);
     }
 
     // epilogue: save return value and release stack
@@ -652,9 +667,9 @@ static void generate_node(const Node *node)
         }
 
         case ND_BLOCK:
-            for(size_t i = 0; i < node->block.size; i++)
+            for(Node *n = node->body; n != NULL; n = n->next)
             {
-                generate_node(node->block.statements[i]);
+                generate_node(n);
                 // pop result of current statement
                 printf("  pop rax\n");
             }
@@ -663,15 +678,10 @@ static void generate_node(const Node *node)
         case ND_FUNC:
         {
             // evaluate arguments
-            size_t argc = 0;
             for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
             {
                 generate_node(node->args[i]);
-                argc++;
-            }
-            for(size_t i = argc; i > 0; i--)
-            {
-                printf("  pop %s\n", arg_registers[i - 1]);
+                printf("  pop %s\n", arg_registers[i]);
             }
 
             int number = label_number;
@@ -833,7 +843,14 @@ static Node *new_node_lvar(const Token *tok)
         lvar->next = current_function->locals;
         lvar->str = tok->str;
         lvar->len = tok->len;
-        lvar->offset = current_function->locals->offset + LVAR_SIZE;
+        if(current_function->locals == NULL)
+        {
+            lvar->offset = LVAR_SIZE;
+        }
+        else
+        {
+            lvar->offset = current_function->locals->offset + LVAR_SIZE;
+        }
 
         current_function->locals = lvar;
         current_function->stack_size += LVAR_SIZE;
@@ -845,25 +862,6 @@ static Node *new_node_lvar(const Token *tok)
     node->offset = lvar->offset;
 
     return node;
-}
-
-
-/*
-add statement to block
-*/
-static void add_statement(Block *block, const Node *node)
-{
-    const size_t realloc_size = 500;
-    if(block->size >= block->reserved)
-    {
-        // extend container
-        block->reserved += realloc_size;
-        block->statements = realloc(block->statements, block->reserved * sizeof(Node *));
-    }
-
-    // parse and save statement
-    block->statements[block->size] = node;
-    block->size++;
 }
 
 
@@ -883,14 +881,12 @@ static Function *new_function(const Token *tok)
     new_func->argc = 0;
 
     // initialize function body
-    new_func->body.statements = NULL;
-    new_func->body.size = 0;
-    new_func->body.reserved = 0;
+    new_func->body = NULL;
 
-    // initialize list of local variables (make a dummy node)
-    new_func->locals = calloc(1, sizeof(LVar));
-    new_func->locals->next = NULL;
-    new_func->locals->offset = 0;
+    // initialize list of local variables
+    new_func->locals = NULL;
+
+    // initialize stack size
     new_func->stack_size = 0;
 
     // add a new element to the list

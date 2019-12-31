@@ -63,18 +63,10 @@ struct Token {
     int len;        // length of token string
 };
 
-// structure for node in AST (forward declaration)
-typedef struct Node Node;
-
-// structure for block
-typedef struct Block {
-    const struct Node **statements; // container of statements in block
-    size_t size;              // current number of statements in block
-    size_t reserved;          // reserved number of elements in container of statements
-} Block;
-
 // structure for node in AST
+typedef struct Node Node;
 struct Node {
+    Node *next;     // next element
     NodeKind kind;  // kind of node
     Node *lhs;      // left hand side
     Node *rhs;      // right hand side
@@ -83,7 +75,7 @@ struct Node {
     Node *cond;     // condition (only for ND_IF, ND_IFELSE, ND_WHILE, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)
-    Block block;    // block of statements (only for ND_BLOCK)
+    Node *body;     // body of compound statements (only for ND_BLOCK)
     char *ident;    // identifier (only for ND_FUNC)
     Node *args[6];  // arguments (only for ND_FUNC)
 };
@@ -103,7 +95,7 @@ struct Function {
     Function *next;    // next element
     char *name;        // name of function
     size_t argc;       // number of arguments
-    Block body;        // body of function definition
+    Node *body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
 };
