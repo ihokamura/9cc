@@ -92,8 +92,8 @@ struct Node {
 typedef struct LVar LVar;
 struct LVar {
     LVar *next; // next element
-    char *name; // name of local variable
-    int len;    // length of name
+    char *str;  // token string
+    int len;    // length of token string
     int offset; // offset from base pointer (rbp)
 };
 

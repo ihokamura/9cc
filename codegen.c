@@ -40,7 +40,6 @@ static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
-static int get_offset(const Token *tok);
 static void add_statement(Block *block, const Node *node);
 static Function *new_function(const Token *tok);
 
@@ -812,45 +811,40 @@ make a new node for local variable
 */
 static Node *new_node_lvar(const Token *tok)
 {
-    Node *node = calloc(1, sizeof(Node));
-
-    node->kind = ND_LVAR;
-    node->offset = get_offset(tok);
-
-    return node;
-}
-
-
-/*
-get offset of local variable from base pointer
-*/
-static int get_offset(const Token *tok)
-{
-    Function *function = current_function;
-
-    for(LVar *lvar = function->locals; lvar != NULL; lvar = lvar->next)
+    LVar *lvar = current_function->locals;
+    while(lvar != NULL)
     {
-        if(
-            (lvar->len == tok->len) && 
-            (strncmp(tok->str, lvar->name, lvar->len) == 0)
-            )
+        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
         {
             // find local variable in the list
-            return lvar->offset;
+            break;
+        }
+        else
+        {
+            lvar = lvar->next;
         }
     }
 
-    // add local variable to the list
-    LVar *lvar = calloc(1, sizeof(LVar));
+    if(lvar == NULL)
+    {
+        // make a new local variable
+        lvar = calloc(1, sizeof(LVar));
 
-    lvar->next = function->locals;
-    lvar->name = tok->str;
-    lvar->len = tok->len;
-    lvar->offset = function->locals->offset + LVAR_SIZE;
-    function->locals = lvar;
-    function->stack_size += LVAR_SIZE;
+        lvar->next = current_function->locals;
+        lvar->str = tok->str;
+        lvar->len = tok->len;
+        lvar->offset = current_function->locals->offset + LVAR_SIZE;
 
-    return lvar->offset;
+        current_function->locals = lvar;
+        current_function->stack_size += LVAR_SIZE;
+    }
+
+    Node *node = calloc(1, sizeof(Node));
+
+    node->kind = ND_LVAR;
+    node->offset = lvar->offset;
+
+    return node;
 }
 
 
