@@ -98,13 +98,15 @@ struct LVar {
 };
 
 // structure for function
-typedef struct Function {
+typedef struct Function Function;
+struct Function {
+    Function *next;    // next element
     char *name;        // name of function
     size_t argc;       // number of arguments
     Block body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
-} Function;
+};
 
 
 // function prototype

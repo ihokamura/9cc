@@ -21,14 +21,6 @@
 #include "9cc.h"
 
 
-// structure for list of functions
-typedef struct FunctionList {
-    const Function **functions; // container of functions
-    size_t size;          // current number of functions
-    size_t reserved;      // reserved number of elements in container of functions
-} FunctionList;
-
-
 // function prototype
 static void program(void);
 static Function *func(void);
@@ -43,22 +35,22 @@ static Node *unary(void);
 static Node *primary(void);
 static void generate_lvalue(const Node *node);
 static void generate_func(const Function *func);
-static void generate_part(const Node *node);
+static void generate_node(const Node *node);
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
 static int get_offset(const Token *tok);
 static void add_statement(Block *block, const Node *node);
-static void add_function(FunctionList *func_list, const Function *func);
+static Function *new_function(const Token *tok);
 
 
 // global variable
 static const size_t LVAR_SIZE = 8; // size of a local variable in bytes
 static const char *arg_registers[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of registers for function arguments
 static const size_t ARG_REGISTERS_SIZE = sizeof(arg_registers) / sizeof(arg_registers[0]); // number of registers for function arguments
-static FunctionList func_list; // list of functions
-static Function *current_function; // currently generating function
+static Function *function_list; // list of functions
+static Function *current_function; // currently constructing function
 static int label_number; // serial number of labels
 
 
@@ -80,10 +72,9 @@ void generate(void)
     printf(".intel_syntax noprefix\n");
 
     // generate functions
-    for(size_t i = 0; i < func_list.size; i++)
+    for(Function *func = function_list; func != NULL; func = func->next)
     {
-        const Function *function = func_list.functions[i];
-        generate_func(function);
+        generate_func(func);
     }
 }
 
@@ -94,14 +85,17 @@ make a program
 */
 static void program(void)
 {
-    func_list.functions = NULL;
-    func_list.size = 0;
-    func_list.reserved = 0;
+    Function function; // dummy element
 
+    function_list = &function;
+    function_list->next = NULL;
     while(!at_eof())
     {
-        add_function(&func_list, func());
+        func();
     }
+
+    // point to the first element
+    function_list = function.next;
 }
 
 
@@ -111,48 +105,29 @@ make a function
 */
 static Function *func(void)
 {
-    Function *function = calloc(1, sizeof(Function));
-    current_function = function;
-
     // parse function name
     Token *tok = consume_ident();
     if(tok != NULL)
     {
         expect_operator("(");
 
-        // save function name
-        function->name = calloc(tok->len + 1, sizeof(char));
-        strncpy(function->name, tok->str, tok->len);
-        function->name[tok->len] = '\0';
-
-        // initialize number of arguments
-        function->argc = 0;
-
-        // initialize function body
-        function->body.statements = NULL;
-        function->body.size = 0;
-        function->body.reserved = 0;
-
-        // initialize list of local variables (make a dummy node)
-        function->locals = calloc(1, sizeof(LVar));
-        function->locals->next = NULL;
-        function->locals->offset = 0;
-        function->stack_size = 0;
+        // make a new function
+        current_function = new_function(tok);
 
         // parse arguments
         Token *arg = consume_ident();
         if(arg != NULL)
         {
-            add_statement(&function->body, new_node_lvar(arg));
-            function->argc++;
+            add_statement(&current_function->body, new_node_lvar(arg));
+            current_function->argc++;
 
             for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
             {
                 Token *arg = consume_ident();
                 if(arg != NULL)
                 {
-                    add_statement(&function->body, new_node_lvar(arg));
-                    function->argc++;
+                    add_statement(&current_function->body, new_node_lvar(arg));
+                    current_function->argc++;
                 }
                 else
                 {
@@ -171,10 +146,10 @@ static Function *func(void)
     expect_operator("{");
     while(!consume_operator("}"))
     {
-        add_statement(&function->body, stmt());
+        add_statement(&current_function->body, stmt());
     }
 
-    return function;
+    return current_function;
 }
 
 
@@ -556,7 +531,7 @@ static void generate_func(const Function *func)
     // body
     for(size_t i = 0; i < func->body.size; i++)
     {
-        generate_part(func->body.statements[i]);
+        generate_node(func->body.statements[i]);
     }
 
     // epilogue: save return value and release stack
@@ -570,7 +545,7 @@ static void generate_func(const Function *func)
 /*
 generate assembler code of a node, which emulates stack machine
 */
-static void generate_part(const Node *node)
+static void generate_node(const Node *node)
 {
     // note that `label_number` is saved and incremented at the top of each case-statement because this function is recursively called
     switch(node->kind)
@@ -588,7 +563,7 @@ static void generate_part(const Node *node)
 
         case ND_ASSIGN:
             generate_lvalue(node->lhs);
-            generate_part(node->rhs);
+            generate_node(node->rhs);
             printf("  pop rdi\n");
             printf("  pop rax\n");
             printf("  mov [rax], rdi\n");
@@ -596,7 +571,7 @@ static void generate_part(const Node *node)
             return;
 
         case ND_RETURN:
-            generate_part(node->lhs);
+            generate_node(node->lhs);
             printf("  pop rax\n");
             printf("  mov rsp, rbp\n");
             printf("  pop rbp\n");
@@ -608,11 +583,11 @@ static void generate_part(const Node *node)
             int number = label_number;
             label_number++;
 
-            generate_part(node->cond);
+            generate_node(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", number);
-            generate_part(node->lhs);
+            generate_node(node->lhs);
             printf(".Lend%d:\n", number);
             return;
         }
@@ -622,14 +597,14 @@ static void generate_part(const Node *node)
             int number = label_number;
             label_number++;
 
-            generate_part(node->cond);
+            generate_node(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lelse%d\n", number);
-            generate_part(node->lhs);
+            generate_node(node->lhs);
             printf("  jmp .Lend%d\n", number);
             printf(".Lelse%d:\n", number);
-            generate_part(node->rhs);
+            generate_node(node->rhs);
             printf(".Lend%d:\n", number);
             return;
         }
@@ -640,11 +615,11 @@ static void generate_part(const Node *node)
             label_number++;
 
             printf(".Lbegin%d:\n", number);
-            generate_part(node->cond);
+            generate_node(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             printf("  je  .Lend%d\n", number);
-            generate_part(node->lhs);
+            generate_node(node->lhs);
             printf("  jmp .Lbegin%d\n", number);
             printf(".Lend%d:\n", number);
             return;
@@ -657,20 +632,20 @@ static void generate_part(const Node *node)
 
             if(node->preexpr != NULL)
             {
-                generate_part(node->preexpr);
+                generate_node(node->preexpr);
             }
             printf(".Lbegin%d:\n", number);
             if(node->cond != NULL)
             {
-                generate_part(node->cond);
+                generate_node(node->cond);
                 printf("  pop rax\n");
                 printf("  cmp rax, 0\n");
                 printf("  je  .Lend%d\n", number);
             }
-            generate_part(node->lhs);
+            generate_node(node->lhs);
             if(node->postexpr != NULL)
             {
-                generate_part(node->postexpr);
+                generate_node(node->postexpr);
             }
             printf("  jmp .Lbegin%d\n", number);
             printf(".Lend%d:\n", number);
@@ -680,7 +655,7 @@ static void generate_part(const Node *node)
         case ND_BLOCK:
             for(size_t i = 0; i < node->block.size; i++)
             {
-                generate_part(node->block.statements[i]);
+                generate_node(node->block.statements[i]);
                 // pop result of current statement
                 printf("  pop rax\n");
             }
@@ -692,7 +667,7 @@ static void generate_part(const Node *node)
             size_t argc = 0;
             for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
             {
-                generate_part(node->args[i]);
+                generate_node(node->args[i]);
                 argc++;
             }
             for(size_t i = argc; i > 0; i--)
@@ -728,8 +703,8 @@ static void generate_part(const Node *node)
     }
 
     // compile LHS and RHS
-    generate_part(node->lhs);
-    generate_part(node->rhs);
+    generate_node(node->lhs);
+    generate_node(node->rhs);
 
     // pop RHS to rdi and LHS to rax
     printf("  pop rdi\n");
@@ -899,19 +874,34 @@ static void add_statement(Block *block, const Node *node)
 
 
 /*
-add function
+make a new function
 */
-static void add_function(FunctionList *func_list, const Function *func)
+static Function *new_function(const Token *tok)
 {
-    const size_t realloc_size = 500;
-    if(func_list->size >= func_list->reserved)
-    {
-        // extend container
-        func_list->reserved += realloc_size;
-        func_list->functions = realloc(func_list->functions, func_list->reserved * sizeof(Function *));
-    }
+    Function *new_func = calloc(1, sizeof(Function));
 
-    // parse and save statement
-    func_list->functions[func_list->size] = func;
-    func_list->size++;
+    // initialize the name
+    new_func->name = calloc(tok->len + 1, sizeof(char));
+    strncpy(new_func->name, tok->str, tok->len);
+    new_func->name[tok->len] = '\0';
+
+    // initialize number of arguments
+    new_func->argc = 0;
+
+    // initialize function body
+    new_func->body.statements = NULL;
+    new_func->body.size = 0;
+    new_func->body.reserved = 0;
+
+    // initialize list of local variables (make a dummy node)
+    new_func->locals = calloc(1, sizeof(LVar));
+    new_func->locals->next = NULL;
+    new_func->locals->offset = 0;
+    new_func->stack_size = 0;
+
+    // add a new element to the list
+    new_func->next = function_list->next;
+    function_list->next = new_func;
+
+    return new_func;
 }
