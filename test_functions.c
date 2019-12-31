@@ -31,3 +31,10 @@ int testfunc4(int a1, int a2, int a3, int a4, int a5, int a6)
     printf("function call: testfunc4(%d, %d, %d, %d, %d, %d) -> %d\n", a1, a2, a3, a4, a5, a6, r);
     return r;
 }
+
+
+// print an int-type variable
+void print_int(int n)
+{
+    printf("%d", n);
+}

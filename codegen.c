@@ -21,8 +21,17 @@
 #include "9cc.h"
 
 
+// structure for list of functions
+typedef struct FunctionList {
+    const Function **functions; // container of functions
+    size_t size;          // current number of functions
+    size_t reserved;      // reserved number of elements in container of functions
+} FunctionList;
+
+
 // function prototype
 static void program(void);
+static Function *func(void);
 static Node *stmt(void);
 static Node *expr(void);
 static Node *assign(void);
@@ -32,19 +41,24 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
+static void generate_lvalue(const Node *node);
+static void generate_func(const Function *func);
 static void generate_part(const Node *node);
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
 static int get_offset(const Token *tok);
-static void add_statement(Block *block);
+static void add_statement(Block *block, const Node *node);
+static void add_function(FunctionList *func_list, const Function *func);
 
 
 // global variable
-static Block codes; // root nodes of syntax tree for each statements
-static LVar *locals; // list of local variables
-static int locals_size; // number of local variables
+static const size_t LVAR_SIZE = 8; // size of a local variable in bytes
+static const char *arg_registers[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of registers for function arguments
+static const size_t ARG_REGISTERS_SIZE = sizeof(arg_registers) / sizeof(arg_registers[0]); // number of registers for function arguments
+static FunctionList func_list; // list of functions
+static Function *current_function; // currently generating function
 static int label_number; // serial number of labels
 
 
@@ -53,11 +67,6 @@ construct syntax tree
 */
 void construct(void)
 {
-    // initialize list of local variables (make a dummy node)
-    locals = calloc(1, sizeof(LVar));
-    locals->next = NULL;
-    locals->offset = 0;
-
     program();
 }
 
@@ -70,43 +79,102 @@ void generate(void)
     // use Intel syntax
     printf(".intel_syntax noprefix\n");
 
-    // start main function
-    printf(".global main\n");
-    printf("main:\n");
-
-    // prologue: allocate stack for local variables
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %d\n", 8 * locals_size);
-
-    // body
-    for(size_t i = 0; i < codes.size; i++)
+    // generate functions
+    for(size_t i = 0; i < func_list.size; i++)
     {
-        // generate assembler code for each statements
-        generate_part(codes.statements[i]);
-
-        // pop return value to avoid stack overflow
-        printf("  pop rax\n");
+        const Function *function = func_list.functions[i];
+        generate_func(function);
     }
-
-    // epilogue: release stack and exit main function
-    // The return value is stored in rax.
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
 }
 
 
 /*
 make a program
-* program = stmt*
+* program = func*
 */
 static void program(void)
 {
+    func_list.functions = NULL;
+    func_list.size = 0;
+    func_list.reserved = 0;
+
     while(!at_eof())
     {
-        add_statement(&codes);
+        add_function(&func_list, func());
     }
+}
+
+
+/*
+make a function
+* func = ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
+*/
+static Function *func(void)
+{
+    Function *function = calloc(1, sizeof(Function));
+    current_function = function;
+
+    // parse function name
+    Token *tok = consume_ident();
+    if(tok != NULL)
+    {
+        expect_operator("(");
+
+        // save function name
+        function->name = calloc(tok->len + 1, sizeof(char));
+        strncpy(function->name, tok->str, tok->len);
+        function->name[tok->len] = '\0';
+
+        // initialize number of arguments
+        function->argc = 0;
+
+        // initialize function body
+        function->body.statements = NULL;
+        function->body.size = 0;
+        function->body.reserved = 0;
+
+        // initialize list of local variables (make a dummy node)
+        function->locals = calloc(1, sizeof(LVar));
+        function->locals->next = NULL;
+        function->locals->offset = 0;
+        function->stack_size = 0;
+
+        // parse arguments
+        Token *arg = consume_ident();
+        if(arg != NULL)
+        {
+            add_statement(&function->body, new_node_lvar(arg));
+            function->argc++;
+
+            for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
+            {
+                Token *arg = consume_ident();
+                if(arg != NULL)
+                {
+                    add_statement(&function->body, new_node_lvar(arg));
+                    function->argc++;
+                }
+                else
+                {
+                    report_error(NULL, "expected argument\n");
+                }
+            }
+        }
+        expect_operator(")");
+    }
+    else
+    {
+        report_error(NULL, "expected function definition\n");
+    }
+
+    // parse body
+    expect_operator("{");
+    while(!consume_operator("}"))
+    {
+        add_statement(&function->body, stmt());
+    }
+
+    return function;
 }
 
 
@@ -202,7 +270,7 @@ static Node *stmt(void)
         // parse statements until reaching '}'
         while(!consume_operator("}"))
         {
-            add_statement(&node->block);
+            add_statement(&node->block, stmt());
         }
 
         return node;
@@ -464,11 +532,47 @@ static void generate_lvalue(const Node *node)
     printf("  push rax\n");
 }
 
+
+/*
+generate assembler code of a function
+*/
+static void generate_func(const Function *func)
+{
+    // declarations
+    printf(".global %s\n", func->name);
+    printf("%s:\n", func->name);
+
+    // prologue: allocate stack for arguments and local variables and copy arguments
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, %ld\n", func->stack_size);
+    for(size_t i = 0; i < func->argc; i++)
+    {
+        printf("  mov rax, rbp\n");
+        printf("  sub rax, %ld\n", LVAR_SIZE * (i + 1));
+        printf("  mov [rax], %s\n", arg_registers[i]);
+    }
+
+    // body
+    for(size_t i = 0; i < func->body.size; i++)
+    {
+        generate_part(func->body.statements[i]);
+    }
+
+    // epilogue: save return value and release stack
+    printf("  pop rax\n");
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+}
+
+
 /*
 generate assembler code of a node, which emulates stack machine
 */
 static void generate_part(const Node *node)
 {
+    // note that `label_number` is saved and incremented at the top of each case-statement because this function is recursively called
     switch(node->kind)
     {
         case ND_NUM:
@@ -500,62 +604,78 @@ static void generate_part(const Node *node)
             return;
 
         case ND_IF:
+        {
+            int number = label_number;
+            label_number++;
+
             generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je  .Lend%d\n", label_number);
+            printf("  je  .Lend%d\n", number);
             generate_part(node->lhs);
-            printf(".Lend%d:\n", label_number);
-            label_number++;
+            printf(".Lend%d:\n", number);
             return;
+        }
 
         case ND_IFELSE:
+        {
+            int number = label_number;
+            label_number++;
+
             generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je  .Lelse%d\n", label_number);
+            printf("  je  .Lelse%d\n", number);
             generate_part(node->lhs);
-            printf("  jmp .Lend%d\n", label_number);
-            printf(".Lelse%d:\n", label_number);
+            printf("  jmp .Lend%d\n", number);
+            printf(".Lelse%d:\n", number);
             generate_part(node->rhs);
-            printf(".Lend%d:\n", label_number);
-            label_number++;
+            printf(".Lend%d:\n", number);
             return;
+        }
 
         case ND_WHILE:
-            printf(".Lbegin%d:\n", label_number);
+        {
+            int number = label_number;
+            label_number++;
+
+            printf(".Lbegin%d:\n", number);
             generate_part(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je  .Lend%d\n", label_number);
+            printf("  je  .Lend%d\n", number);
             generate_part(node->lhs);
-            printf("  jmp .Lbegin%d\n", label_number);
-            printf(".Lend%d:\n", label_number);
-            label_number++;
+            printf("  jmp .Lbegin%d\n", number);
+            printf(".Lend%d:\n", number);
             return;
+        }
 
         case ND_FOR:
+        {
+            int number = label_number;
+            label_number++;
+
             if(node->preexpr != NULL)
             {
                 generate_part(node->preexpr);
             }
-            printf(".Lbegin%d:\n", label_number);
+            printf(".Lbegin%d:\n", number);
             if(node->cond != NULL)
             {
                 generate_part(node->cond);
+                printf("  pop rax\n");
+                printf("  cmp rax, 0\n");
+                printf("  je  .Lend%d\n", number);
             }
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
-            printf("  je  .Lend%d\n", label_number);
             generate_part(node->lhs);
             if(node->postexpr != NULL)
             {
                 generate_part(node->postexpr);
             }
-            printf("  jmp .Lbegin%d\n", label_number);
-            printf(".Lend%d:\n", label_number);
-            label_number++;
+            printf("  jmp .Lbegin%d\n", number);
+            printf(".Lend%d:\n", number);
             return;
+        }
 
         case ND_BLOCK:
             for(size_t i = 0; i < node->block.size; i++)
@@ -567,41 +687,41 @@ static void generate_part(const Node *node)
             return;
 
         case ND_FUNC:
+        {
             // evaluate arguments
+            size_t argc = 0;
+            for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
             {
-                size_t argc = 0;
-                for(size_t i = 0; (i < sizeof(node->args) / sizeof(node->args[0])) && (node->args[i] != NULL); i++)
-                {
-                    generate_part(node->args[i]);
-                    argc++;
-                }
-                static const char *register_names[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
-                for(size_t i = argc; i > 0; i--)
-                {
-                    printf("  pop %s\n", register_names[i - 1]);
-                }
+                generate_part(node->args[i]);
+                argc++;
             }
+            for(size_t i = argc; i > 0; i--)
+            {
+                printf("  pop %s\n", arg_registers[i - 1]);
+            }
+
+            int number = label_number;
+            label_number++;
+
             // note that x86-64 ABI requires rsp to be a multiple of 16 before function calls
             printf("  mov rax, rsp\n");
             printf("  and rax, 0xF\n");
             printf("  cmp rax, 0\n");
-            printf("  je  .Lbegin%dA\n", label_number);
+            printf("  je  .Lbegin%d\n", number);
+            // case 1: rsp has not been aligned yet
             printf("  sub rsp, 8\n");
-            printf("  je  .Lbegin%dB\n", label_number);
-            // case A: rsp has already been aligned
-            printf(".Lbegin%dA:\n", label_number);
-            printf("  mov rax, 0\n");
-            printf("  call %s\n", node->ident);
-            printf("  jmp .Lend%d\n", label_number);
-            // case B: rsp has not been aligned yet
-            printf(".Lbegin%dB:\n", label_number);
             printf("  mov rax, 0\n");
             printf("  call %s\n", node->ident);
             printf("  add rsp, 8\n");
-            printf(".Lend%d:\n", label_number);
+            printf("  jmp .Lend%d\n", number);
+            printf(".Lbegin%d:\n", number);
+            // case 2: rsp has already been aligned
+            printf("  mov rax, 0\n");
+            printf("  call %s\n", node->ident);
+            printf(".Lend%d:\n", number);
             printf("  push rax\n");
-            label_number++;
             return;
+        }
 
         default:
             break;
@@ -731,7 +851,9 @@ get offset of local variable from base pointer
 */
 static int get_offset(const Token *tok)
 {
-    for(LVar *lvar = locals; lvar != NULL; lvar = lvar->next)
+    Function *function = current_function;
+
+    for(LVar *lvar = function->locals; lvar != NULL; lvar = lvar->next)
     {
         if(
             (lvar->len == tok->len) && 
@@ -746,12 +868,12 @@ static int get_offset(const Token *tok)
     // add local variable to the list
     LVar *lvar = calloc(1, sizeof(LVar));
 
-    lvar->next = locals;
+    lvar->next = function->locals;
     lvar->name = tok->str;
     lvar->len = tok->len;
-    lvar->offset = locals->offset + 8;
-    locals = lvar;
-    locals_size++;
+    lvar->offset = function->locals->offset + LVAR_SIZE;
+    function->locals = lvar;
+    function->stack_size += LVAR_SIZE;
 
     return lvar->offset;
 }
@@ -760,7 +882,7 @@ static int get_offset(const Token *tok)
 /*
 add statement to block
 */
-static void add_statement(Block *block)
+static void add_statement(Block *block, const Node *node)
 {
     const size_t realloc_size = 500;
     if(block->size >= block->reserved)
@@ -771,8 +893,25 @@ static void add_statement(Block *block)
     }
 
     // parse and save statement
-    Node *node = calloc(1, sizeof(Node));
-    node = stmt();
     block->statements[block->size] = node;
     block->size++;
+}
+
+
+/*
+add function
+*/
+static void add_function(FunctionList *func_list, const Function *func)
+{
+    const size_t realloc_size = 500;
+    if(func_list->size >= func_list->reserved)
+    {
+        // extend container
+        func_list->reserved += realloc_size;
+        func_list->functions = realloc(func_list->functions, func_list->reserved * sizeof(Function *));
+    }
+
+    // parse and save statement
+    func_list->functions[func_list->size] = func;
+    func_list->size++;
 }

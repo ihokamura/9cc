@@ -68,7 +68,7 @@ typedef struct Node Node;
 
 // structure for block
 typedef struct Block {
-    struct Node **statements; // container of statements in block
+    const struct Node **statements; // container of statements in block
     size_t size;              // current number of statements in block
     size_t reserved;          // reserved number of elements in container of statements
 } Block;
@@ -96,6 +96,15 @@ struct LVar {
     int len;    // length of name
     int offset; // offset from base pointer (rbp)
 };
+
+// structure for function
+typedef struct Function {
+    char *name;        // name of function
+    size_t argc;       // number of arguments
+    Block body;        // body of function definition
+    LVar *locals;      // list of local variables (including arguments)
+    size_t stack_size; // size of stack in bytes
+} Function;
 
 
 // function prototype

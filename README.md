@@ -4,7 +4,8 @@
 [1] https://www.sigbus.info/compilerbook
 
 ## Syntax
-* `program = stmt*`
+* `program = func*`
+* `func = ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"`
 * `stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"`
 * `expr = assign`
 * `assign = equality ("=" assign)?`
