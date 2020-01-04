@@ -40,6 +40,7 @@ static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
+static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset);
 static Function *new_function(const Token *tok);
 
 
@@ -83,17 +84,16 @@ make a program
 */
 static void program(void)
 {
-    Function function; // dummy element
-
-    function_list = &function;
-    function_list->next = NULL;
+    Function head;
+    head.next = NULL;
+    Function *cursor = &head;
     while(!at_eof())
     {
-        func();
+        cursor->next = func();
+        cursor = cursor->next;
     }
 
-    // point to the first element
-    function_list = function.next;
+    function_list = head.next;
 }
 
 
@@ -113,26 +113,22 @@ static Function *func(void)
         // make a new function
         current_function = new_function(tok);
 
-        Node head;
-        head.next = NULL;
-        Node *cursor = &head;
-
         Token *arg;
         arg = consume_ident();
         if(arg != NULL)
         {
-            cursor->next = new_node_lvar(arg);
-            cursor = cursor->next;
+            current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE);
             current_function->argc++;
+            current_function->stack_size += LVAR_SIZE;
 
             for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
             {
                 arg = consume_ident();
                 if(arg != NULL)
                 {
-                    cursor->next = new_node_lvar(arg);
-                    cursor = cursor->next;
+                    current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE);
                     current_function->argc++;
+                    current_function->stack_size += LVAR_SIZE;
                 }
                 else
                 {
@@ -144,6 +140,10 @@ static Function *func(void)
 
         // parse body
         expect_operator("{");
+
+        Node head;
+        head.next = NULL;
+        Node *cursor = &head;
         while(!consume_operator("}"))
         {
             cursor->next = stmt();
@@ -821,12 +821,14 @@ make a new node for local variable
 */
 static Node *new_node_lvar(const Token *tok)
 {
+    int offset;
     LVar *lvar = current_function->locals;
     while(lvar != NULL)
     {
         if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
         {
             // find local variable in the list
+            offset = lvar->offset;
             break;
         }
         else
@@ -837,31 +839,40 @@ static Node *new_node_lvar(const Token *tok)
 
     if(lvar == NULL)
     {
-        // make a new local variable
-        lvar = calloc(1, sizeof(LVar));
-
-        lvar->next = current_function->locals;
-        lvar->str = tok->str;
-        lvar->len = tok->len;
         if(current_function->locals == NULL)
         {
-            lvar->offset = LVAR_SIZE;
+            offset = LVAR_SIZE;
         }
         else
         {
-            lvar->offset = current_function->locals->offset + LVAR_SIZE;
+            offset = current_function->locals->offset + LVAR_SIZE;
         }
-
-        current_function->locals = lvar;
+        current_function->locals = new_lvar(tok, current_function->locals, offset);
         current_function->stack_size += LVAR_SIZE;
     }
 
     Node *node = calloc(1, sizeof(Node));
 
     node->kind = ND_LVAR;
-    node->offset = lvar->offset;
+    node->offset = offset;
 
     return node;
+}
+
+
+/*
+make a new local variable
+*/
+static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset)
+{
+    LVar *lvar = calloc(1, sizeof(LVar));
+
+    lvar->next = cur_lvar;
+    lvar->str = tok->str;
+    lvar->len = tok->len;
+    lvar->offset = offset;
+
+    return lvar;
 }
 
 
@@ -877,7 +888,11 @@ static Function *new_function(const Token *tok)
     strncpy(new_func->name, tok->str, tok->len);
     new_func->name[tok->len] = '\0';
 
-    // initialize number of arguments
+    // initialize arguments
+    for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
+    {
+        new_func->args[i] = NULL;
+    }
     new_func->argc = 0;
 
     // initialize function body
@@ -888,10 +903,6 @@ static Function *new_function(const Token *tok)
 
     // initialize stack size
     new_func->stack_size = 0;
-
-    // add a new element to the list
-    new_func->next = function_list->next;
-    function_list->next = new_func;
 
     return new_func;
 }

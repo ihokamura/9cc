@@ -47,7 +47,7 @@ typedef enum {
     ND_WHILE,  // while statement
     ND_FOR,    // for statement
     ND_BLOCK,  // block (compound statement)
-    ND_FUNC,   // function
+    ND_FUNC,   // function call
     ND_LVAR,   // local variable
     ND_NUM,    // integer
 } NodeKind;
@@ -95,6 +95,7 @@ struct Function {
     Function *next;    // next element
     char *name;        // name of function
     size_t argc;       // number of arguments
+    LVar *args[6];     // arguments
     Node *body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
