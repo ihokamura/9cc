@@ -33,6 +33,7 @@ static const char *keyword_string_list[] = {
     "if",
     "else",
     "while",
+    "do",
     "for",
 };
 static const TokenKind keyword_kind_list[] = {
@@ -40,6 +41,7 @@ static const TokenKind keyword_kind_list[] = {
     TK_IF,
     TK_ELSE,
     TK_WHILE,
+    TK_DO,
     TK_FOR,
 };
 static const char *operator_string_list[] = {

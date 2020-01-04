@@ -82,13 +82,18 @@ try 4 "main(){alpha = 2; beta = 5 * alpha; return beta - 3 * alpha; return 0;}"
 try 0 "main(){alpha = 2; beta = 5 * alpha; return_beta - 3 * alpha; return 0;}"
 try 9 "main(){a1 = 1; a2 = 2; b_11 = 3; b_22 = 4; a = a1 + a2; b = b_11 * b_22; return a + b / a2;}"
 
-# if statement and if-else statement
+# if statement
 try 6 "main(){tmp = 3; condition = 1; if(condition == 1) tmp = tmp * 2; return tmp;}"
 try 6 "main(){tmp = 3; condition = 1; if(condition != 0) tmp = tmp * 2; else tmp = tmp * 3; return tmp;}"
 try 9 "main(){tmp = 3; condition = 0; if(condition) tmp = tmp * 2; else tmp = tmp * 3; return tmp;}"
 
 # while statement
 try 45 "main(){sum = i = 0; while(i < 10){sum = sum + i; i = i + 1;} return sum;}"
+try 45 "main(){sum = i = 0; while(1){if(i >= 10) return sum; sum = sum + i; i = i + 1;} return sum;}"
+
+# do statement
+try 45 "main(){sum = i = 0; do{sum = sum + i; i = i + 1;} while(i < 10); return sum;}"
+try 45 "main(){sum = 0; i = 0; do{if(i >= 10) {return sum;} else {sum = sum + i; i = i + 1; }} while(1); return sum;}"
 
 # for statement
 try 45 "main(){sum = 0; for(i = 0; i < 10; i = i + 1){sum = sum + i;} return sum;}"

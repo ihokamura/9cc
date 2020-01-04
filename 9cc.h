@@ -24,6 +24,7 @@ typedef enum {
     TK_IF,       // keyword `if`
     TK_ELSE,     // keyword `else`
     TK_WHILE,    // keyword `while`
+    TK_DO,       // keyword `do`
     TK_FOR,      // keyword `for`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
@@ -44,6 +45,7 @@ typedef enum {
     ND_RETURN, // return statement
     ND_IF,     // if statement
     ND_WHILE,  // while statement
+    ND_DO,     // do statement
     ND_FOR,    // for statement
     ND_BLOCK,  // block (compound statement)
     ND_FUNC,   // function call
@@ -71,7 +73,7 @@ struct Node {
     Node *rhs;      // right hand side
     int val;        // value of node (only for ND_NUM)
     int offset;     // offset from base pointer (only for ND_LVAR)
-    Node *cond;     // condition (only for ND_IF, ND_IFELSE, ND_WHILE, ND_FOR)
+    Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)
     Node *body;     // body of compound statements (only for ND_BLOCK)

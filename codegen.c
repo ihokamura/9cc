@@ -163,7 +163,7 @@ static Function *func(void)
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
+* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
 */
 static Node *stmt(void)
 {
@@ -196,6 +196,22 @@ static Node *stmt(void)
         node->cond = expr();
         expect_operator(")");
         node->lhs = stmt();
+
+        return node;
+    }
+    else if(consume_keyword(TK_DO))
+    {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_DO;
+        node->lhs = stmt();
+        if(!consume_keyword(TK_WHILE))
+        {
+            report_error(NULL, "expected `while`\n");
+        }
+        expect_operator("(");
+        node->cond = expr();
+        expect_operator(")");
+        expect_operator(";");
 
         return node;
     }
@@ -636,6 +652,20 @@ static void generate_node(const Node *node)
             return;
         }
 
+        case ND_DO:
+        {
+            int number = label_number;
+            label_number++;
+
+            printf(".Lbegin%d:\n", number);
+            generate_node(node->lhs);
+            generate_node(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  jne .Lbegin%d\n", number);
+            return;
+        }
+
         case ND_FOR:
         {
             int number = label_number;
@@ -667,8 +697,6 @@ static void generate_node(const Node *node)
             for(Node *n = node->body; n != NULL; n = n->next)
             {
                 generate_node(n);
-                // pop result of current statement
-                printf("  pop rax\n");
             }
             return;
 
