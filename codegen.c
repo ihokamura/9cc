@@ -36,7 +36,8 @@ static Node *primary(void);
 static void generate_lvalue(const Node *node);
 static void generate_func(const Function *func);
 static void generate_node(const Node *node);
-static Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
+static Node *new_node(NodeKind kind);
+static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *tok);
 static Node *new_node_lvar(const Token *tok);
@@ -141,8 +142,7 @@ static Function *func(void)
         // parse body
         expect_operator("{");
 
-        Node head;
-        head.next = NULL;
+        Node head = {};
         Node *cursor = &head;
         while(!consume_operator("}"))
         {
@@ -171,9 +171,8 @@ static Node *stmt(void)
 
     if(consume_keyword(TK_IF))
     {
+        node = new_node(ND_IF);
         expect_operator("(");
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_IF;
         node->cond = expr();
         expect_operator(")");
         node->lhs = stmt();
@@ -181,18 +180,13 @@ static Node *stmt(void)
         {
             node->rhs = stmt();
         }
-        else
-        {
-            node->rhs = NULL;
-        }
 
         return node;
     }
     else if(consume_keyword(TK_WHILE))
     {
+        node = new_node(ND_WHILE);
         expect_operator("(");
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_WHILE;
         node->cond = expr();
         expect_operator(")");
         node->lhs = stmt();
@@ -201,8 +195,7 @@ static Node *stmt(void)
     }
     else if(consume_keyword(TK_DO))
     {
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_DO;
+        node = new_node(ND_DO);
         node->lhs = stmt();
         if(!consume_keyword(TK_WHILE))
         {
@@ -219,9 +212,8 @@ static Node *stmt(void)
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
+        node = new_node(ND_FOR);
         expect_operator("(");
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_FOR;
 
         if(consume_operator(";"))
         {
@@ -263,11 +255,7 @@ static Node *stmt(void)
     }
     else if(consume_operator("{"))
     {
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_BLOCK;
-
-        Node head;
-        head.next = NULL;
+        Node head = {};
         Node *cursor = &head;
 
         // parse statements until reaching '}'
@@ -276,14 +264,15 @@ static Node *stmt(void)
             cursor->next = stmt();
             cursor = cursor->next;
         }
+
+        node = new_node(ND_BLOCK);
         node->body = head.next;
 
         return node;
     }
     else if(consume_keyword(TK_RETURN))
     {
-        node = calloc(1, sizeof(Node));
-        node->kind = ND_RETURN;
+        node = new_node(ND_RETURN);
         node->lhs = expr();
     }
     else
@@ -321,7 +310,7 @@ static Node *assign(void)
     // parse assignment
     if(consume_operator("="))
     {
-        node = new_node(ND_ASSIGN, node, assign());
+        node = new_node_binary(ND_ASSIGN, node, assign());
     }
 
     return node;
@@ -341,11 +330,11 @@ static Node *equality(void)
     {
         if(consume_operator("=="))
         {
-            node = new_node(ND_EQ, node, relational());
+            node = new_node_binary(ND_EQ, node, relational());
         }
         else if(consume_operator("!="))
         {
-            node = new_node(ND_NEQ, node, relational());
+            node = new_node_binary(ND_NEQ, node, relational());
         }
         else
         {
@@ -368,19 +357,19 @@ static Node *relational(void)
     {
         if(consume_operator("<"))
         {
-            node = new_node(ND_L, node, add());
+            node = new_node_binary(ND_L, node, add());
         }
         else if(consume_operator("<="))
         {
-            node = new_node(ND_LEQ, node, add());
+            node = new_node_binary(ND_LEQ, node, add());
         }
         else if(consume_operator(">"))
         {
-            node = new_node(ND_L, add(), node);
+            node = new_node_binary(ND_L, add(), node);
         }
         else if(consume_operator(">="))
         {
-            node = new_node(ND_LEQ, add(), node);
+            node = new_node_binary(ND_LEQ, add(), node);
         }
         else
         {
@@ -403,11 +392,11 @@ static Node *add(void)
     {
         if(consume_operator("+"))
         {
-            node = new_node(ND_ADD, node, mul());
+            node = new_node_binary(ND_ADD, node, mul());
         }
         else if(consume_operator("-"))
         {
-            node = new_node(ND_SUB, node, mul());
+            node = new_node_binary(ND_SUB, node, mul());
         }
         else
         {
@@ -430,11 +419,11 @@ static Node *mul(void)
     {
         if(consume_operator("*"))
         {
-            node = new_node(ND_MUL, node, unary());
+            node = new_node_binary(ND_MUL, node, unary());
         }
         else if(consume_operator("/"))
         {
-            node = new_node(ND_DIV, node, unary());
+            node = new_node_binary(ND_DIV, node, unary());
         }
         else
         {
@@ -457,7 +446,7 @@ static Node *unary(void)
     }
     else if(consume_operator("-"))
     {
-        return new_node(ND_SUB, new_node_num(0), primary());
+        return new_node_binary(ND_SUB, new_node_num(0), primary());
     }
     else
     {
@@ -798,13 +787,37 @@ static void generate_node(const Node *node)
 
 
 /*
-make a new node for non-number
+make a new node
 */
-static Node *new_node(NodeKind kind, Node *lhs, Node *rhs)
+static Node *new_node(NodeKind kind)
 {
     Node *node = calloc(1, sizeof(Node));
-
+    node->next = NULL;
     node->kind = kind;
+    node->lhs = NULL;
+    node->rhs = NULL;
+    node->val = 0;
+    node->offset = 0;
+    node->cond = NULL;
+    node->preexpr = NULL;
+    node->postexpr = NULL;
+    node->body = NULL;
+    node->ident = NULL;
+    for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
+    {
+        node->args[i] = NULL;
+    }
+
+    return node;
+}
+
+
+/*
+make a new node for binary operations
+*/
+static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
+{
+    Node *node = new_node(kind);
     node->lhs = lhs;
     node->rhs = rhs;
 
@@ -817,9 +830,7 @@ make a new node for number
 */
 static Node *new_node_num(int val)
 {
-    Node *node = calloc(1, sizeof(Node));
-
-    node->kind = ND_NUM;
+    Node *node = new_node(ND_NUM);
     node->val = val;
 
     return node;
@@ -831,9 +842,7 @@ make a new node for function call
 */
 static Node *new_node_func(const Token *tok)
 {
-    Node *node = calloc(1, sizeof(Node));
-
-    node->kind = ND_FUNC;
+    Node *node = new_node(ND_FUNC);
     node->ident = calloc(tok->len, (sizeof(char) + 1));
     strncpy(node->ident, tok->str, tok->len);
 
@@ -876,9 +885,7 @@ static Node *new_node_lvar(const Token *tok)
         current_function->stack_size += LVAR_SIZE;
     }
 
-    Node *node = calloc(1, sizeof(Node));
-
-    node->kind = ND_LVAR;
+    Node *node = new_node(ND_LVAR);
     node->offset = offset;
 
     return node;
