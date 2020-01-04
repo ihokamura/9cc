@@ -173,17 +173,17 @@ static Node *stmt(void)
     {
         expect_operator("(");
         node = calloc(1, sizeof(Node));
+        node->kind = ND_IF;
         node->cond = expr();
         expect_operator(")");
         node->lhs = stmt();
         if(consume_keyword(TK_ELSE))
         {
-            node->kind = ND_IFELSE;
             node->rhs = stmt();
         }
         else
         {
-            node->kind = ND_IF;
+            node->rhs = NULL;
         }
 
         return node;
@@ -600,26 +600,23 @@ static void generate_node(const Node *node)
             generate_node(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je  .Lend%d\n", number);
-            generate_node(node->lhs);
-            printf(".Lend%d:\n", number);
-            return;
-        }
-
-        case ND_IFELSE:
-        {
-            int number = label_number;
-            label_number++;
-
-            generate_node(node->cond);
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
-            printf("  je  .Lelse%d\n", number);
-            generate_node(node->lhs);
-            printf("  jmp .Lend%d\n", number);
-            printf(".Lelse%d:\n", number);
-            generate_node(node->rhs);
-            printf(".Lend%d:\n", number);
+            if(node->rhs == NULL)
+            {
+                // if ( expression ) statement
+                printf("  je  .Lend%d\n", number);
+                generate_node(node->lhs);
+                printf(".Lend%d:\n", number);
+            }
+            else
+            {
+                // if ( expression ) statement else statement
+                printf("  je  .Lelse%d\n", number);
+                generate_node(node->lhs);
+                printf("  jmp .Lend%d\n", number);
+                printf(".Lelse%d:\n", number);
+                generate_node(node->rhs);
+                printf(".Lend%d:\n", number);
+            }
             return;
         }
 

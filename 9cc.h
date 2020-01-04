@@ -43,7 +43,6 @@ typedef enum {
     ND_ASSIGN, // assignment expression (=)
     ND_RETURN, // return statement
     ND_IF,     // if statement
-    ND_IFELSE, // if-else statement
     ND_WHILE,  // while statement
     ND_FOR,    // for statement
     ND_BLOCK,  // block (compound statement)
@@ -56,8 +55,8 @@ typedef enum {
 // structure for token
 typedef struct Token Token;
 struct Token {
-    TokenKind kind; // kind of token
     Token *next;    // next input token
+    TokenKind kind; // kind of token
     int val;        // value of token (only for TK_NUM)
     char *str;      // token string
     int len;        // length of token string
