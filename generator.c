@@ -10,6 +10,7 @@
 * assembler code generator
 */
 
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "9cc.h"
@@ -19,6 +20,7 @@
 static void generate_lvalue(const Node *node);
 static void generate_func(const Function *func);
 static void generate_node(const Node *node);
+static void put_instruction(const char *fmt, ...);
 
 
 // global variable
@@ -34,7 +36,7 @@ generate assembler code
 void generate(Function *functions)
 {
     // use Intel syntax
-    printf(".intel_syntax noprefix\n");
+    put_instruction(".intel_syntax noprefix");
 
     // generate functions
     for(Function *func = functions; func != NULL; func = func->next)
@@ -54,9 +56,9 @@ static void generate_lvalue(const Node *node)
         report_error(NULL, "expected lvalue");
     }
 
-    printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->offset);
-    printf("  push rax\n");
+    put_instruction("  mov rax, rbp");
+    put_instruction("  sub rax, %d", node->offset);
+    put_instruction("  push rax");
 }
 
 
@@ -66,18 +68,18 @@ generate assembler code of a function
 static void generate_func(const Function *func)
 {
     // declarations
-    printf(".global %s\n", func->name);
-    printf("%s:\n", func->name);
+    put_instruction(".global %s", func->name);
+    put_instruction("%s:", func->name);
 
     // prologue: allocate stack for arguments and local variables and copy arguments
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %ld\n", func->stack_size);
+    put_instruction("  push rbp");
+    put_instruction("  mov rbp, rsp");
+    put_instruction("  sub rsp, %ld", func->stack_size);
     for(size_t i = 0; i < func->argc; i++)
     {
-        printf("  mov rax, rbp\n");
-        printf("  sub rax, %ld\n", LVAR_SIZE * (i + 1));
-        printf("  mov [rax], %s\n", arg_registers[i]);
+        put_instruction("  mov rax, rbp");
+        put_instruction("  sub rax, %ld", LVAR_SIZE * (i + 1));
+        put_instruction("  mov [rax], %s", arg_registers[i]);
     }
 
     // body
@@ -87,10 +89,10 @@ static void generate_func(const Function *func)
     }
 
     // epilogue: save return value and release stack
-    printf("  pop rax\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
+    put_instruction("  pop rax");
+    put_instruction("  mov rsp, rbp");
+    put_instruction("  pop rbp");
+    put_instruction("  ret");
 }
 
 
@@ -103,14 +105,14 @@ static void generate_node(const Node *node)
     switch(node->kind)
     {
         case ND_NUM:
-            printf("  push %d\n", node->val);
+            put_instruction("  push %d", node->val);
             return;
 
         case ND_LVAR:
             generate_lvalue(node);
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
+            put_instruction("  pop rax");
+            put_instruction("  mov rax, [rax]");
+            put_instruction("  push rax");
             return;
 
         case ND_ADDR:
@@ -119,26 +121,26 @@ static void generate_node(const Node *node)
 
         case ND_DEREF:
             generate_node(node->lhs);
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
+            put_instruction("  pop rax");
+            put_instruction("  mov rax, [rax]");
+            put_instruction("  push rax");
             return;
 
         case ND_ASSIGN:
             generate_lvalue(node->lhs);
             generate_node(node->rhs);
-            printf("  pop rdi\n");
-            printf("  pop rax\n");
-            printf("  mov [rax], rdi\n");
-            printf("  push rdi\n");
+            put_instruction("  pop rdi");
+            put_instruction("  pop rax");
+            put_instruction("  mov [rax], rdi");
+            put_instruction("  push rdi");
             return;
 
         case ND_RETURN:
             generate_node(node->lhs);
-            printf("  pop rax\n");
-            printf("  mov rsp, rbp\n");
-            printf("  pop rbp\n");
-            printf("  ret\n");
+            put_instruction("  pop rax");
+            put_instruction("  mov rsp, rbp");
+            put_instruction("  pop rbp");
+            put_instruction("  ret");
             return;
 
         case ND_IF:
@@ -147,24 +149,24 @@ static void generate_node(const Node *node)
             label_number++;
 
             generate_node(node->cond);
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
+            put_instruction("  pop rax");
+            put_instruction("  cmp rax, 0");
             if(node->rhs == NULL)
             {
                 // if ( expression ) statement
-                printf("  je  .Lend%d\n", number);
+                put_instruction("  je  .Lend%d", number);
                 generate_node(node->lhs);
-                printf(".Lend%d:\n", number);
+                put_instruction(".Lend%d:", number);
             }
             else
             {
                 // if ( expression ) statement else statement
-                printf("  je  .Lelse%d\n", number);
+                put_instruction("  je  .Lelse%d", number);
                 generate_node(node->lhs);
-                printf("  jmp .Lend%d\n", number);
-                printf(".Lelse%d:\n", number);
+                put_instruction("  jmp .Lend%d", number);
+                put_instruction(".Lelse%d:", number);
                 generate_node(node->rhs);
-                printf(".Lend%d:\n", number);
+                put_instruction(".Lend%d:", number);
             }
             return;
         }
@@ -174,14 +176,14 @@ static void generate_node(const Node *node)
             int number = label_number;
             label_number++;
 
-            printf(".Lbegin%d:\n", number);
+            put_instruction(".Lbegin%d:", number);
             generate_node(node->cond);
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
-            printf("  je  .Lend%d\n", number);
+            put_instruction("  pop rax");
+            put_instruction("  cmp rax, 0");
+            put_instruction("  je  .Lend%d", number);
             generate_node(node->lhs);
-            printf("  jmp .Lbegin%d\n", number);
-            printf(".Lend%d:\n", number);
+            put_instruction("  jmp .Lbegin%d", number);
+            put_instruction(".Lend%d:", number);
             return;
         }
 
@@ -190,12 +192,12 @@ static void generate_node(const Node *node)
             int number = label_number;
             label_number++;
 
-            printf(".Lbegin%d:\n", number);
+            put_instruction(".Lbegin%d:", number);
             generate_node(node->lhs);
             generate_node(node->cond);
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
-            printf("  jne .Lbegin%d\n", number);
+            put_instruction("  pop rax");
+            put_instruction("  cmp rax, 0");
+            put_instruction("  jne .Lbegin%d", number);
             return;
         }
 
@@ -208,21 +210,21 @@ static void generate_node(const Node *node)
             {
                 generate_node(node->preexpr);
             }
-            printf(".Lbegin%d:\n", number);
+            put_instruction(".Lbegin%d:", number);
             if(node->cond != NULL)
             {
                 generate_node(node->cond);
-                printf("  pop rax\n");
-                printf("  cmp rax, 0\n");
-                printf("  je  .Lend%d\n", number);
+                put_instruction("  pop rax");
+                put_instruction("  cmp rax, 0");
+                put_instruction("  je  .Lend%d", number);
             }
             generate_node(node->lhs);
             if(node->postexpr != NULL)
             {
                 generate_node(node->postexpr);
             }
-            printf("  jmp .Lbegin%d\n", number);
-            printf(".Lend%d:\n", number);
+            put_instruction("  jmp .Lbegin%d", number);
+            put_instruction(".Lend%d:", number);
             return;
         }
 
@@ -239,29 +241,29 @@ static void generate_node(const Node *node)
             for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
             {
                 generate_node(node->args[i]);
-                printf("  pop %s\n", arg_registers[i]);
+                put_instruction("  pop %s", arg_registers[i]);
             }
 
             int number = label_number;
             label_number++;
 
             // note that x86-64 ABI requires rsp to be a multiple of 16 before function calls
-            printf("  mov rax, rsp\n");
-            printf("  and rax, 0xF\n");
-            printf("  cmp rax, 0\n");
-            printf("  je  .Lbegin%d\n", number);
+            put_instruction("  mov rax, rsp");
+            put_instruction("  and rax, 0xF");
+            put_instruction("  cmp rax, 0");
+            put_instruction("  je  .Lbegin%d", number);
             // case 1: rsp has not been aligned yet
-            printf("  sub rsp, 8\n");
-            printf("  mov rax, 0\n");
-            printf("  call %s\n", node->ident);
-            printf("  add rsp, 8\n");
-            printf("  jmp .Lend%d\n", number);
-            printf(".Lbegin%d:\n", number);
+            put_instruction("  sub rsp, 8");
+            put_instruction("  mov rax, 0");
+            put_instruction("  call %s", node->ident);
+            put_instruction("  add rsp, 8");
+            put_instruction("  jmp .Lend%d", number);
+            put_instruction(".Lbegin%d:", number);
             // case 2: rsp has already been aligned
-            printf("  mov rax, 0\n");
-            printf("  call %s\n", node->ident);
-            printf(".Lend%d:\n", number);
-            printf("  push rax\n");
+            put_instruction("  mov rax, 0");
+            put_instruction("  call %s", node->ident);
+            put_instruction(".Lend%d:", number);
+            put_instruction("  push rax");
             return;
         }
 
@@ -274,51 +276,51 @@ static void generate_node(const Node *node)
     generate_node(node->rhs);
 
     // pop RHS to rdi and LHS to rax
-    printf("  pop rdi\n");
-    printf("  pop rax\n");
+    put_instruction("  pop rdi");
+    put_instruction("  pop rax");
 
     // execute operation
     switch(node->kind)
     {
         case ND_ADD:
-            printf("  add rax, rdi\n");
+            put_instruction("  add rax, rdi");
             break;
 
         case ND_SUB:
-            printf("  sub rax, rdi\n");
+            put_instruction("  sub rax, rdi");
             break;
 
         case ND_MUL:
-            printf("  imul rax, rdi\n");
+            put_instruction("  imul rax, rdi");
             break;
 
         case ND_DIV:
-            printf("  cqo\n");
-            printf("  idiv rdi\n");
+            put_instruction("  cqo");
+            put_instruction("  idiv rdi");
             break;
 
         case ND_EQ:
-            printf("  cmp rax, rdi\n");
-            printf("  sete al\n");
-            printf("  movzb rax, al\n");
+            put_instruction("  cmp rax, rdi");
+            put_instruction("  sete al");
+            put_instruction("  movzb rax, al");
             break;
 
         case ND_NEQ:
-            printf("  cmp rax, rdi\n");
-            printf("  setne al\n");
-            printf("  movzb rax, al\n");
+            put_instruction("  cmp rax, rdi");
+            put_instruction("  setne al");
+            put_instruction("  movzb rax, al");
             break;
 
         case ND_L:
-            printf("  cmp rax, rdi\n");
-            printf("  setl al\n");
-            printf("  movzb rax, al\n");
+            put_instruction("  cmp rax, rdi");
+            put_instruction("  setl al");
+            put_instruction("  movzb rax, al");
             break;
 
         case ND_LEQ:
-            printf("  cmp rax, rdi\n");
-            printf("  setle al\n");
-            printf("  movzb rax, al\n");
+            put_instruction("  cmp rax, rdi");
+            put_instruction("  setle al");
+            put_instruction("  movzb rax, al");
             break;
 
         default:
@@ -326,5 +328,18 @@ static void generate_node(const Node *node)
     }
 
     // push return value
-    printf("  push rax\n");
+    put_instruction("  push rax");
+}
+
+
+/*
+output an instruction
+*/
+static void put_instruction(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprintf(stdout, fmt, ap);
+    fprintf(stdout, "\n");
 }
