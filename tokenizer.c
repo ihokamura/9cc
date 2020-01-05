@@ -7,7 +7,7 @@
 
 /*
 # Contents of this file
-* parser (tokenizer)
+* tokenizer (user input parser)
 */
 
 #include <ctype.h>

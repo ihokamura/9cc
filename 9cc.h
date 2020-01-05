@@ -106,10 +106,11 @@ struct Function {
 
 
 // function prototype
-// codegen.c
-void construct(void);
-void generate(void);
-// parse.c
+// parser.c
+void construct(Function **functions);
+// generator.c
+void generate(Function *functions);
+// tokenizer.c
 bool consume_operator(const char *op);
 bool consume_keyword(TokenKind kind);
 Token *consume_ident(void);
@@ -118,3 +119,9 @@ int expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);
 void report_error(char *loc, const char *fmt, ...);
+
+
+// global variable
+extern const size_t LVAR_SIZE; // size of a local variable in bytes
+extern const char *arg_registers[]; // name of registers for function arguments
+extern const size_t ARG_REGISTERS_SIZE; // number of registers for function arguments

@@ -27,15 +27,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // parse input
+    // tokenize input
     char *user_input = argv[1];
     tokenize(user_input);
 
     // construct syntax tree
-    construct();
+    Function *functions;
+    construct(&functions);
 
     // output assembler according to the syntax tree
-    generate();
+    generate(functions);
 
     return 0;
 }
