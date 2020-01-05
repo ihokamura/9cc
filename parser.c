@@ -34,6 +34,7 @@ static Node *new_node_num(int val);
 static Node *new_node_lvar(const Token *tok);
 static Node *new_node_func(const Token *tok);
 static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset);
+static LVar *get_lvar(const Token *tok);
 static Function *new_function(const Token *tok);
 
 
@@ -73,70 +74,78 @@ static void program(void)
 
 /*
 make a function
-* func = ident "(" (ident ("," ident)*)? ")" "{" stmt* "}"
+* func = "int" ident "(" ("int" ident ("," "int" ident)*)? ")" "{" stmt* "}"
 */
 static Function *func(void)
 {
     // parse function name
-    Token *tok = consume_ident();
-    if(tok != NULL)
+    if(!consume_keyword(TK_INT))
     {
-        // parse arguments
-        expect_operator("(");
-
-        // make a new function
-        current_function = new_function(tok);
-
-        Token *arg;
-        arg = consume_ident();
-        if(arg != NULL)
-        {
-            current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE);
-            current_function->argc++;
-            current_function->stack_size += LVAR_SIZE;
-
-            for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
-            {
-                arg = consume_ident();
-                if(arg != NULL)
-                {
-                    current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE);
-                    current_function->argc++;
-                    current_function->stack_size += LVAR_SIZE;
-                }
-                else
-                {
-                    report_error(NULL, "expected argument\n");
-                }
-            }
-        }
-        expect_operator(")");
-
-        // parse body
-        expect_operator("{");
-
-        Node head = {};
-        Node *cursor = &head;
-        while(!consume_operator("}"))
-        {
-            cursor->next = stmt();
-            cursor = cursor->next;
-        }
-        current_function->body = head.next;
-
-        return current_function;
+        report_error(NULL, "expected 'int'\n");
     }
-    else
+    Token *tok = consume_ident();
+    if(tok == NULL)
     {
         report_error(NULL, "expected function definition\n");
-        return NULL;
     }
+
+    // make a new function
+    current_function = new_function(tok);
+
+    // parse arguments
+    expect_operator("(");
+    if(consume_keyword(TK_INT))
+    {
+        Token *arg;
+        arg = consume_ident();
+        if(arg == NULL)
+        {
+            report_error(NULL, "expected argument\n");
+        }
+
+        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE);
+        current_function->argc++;
+        current_function->stack_size += LVAR_SIZE;
+
+        for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
+        {
+            if(!consume_keyword(TK_INT))
+            {
+                report_error(NULL, "expected 'int'\n");
+            }
+
+            arg = consume_ident();
+            if(arg == NULL)
+            {
+                report_error(NULL, "expected argument\n");
+            }
+
+            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE);
+            current_function->argc++;
+            current_function->stack_size += LVAR_SIZE;
+        }
+    }
+    expect_operator(")");
+
+    // parse body
+    expect_operator("{");
+
+    Node head = {};
+    Node *cursor = &head;
+    while(!consume_operator("}"))
+    {
+        cursor->next = stmt();
+        cursor = cursor->next;
+    }
+    current_function->body = head.next;
+
+    return current_function;
 }
 
 
 /*
 make a statement
-* stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
+* stmt = "int" ident ";" | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}
 */
 static Node *stmt(void)
 {
@@ -247,6 +256,16 @@ static Node *stmt(void)
     {
         node = new_node(ND_RETURN);
         node->lhs = expr();
+    }
+    else if(consume_keyword(TK_INT))
+    {
+        Token *tok = consume_ident();
+        if(tok == NULL)
+        {
+            report_error(NULL, "expected identifier\n");
+        }
+
+        node = new_node_lvar(tok);
     }
     else
     {
@@ -488,6 +507,11 @@ static Node *primary(void)
         else
         {
             // local variable
+            if(get_lvar(tok) == NULL)
+            {
+                report_error(NULL, "undefined variable");
+            }
+
             return new_node_lvar(tok);
         }
     }
@@ -554,33 +578,17 @@ make a new node for local variable
 static Node *new_node_lvar(const Token *tok)
 {
     int offset;
-    LVar *lvar = current_function->locals;
-    while(lvar != NULL)
-    {
-        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
-        {
-            // find local variable in the list
-            offset = lvar->offset;
-            break;
-        }
-        else
-        {
-            lvar = lvar->next;
-        }
-    }
 
+    LVar *lvar = get_lvar(tok);
     if(lvar == NULL)
     {
-        if(current_function->locals == NULL)
-        {
-            offset = LVAR_SIZE;
-        }
-        else
-        {
-            offset = current_function->locals->offset + LVAR_SIZE;
-        }
-        current_function->locals = new_lvar(tok, current_function->locals, offset);
         current_function->stack_size += LVAR_SIZE;
+        current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size);
+        offset = current_function->stack_size;
+    }
+    else
+    {
+        offset = lvar->offset;
     }
 
     Node *node = new_node(ND_LVAR);
@@ -616,6 +624,36 @@ static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset)
     lvar->offset = offset;
 
     return lvar;
+}
+
+
+/*
+get a function argument or an existing local variable
+* If there exists a function argument or a local variable with a given token, this function returns the variable.
+* Otherwise, it returns NULL.
+*/
+static LVar *get_lvar(const Token *tok)
+{
+    // search list of function arguments
+    for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (current_function->args[i] != NULL); i++)
+    {
+        LVar *lvar = current_function->args[i];
+        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
+        {
+            return lvar;
+        }
+    }
+
+    // search list of local variables
+    for(LVar *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
+    {
+        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
+        {
+            return lvar;
+        }
+    }
+
+    return NULL;
 }
 
 

@@ -35,6 +35,7 @@ static const char *keyword_string_list[] = {
     "while",
     "do",
     "for",
+    "int",
 };
 static const TokenKind keyword_kind_list[] = {
     TK_RETURN,
@@ -43,6 +44,7 @@ static const TokenKind keyword_kind_list[] = {
     TK_WHILE,
     TK_DO,
     TK_FOR,
+    TK_INT,
 };
 static const char *operator_string_list[] = {
     "==",

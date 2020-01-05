@@ -26,6 +26,7 @@ typedef enum {
     TK_WHILE,    // keyword `while`
     TK_DO,       // keyword `do`
     TK_FOR,      // keyword `for`
+    TK_INT,      // keyword `int`
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
