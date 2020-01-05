@@ -50,6 +50,8 @@ typedef enum {
     ND_BLOCK,  // block (compound statement)
     ND_FUNC,   // function call
     ND_LVAR,   // local variable
+    ND_ADDR,   // address (&)
+    ND_DEREF,  // dereference (*)
     ND_NUM,    // integer
 } NodeKind;
 

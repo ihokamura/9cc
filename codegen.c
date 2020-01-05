@@ -435,23 +435,36 @@ static Node *mul(void)
 
 /*
 make an unary
-* unary = ("+" | "-")? primary
+* unary = ("+" | "-")? primary | "&" unary | "*" unary
 */
 static Node *unary(void)
 {
-    // parse sign
-    if(consume_operator("+"))
+    Node *node;
+
+    if(consume_operator("&"))
     {
-        return primary();
+        node = new_node(ND_ADDR);
+        node->lhs = unary();
+    }
+    else if (consume_operator("*"))
+    {
+        node = new_node(ND_DEREF);
+        node->lhs = unary();
+    }
+    else if(consume_operator("+"))
+    {
+        node = primary();
     }
     else if(consume_operator("-"))
     {
-        return new_node_binary(ND_SUB, new_node_num(0), primary());
+        node = new_node_binary(ND_SUB, new_node_num(0), primary());
     }
     else
     {
-        return primary();
+        node = primary();
     }
+
+    return node;
 }
 
 
@@ -518,7 +531,7 @@ static void generate_lvalue(const Node *node)
 {
     if(node->kind != ND_LVAR)
     {
-        report_error(NULL, "lvalue of assignment is not a variable.");
+        report_error(NULL, "expected lvalue");
     }
 
     printf("  mov rax, rbp\n");
@@ -575,6 +588,17 @@ static void generate_node(const Node *node)
 
         case ND_LVAR:
             generate_lvalue(node);
+            printf("  pop rax\n");
+            printf("  mov rax, [rax]\n");
+            printf("  push rax\n");
+            return;
+
+        case ND_ADDR:
+            generate_lvalue(node->lhs);
+            return;
+
+        case ND_DEREF:
+            generate_node(node->lhs);
             printf("  pop rax\n");
             printf("  mov rax, [rax]\n");
             printf("  push rax\n");

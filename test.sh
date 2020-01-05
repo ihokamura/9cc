@@ -117,6 +117,9 @@ try 3 "func1(){return 1;} func2(){return 2;} main(){return func1() + func2();}"
 try_func 0 "func(a, b, c, d, e, f){print_int(a); print_int(b); print_int(c); print_int(d); print_int(e); print_int(f); return 0;} main(){tmp = func(1, 2, 3, 4, 5, 6); return tmp;}"
 try 6 "fact(n){if(n == 0){return 1;} else{return n * fact(n - 1);}} main(){return fact(3);}"
 try 21 "fib(n){if(n > 1){return fib(n - 1) + fib(n - 2);} else if(n == 1){return 1;} else{return 0;}} main(){return fib(8);}"
+
+# address operator and dereference operator
+try 3 "main(){x = 1; y = &x; return *y + 2;}"
 }
 
 try_all

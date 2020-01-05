@@ -62,6 +62,7 @@ static const char *operator_string_list[] = {
     "}",
     ";",
     ",",
+    "&",
 };
 static char *user_input; // input of compiler
 static Token *token; // currently parsing token
