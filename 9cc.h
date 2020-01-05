@@ -32,6 +32,12 @@ typedef enum {
     TK_EOF,      // end of input
 } TokenKind;
 
+// kind of type
+typedef enum {
+    TY_INT, // int
+    TY_PTR, // pointer
+} TypeKind;
+
 // kind of node in AST(abstract syntax tree)
 typedef enum {
     ND_ADD,    // addition (+)
@@ -50,6 +56,7 @@ typedef enum {
     ND_FOR,    // for statement
     ND_BLOCK,  // block (compound statement)
     ND_FUNC,   // function call
+    ND_DECL,   // declaration
     ND_LVAR,   // local variable
     ND_ADDR,   // address (&)
     ND_DEREF,  // dereference (*)
@@ -67,21 +74,11 @@ struct Token {
     int len;        // length of token string
 };
 
-// structure for node in AST
-typedef struct Node Node;
-struct Node {
-    Node *next;     // next element
-    NodeKind kind;  // kind of node
-    Node *lhs;      // left hand side
-    Node *rhs;      // right hand side
-    int val;        // value of node (only for ND_NUM)
-    int offset;     // offset from base pointer (only for ND_LVAR)
-    Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
-    Node *preexpr;  // pre-expression (only for ND_FOR)
-    Node *postexpr; // post-expression (only for ND_FOR)
-    Node *body;     // body of compound statements (only for ND_BLOCK)
-    char *ident;    // identifier (only for ND_FUNC)
-    Node *args[6];  // arguments (only for ND_FUNC)
+// structure for type
+typedef struct Type Type;
+struct Type {
+    TypeKind ty;         // kind of type
+    struct Type *ptr_to; // pointer to some type (only for TY_PTR)
 };
 
 // structure for local variable
@@ -91,6 +88,24 @@ struct LVar {
     char *str;  // token string
     int len;    // length of token string
     int offset; // offset from base pointer (rbp)
+    Type *type; // type of variable
+};
+
+// structure for node in AST
+typedef struct Node Node;
+struct Node {
+    Node *next;     // next element
+    NodeKind kind;  // kind of node
+    Node *lhs;      // left hand side
+    Node *rhs;      // right hand side
+    int val;        // value of node (only for ND_NUM)
+    LVar *lvar;     // information of local variable (only for ND_LVAR)
+    Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
+    Node *preexpr;  // pre-expression (only for ND_FOR)
+    Node *postexpr; // post-expression (only for ND_FOR)
+    Node *body;     // body of compound statements (only for ND_BLOCK)
+    char *ident;    // identifier (only for ND_FUNC)
+    Node *args[6];  // arguments (only for ND_FUNC)
 };
 
 // structure for function

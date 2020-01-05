@@ -6,7 +6,8 @@
 ## Syntax
 * `program = func*`
 * `func = "int" ident "(" ("int" ident ("," "int" ident)*)? ")" "{" stmt* "}"`
-* `stmt = "int" ident ";" | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"`
+* `stmt = decl | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"`
+* `decl = "int" "*"* ident ";"`
 * `expr = assign`
 * `assign = equality ("=" assign)?`
 * `equality = relational ("==" relational | "!=" relational)*`

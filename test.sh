@@ -120,6 +120,8 @@ try 21 "int fib(int n){if(n > 1){return fib(n - 1) + fib(n - 2);} else if(n == 1
 
 # address operator and dereference operator
 try 3 "int main(){int x; int y; x = 1; y = &x; return *y + 2;}"
+try 3 "int main(){int x; int *y; x = 1; y = &x; *y = 3; return x;}"
+try 3 "int main(){int x; int *y; int **z; x = 1; y = &x; z = &y; **z = 3; return x;}"
 }
 
 try_all

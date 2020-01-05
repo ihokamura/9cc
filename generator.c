@@ -51,14 +51,22 @@ generate assembler code for lvalue
 */
 static void generate_lvalue(const Node *node)
 {
-    if(node->kind != ND_LVAR)
+    switch(node->kind)
     {
-        report_error(NULL, "expected lvalue");
-    }
+        case ND_LVAR:
+            put_instruction("  mov rax, rbp");
+            put_instruction("  sub rax, %d", node->lvar->offset);
+            put_instruction("  push rax");
+            break;
+        
+        case ND_DEREF:
+            generate_node(node->lhs);
+            break;
 
-    put_instruction("  mov rax, rbp");
-    put_instruction("  sub rax, %d", node->offset);
-    put_instruction("  push rax");
+        default:
+            report_error(NULL, "expected lvalue");
+            break;
+    }
 }
 
 
@@ -106,6 +114,9 @@ static void generate_node(const Node *node)
     {
         case ND_NUM:
             put_instruction("  push %d", node->val);
+            return;
+
+        case ND_DECL:
             return;
 
         case ND_LVAR:

@@ -20,6 +20,7 @@
 static void program(void);
 static Function *func(void);
 static Node *stmt(void);
+static Node *decl(void);
 static Node *expr(void);
 static Node *assign(void);
 static Node *equality(void);
@@ -28,12 +29,13 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
+static Type *new_type(TypeKind kind);
 static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_lvar(const Token *tok);
 static Node *new_node_func(const Token *tok);
-static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset);
+static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset, Type *type);
 static LVar *get_lvar(const Token *tok);
 static Function *new_function(const Token *tok);
 
@@ -103,7 +105,7 @@ static Function *func(void)
             report_error(NULL, "expected argument\n");
         }
 
-        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE);
+        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE, new_type(TY_INT));
         current_function->argc++;
         current_function->stack_size += LVAR_SIZE;
 
@@ -120,7 +122,7 @@ static Function *func(void)
                 report_error(NULL, "expected argument\n");
             }
 
-            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE);
+            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE, new_type(TY_INT));
             current_function->argc++;
             current_function->stack_size += LVAR_SIZE;
         }
@@ -145,7 +147,7 @@ static Function *func(void)
 
 /*
 make a statement
-* stmt = "int" ident ";" | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}
+* stmt = decl | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}
 */
 static Node *stmt(void)
 {
@@ -259,13 +261,7 @@ static Node *stmt(void)
     }
     else if(consume_keyword(TK_INT))
     {
-        Token *tok = consume_ident();
-        if(tok == NULL)
-        {
-            report_error(NULL, "expected identifier\n");
-        }
-
-        node = new_node_lvar(tok);
+        node = decl();
     }
     else
     {
@@ -276,6 +272,38 @@ static Node *stmt(void)
     {
         report_error(NULL, "expected ';'\n");
     }
+
+    return node;
+}
+
+
+/*
+make a declaration
+* decl = "int" "*"* ident ";"
+*/
+static Node *decl(void)
+{
+    // parse specifier
+    Type head = {};
+    Type *cursor = &head;
+    while(consume_operator("*"))
+    {
+        cursor->ptr_to = new_type(TY_PTR);
+        cursor = cursor->ptr_to;
+    }
+
+    Token *tok = consume_ident();
+    if(get_lvar(tok) != NULL)
+    {
+        report_error(NULL, "duplicated declaration\n");
+    }
+    cursor->ptr_to = new_type(TY_INT);
+
+    current_function->stack_size += LVAR_SIZE;
+    current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size, head.ptr_to);
+
+    Node *node = new_node(ND_DECL);
+    node->lvar = current_function->locals;
 
     return node;
 }
@@ -507,17 +535,25 @@ static Node *primary(void)
         else
         {
             // local variable
-            if(get_lvar(tok) == NULL)
-            {
-                report_error(NULL, "undefined variable");
-            }
-
             return new_node_lvar(tok);
         }
     }
 
     // number
     return new_node_num(expect_number());
+}
+
+
+/*
+make a new type
+*/
+static Type *new_type(TypeKind kind)
+{
+    Type *type = calloc(1, sizeof(Type));
+    type->ty = kind;
+    type->ptr_to = NULL;
+
+    return type;
 }
 
 
@@ -532,7 +568,7 @@ static Node *new_node(NodeKind kind)
     node->lhs = NULL;
     node->rhs = NULL;
     node->val = 0;
-    node->offset = 0;
+    node->lvar = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
     node->postexpr = NULL;
@@ -577,22 +613,14 @@ make a new node for local variable
 */
 static Node *new_node_lvar(const Token *tok)
 {
-    int offset;
-
     LVar *lvar = get_lvar(tok);
     if(lvar == NULL)
     {
-        current_function->stack_size += LVAR_SIZE;
-        current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size);
-        offset = current_function->stack_size;
-    }
-    else
-    {
-        offset = lvar->offset;
+        report_error(NULL, "undefined variable");
     }
 
     Node *node = new_node(ND_LVAR);
-    node->offset = offset;
+    node->lvar = lvar;
 
     return node;
 }
@@ -614,7 +642,7 @@ static Node *new_node_func(const Token *tok)
 /*
 make a new local variable
 */
-static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset)
+static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset, Type *type)
 {
     LVar *lvar = calloc(1, sizeof(LVar));
 
@@ -622,6 +650,7 @@ static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset)
     lvar->str = tok->str;
     lvar->len = tok->len;
     lvar->offset = offset;
+    lvar->type = type;
 
     return lvar;
 }
