@@ -81,7 +81,7 @@ make a function
 static Function *func(void)
 {
     // parse function name
-    if(!consume_keyword(TK_INT))
+    if(!consume_reserved("int"))
     {
         report_error(NULL, "expected 'int'\n");
     }
@@ -96,7 +96,7 @@ static Function *func(void)
 
     // parse arguments
     expect_operator("(");
-    if(consume_keyword(TK_INT))
+    if(consume_reserved("int"))
     {
         Token *arg;
         arg = consume_ident();
@@ -109,9 +109,9 @@ static Function *func(void)
         current_function->argc++;
         current_function->stack_size += LVAR_SIZE;
 
-        for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_operator(","); i++)
+        for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
         {
-            if(!consume_keyword(TK_INT))
+            if(!consume_reserved("int"))
             {
                 report_error(NULL, "expected 'int'\n");
             }
@@ -134,7 +134,7 @@ static Function *func(void)
 
     Node head = {};
     Node *cursor = &head;
-    while(!consume_operator("}"))
+    while(!consume_reserved("}"))
     {
         cursor->next = stmt();
         cursor = cursor->next;
@@ -153,21 +153,21 @@ static Node *stmt(void)
 {
     Node *node;
 
-    if(consume_keyword(TK_IF))
+    if(consume_reserved("if"))
     {
         node = new_node(ND_IF);
         expect_operator("(");
         node->cond = expr();
         expect_operator(")");
         node->lhs = stmt();
-        if(consume_keyword(TK_ELSE))
+        if(consume_reserved("else"))
         {
             node->rhs = stmt();
         }
 
         return node;
     }
-    else if(consume_keyword(TK_WHILE))
+    else if(consume_reserved("while"))
     {
         node = new_node(ND_WHILE);
         expect_operator("(");
@@ -177,11 +177,11 @@ static Node *stmt(void)
 
         return node;
     }
-    else if(consume_keyword(TK_DO))
+    else if(consume_reserved("do"))
     {
         node = new_node(ND_DO);
         node->lhs = stmt();
-        if(!consume_keyword(TK_WHILE))
+        if(!consume_reserved("while"))
         {
             report_error(NULL, "expected `while`\n");
         }
@@ -192,14 +192,14 @@ static Node *stmt(void)
 
         return node;
     }
-    else if(consume_keyword(TK_FOR))
+    else if(consume_reserved("for"))
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
         node = new_node(ND_FOR);
         expect_operator("(");
 
-        if(consume_operator(";"))
+        if(consume_reserved(";"))
         {
             node->preexpr = NULL;
         }
@@ -210,7 +210,7 @@ static Node *stmt(void)
             expect_operator(";");
         }
 
-        if(consume_operator(";"))
+        if(consume_reserved(";"))
         {
             node->cond = NULL;
         }
@@ -221,7 +221,7 @@ static Node *stmt(void)
             expect_operator(";");
         }
 
-        if(consume_operator(")"))
+        if(consume_reserved(")"))
         {
             node->postexpr = NULL;
         }
@@ -237,13 +237,13 @@ static Node *stmt(void)
 
         return node;
     }
-    else if(consume_operator("{"))
+    else if(consume_reserved("{"))
     {
         Node head = {};
         Node *cursor = &head;
 
         // parse statements until reaching '}'
-        while(!consume_operator("}"))
+        while(!consume_reserved("}"))
         {
             cursor->next = stmt();
             cursor = cursor->next;
@@ -254,12 +254,12 @@ static Node *stmt(void)
 
         return node;
     }
-    else if(consume_keyword(TK_RETURN))
+    else if(consume_reserved("return"))
     {
         node = new_node(ND_RETURN);
         node->lhs = expr();
     }
-    else if(consume_keyword(TK_INT))
+    else if(consume_reserved("int"))
     {
         node = decl();
     }
@@ -268,7 +268,7 @@ static Node *stmt(void)
         node = expr();
     }
 
-    if(!consume_operator(";"))
+    if(!consume_reserved(";"))
     {
         report_error(NULL, "expected ';'\n");
     }
@@ -286,7 +286,7 @@ static Node *decl(void)
     // parse specifier
     Type head = {};
     Type *cursor = &head;
-    while(consume_operator("*"))
+    while(consume_reserved("*"))
     {
         cursor->ptr_to = new_type(TY_PTR);
         cursor = cursor->ptr_to;
@@ -328,7 +328,7 @@ static Node *assign(void)
     Node *node = equality();
 
     // parse assignment
-    if(consume_operator("="))
+    if(consume_reserved("="))
     {
         node = new_node_binary(ND_ASSIGN, node, assign());
     }
@@ -348,11 +348,11 @@ static Node *equality(void)
     // parse tokens while finding a relational expression
     while(true)
     {
-        if(consume_operator("=="))
+        if(consume_reserved("=="))
         {
             node = new_node_binary(ND_EQ, node, relational());
         }
-        else if(consume_operator("!="))
+        else if(consume_reserved("!="))
         {
             node = new_node_binary(ND_NEQ, node, relational());
         }
@@ -375,19 +375,19 @@ static Node *relational(void)
     // parse tokens while finding an addition term
     while(true)
     {
-        if(consume_operator("<"))
+        if(consume_reserved("<"))
         {
             node = new_node_binary(ND_L, node, add());
         }
-        else if(consume_operator("<="))
+        else if(consume_reserved("<="))
         {
             node = new_node_binary(ND_LEQ, node, add());
         }
-        else if(consume_operator(">"))
+        else if(consume_reserved(">"))
         {
             node = new_node_binary(ND_L, add(), node);
         }
-        else if(consume_operator(">="))
+        else if(consume_reserved(">="))
         {
             node = new_node_binary(ND_LEQ, add(), node);
         }
@@ -410,11 +410,11 @@ static Node *add(void)
     // parse tokens while finding a term
     while(true)
     {
-        if(consume_operator("+"))
+        if(consume_reserved("+"))
         {
             node = new_node_binary(ND_ADD, node, mul());
         }
-        else if(consume_operator("-"))
+        else if(consume_reserved("-"))
         {
             node = new_node_binary(ND_SUB, node, mul());
         }
@@ -437,11 +437,11 @@ static Node *mul(void)
     // parse tokens while finding a primary
     while(true)
     {
-        if(consume_operator("*"))
+        if(consume_reserved("*"))
         {
             node = new_node_binary(ND_MUL, node, unary());
         }
-        else if(consume_operator("/"))
+        else if(consume_reserved("/"))
         {
             node = new_node_binary(ND_DIV, node, unary());
         }
@@ -461,21 +461,21 @@ static Node *unary(void)
 {
     Node *node;
 
-    if(consume_operator("&"))
+    if(consume_reserved("&"))
     {
         node = new_node(ND_ADDR);
         node->lhs = unary();
     }
-    else if (consume_operator("*"))
+    else if (consume_reserved("*"))
     {
         node = new_node(ND_DEREF);
         node->lhs = unary();
     }
-    else if(consume_operator("+"))
+    else if(consume_reserved("+"))
     {
         node = primary();
     }
-    else if(consume_operator("-"))
+    else if(consume_reserved("-"))
     {
         node = new_node_binary(ND_SUB, new_node_num(0), primary());
     }
@@ -495,7 +495,7 @@ make a primary
 static Node *primary(void)
 {
     // expression in brackets
-    if(consume_operator("("))
+    if(consume_reserved("("))
     {
         Node *node = expr();
  
@@ -508,11 +508,11 @@ static Node *primary(void)
     Token *tok = consume_ident();
     if(tok != NULL)
     {
-        if(consume_operator("("))
+        if(consume_reserved("("))
         {
             // function
             Node *node = new_node_func(tok);
-            if(consume_operator(")"))
+            if(consume_reserved(")"))
             {
                 for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
                 {
@@ -523,7 +523,7 @@ static Node *primary(void)
             {
                 // arguments
                 node->args[0] = expr();
-                for(size_t i = 1; (i < sizeof(node->args) / sizeof(node->args[0])) && consume_operator(","); i++)
+                for(size_t i = 1; (i < sizeof(node->args) / sizeof(node->args[0])) && consume_reserved(","); i++)
                 {
                     node->args[i] = expr();
                 }

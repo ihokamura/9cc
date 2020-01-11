@@ -19,14 +19,7 @@
 
 // kind of token
 typedef enum {
-    TK_RESERVED, // operator
-    TK_RETURN,   // keyword `return`
-    TK_IF,       // keyword `if`
-    TK_ELSE,     // keyword `else`
-    TK_WHILE,    // keyword `while`
-    TK_DO,       // keyword `do`
-    TK_FOR,      // keyword `for`
-    TK_INT,      // keyword `int`
+    TK_RESERVED, // reserved token
     TK_IDENT,    // identifier
     TK_NUM,      // integer
     TK_EOF,      // end of input
@@ -127,8 +120,7 @@ void construct(Function **functions);
 // generator.c
 void generate(Function *functions);
 // tokenizer.c
-bool consume_operator(const char *op);
-bool consume_keyword(TokenKind kind);
+bool consume_reserved(const char *str);
 Token *consume_ident(void);
 void expect_operator(const char *op);
 int expect_number(void);

@@ -23,7 +23,7 @@
 // function prototype
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 static int is_operator(const char *str);
-static int is_keyword(const char *str, TokenKind *kind);
+static int is_keyword(const char *str);
 static int is_ident(const char *str);
 
 
@@ -36,15 +36,6 @@ static const char *keyword_string_list[] = {
     "do",
     "for",
     "int",
-};
-static const TokenKind keyword_kind_list[] = {
-    TK_RETURN,
-    TK_IF,
-    TK_ELSE,
-    TK_WHILE,
-    TK_DO,
-    TK_FOR,
-    TK_INT,
 };
 static const char *operator_string_list[] = {
     "==",
@@ -71,35 +62,17 @@ static Token *token; // currently parsing token
 
 
 /*
-consume an operator
-* If the next token is a given operator, this function parses the token and returns true.
+consume a reserved string
+* If the next token is a given string, this function parses the token and returns true.
 * Otherwise, it returns false.
 */
-bool consume_operator(const char *op)
+bool consume_reserved(const char *str)
 {
     if(
         (token->kind != TK_RESERVED) || 
-        (token->len != strlen(op)) || 
-        (strncmp(token->str, op, token->len) != 0)
+        (token->len != strlen(str)) || 
+        (strncmp(token->str, str, token->len) != 0)
         )
-    {
-        return false;
-    }
-
-    token = token->next;
-
-    return true;
-}
-
-
-/*
-consume a keyword
-* If the next token is a keyword, this function parses the keyword and returns true.
-* Otherwise, it returns false.
-*/
-bool consume_keyword(TokenKind kind)
-{
-    if(token->kind != kind)
     {
         return false;
     }
@@ -185,6 +158,8 @@ void tokenize(char *str)
 
     while(*str)
     {
+        int len;
+
         // ignore space
         if(isspace(*str))
         {
@@ -193,7 +168,7 @@ void tokenize(char *str)
         }
 
         // parse an operator
-        int len = is_operator(str);
+        len = is_operator(str);
         if(len > 0)
         {
             current = new_token(TK_RESERVED, current, str, len);
@@ -202,11 +177,10 @@ void tokenize(char *str)
         }
 
         // parse keyword
-        TokenKind tok_kind;
-        len = is_keyword(str, &tok_kind);
+        len = is_keyword(str);
         if(len > 0)
         {
-            current = new_token(tok_kind, current, str, len);
+            current = new_token(TK_RESERVED, current, str, len);
             str += len;
             continue;
         }
@@ -309,7 +283,7 @@ static int is_operator(const char *str)
 /*
 check if the following string is a keyword
 */
-static int is_keyword(const char *str, TokenKind *kind)
+static int is_keyword(const char *str)
 {
     for(int i = 0; i < sizeof(keyword_string_list) / sizeof(keyword_string_list[0]); i++)
     {
@@ -318,7 +292,6 @@ static int is_keyword(const char *str, TokenKind *kind)
         size_t len = strlen(keyword);
         if((strncmp(str, keyword, len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
         {
-            *kind = keyword_kind_list[i];
             return len;
         }
     }
