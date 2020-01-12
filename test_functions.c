@@ -3,6 +3,8 @@ test functions called from assembler code
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+
 
 // function without argument returning nothing
 void testfunc1(void)
@@ -37,4 +39,17 @@ int testfunc4(int a1, int a2, int a3, int a4, int a5, int a6)
 void print_int(int n)
 {
     printf("%d", n);
+}
+
+
+// allocate 4 integers
+void alloc4(int **p, int a1, int a2, int a3, int a4)
+{
+    int *a = malloc(sizeof(int) * 4);
+
+    a[0] = a1;
+    a[1] = a2;
+    a[2] = a3;
+    a[3] = a4;
+    *p = a;
 }

@@ -297,7 +297,17 @@ static void generate_node(const Node *node)
             put_instruction("  add rax, rdi");
             break;
 
+        case ND_PTR_ADD:
+            put_instruction("  imul rdi, %ld", node->lhs->lvar->type->ptr_to->size);
+            put_instruction("  add rax, rdi");
+            break;
+
         case ND_SUB:
+            put_instruction("  sub rax, rdi");
+            break;
+
+        case ND_PTR_SUB:
+            put_instruction("  imul rdi, %ld", node->lhs->lvar->type->ptr_to->size);
             put_instruction("  sub rax, rdi");
             break;
 

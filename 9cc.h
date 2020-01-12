@@ -33,27 +33,29 @@ typedef enum {
 
 // kind of node in AST(abstract syntax tree)
 typedef enum {
-    ND_ADD,    // addition (+)
-    ND_SUB,    // subtraction (-)
-    ND_MUL,    // multiplication (*)
-    ND_DIV,    // division (/)
-    ND_EQ,     // equality comparision (==)
-    ND_NEQ,    // inequality comparision (!=)
-    ND_L,      // strict order comparision (<)
-    ND_LEQ,    // order comparision (<=)
-    ND_ASSIGN, // assignment expression (=)
-    ND_RETURN, // return statement
-    ND_IF,     // if statement
-    ND_WHILE,  // while statement
-    ND_DO,     // do statement
-    ND_FOR,    // for statement
-    ND_BLOCK,  // block (compound statement)
-    ND_FUNC,   // function call
-    ND_DECL,   // declaration
-    ND_LVAR,   // local variable
-    ND_ADDR,   // address (&)
-    ND_DEREF,  // dereference (*)
-    ND_NUM,    // integer
+    ND_ADD,     // addition (num + num)
+    ND_PTR_ADD, // pointer addition (ptr + num | num + ptr)
+    ND_SUB,     // subtraction (num - num)
+    ND_PTR_SUB, // pointer subtraction (ptr - num)
+    ND_MUL,     // multiplication (*)
+    ND_DIV,     // division (/)
+    ND_EQ,      // equality comparision (==)
+    ND_NEQ,     // inequality comparision (!=)
+    ND_L,       // strict order comparision (<)
+    ND_LEQ,     // order comparision (<=)
+    ND_ASSIGN,  // assignment expression (=)
+    ND_RETURN,  // return statement
+    ND_IF,      // if statement
+    ND_WHILE,   // while statement
+    ND_DO,      // do statement
+    ND_FOR,     // for statement
+    ND_BLOCK,   // block (compound statement)
+    ND_FUNC,    // function call
+    ND_DECL,    // declaration
+    ND_LVAR,    // local variable
+    ND_ADDR,    // address (&)
+    ND_DEREF,   // dereference (*)
+    ND_NUM,     // integer
 } NodeKind;
 
 
@@ -71,6 +73,7 @@ struct Token {
 typedef struct Type Type;
 struct Type {
     TypeKind ty;         // kind of type
+    size_t size;         // size of type
     struct Type *ptr_to; // pointer to some type (only for TY_PTR)
 };
 
@@ -130,6 +133,7 @@ bool at_eof(void);
 void report_error(char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);
+bool is_pointer(const Node *node);
 
 
 // global variable

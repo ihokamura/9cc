@@ -395,11 +395,35 @@ static Node *add(void)
     {
         if(consume_reserved("+"))
         {
-            node = new_node_binary(ND_ADD, node, mul());
+            Node *lhs = node;
+            Node *rhs = mul();
+
+            if(is_pointer(lhs) && !is_pointer(rhs))
+            {
+                node = new_node_binary(ND_PTR_ADD, lhs, rhs);
+            }
+            else if(!is_pointer(lhs) && is_pointer(rhs))
+            {
+                node = new_node_binary(ND_PTR_ADD, rhs, lhs);
+            }
+            else
+            {
+                node = new_node_binary(ND_ADD, lhs, rhs);
+            }
         }
         else if(consume_reserved("-"))
         {
-            node = new_node_binary(ND_SUB, node, mul());
+            Node *lhs = node;
+            Node *rhs = mul();
+
+            if(is_pointer(lhs) && !is_pointer(rhs))
+            {
+                node = new_node_binary(ND_PTR_SUB, lhs, rhs);
+            }
+            else
+            {
+                node = new_node_binary(ND_SUB, lhs, rhs);
+            }
         }
         else
         {

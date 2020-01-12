@@ -31,8 +31,6 @@ try_func()
     ./tmp
     actual="$?"
 
-    rm test_functions.o
-
     if [ "$actual" = "$expected" ]; then
         echo "$input => $actual"
     else
@@ -124,6 +122,9 @@ try 3 "int main(){int x; int *y; x = 1; y = &x; *y = 3; return x;}"
 try 3 "int main(){int x; int *y; int **z; x = 1; y = &x; z = &y; **z = 3; return x;}"
 try 3 "int func(int *x){return *x;} int main(){int a; int b; a = 3; b = func(&a); return b;}"
 try 3 "int **func(int ***x){return *x;} int main(){int a; int *b; int **c; int **d; a = 3; b = &a; c = &b; d = func(&c); return **d;}"
+
+# pointer addition and subtraction
+try_func 2 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; print_int(*q); q = q - 1; return *q;}"
 }
 
 try_all
