@@ -32,11 +32,11 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static Node *new_node_lvar(const Token *tok);
-static Node *new_node_func(const Token *tok);
-static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset, Type *type);
-static LVar *get_lvar(const Token *tok);
-static Function *new_function(const Token *tok);
+static Node *new_node_lvar(const Token *token);
+static Node *new_node_func(const Token *token);
+static LVar *new_lvar(const Token *token, LVar *cur_lvar, int offset, Type *type);
+static LVar *get_lvar(const Token *token);
+static Function *new_function(const Token *token);
 
 
 // global variable
@@ -56,12 +56,13 @@ void construct(Function **functions)
 
 /*
 make a program
-* program ::= func*
+```
+program ::= func*
+```
 */
 static void program(void)
 {
-    Function head;
-    head.next = NULL;
+    Function head = {};
     Function *cursor = &head;
     while(!at_eof())
     {
@@ -75,54 +76,48 @@ static void program(void)
 
 /*
 make a function
-* func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
+```
+func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
+```
 */
 static Function *func(void)
 {
     // parse function name and type of return value
-    if(!consume_reserved("int"))
-    {
-        report_error(NULL, "expected 'int'\n");
-    }
+    Type *ret_type;
+    Token *func_token;
 
-    Type *type;
-    Token *tok;
-
-    expect_declarator(&type, &tok);
-    current_function = new_function(tok);
+    expect_reserved("int");
+    expect_declarator(&ret_type, &func_token);
+    current_function = new_function(func_token);
 
     // parse arguments
-    expect_operator("(");
+    expect_reserved("(");
     if(consume_reserved("int"))
     {
-        Type *type;
-        Token *arg;
+        Type *arg_type;
+        Token *arg_token;
 
-        expect_declarator(&type, &arg);
-        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE, type);
+        expect_declarator(&arg_type, &arg_token);
+        current_function->args[0] = new_lvar(arg_token, NULL, LVAR_SIZE, arg_type);
         current_function->argc++;
         current_function->stack_size += LVAR_SIZE;
 
         for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
         {
-            if(!consume_reserved("int"))
-            {
-                report_error(NULL, "expected 'int'\n");
-            }
-
-            expect_declarator(&type, &arg);
-            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE, type);
+            expect_reserved("int");
+            expect_declarator(&arg_type, &arg_token);
+            current_function->args[i] = new_lvar(arg_token, NULL, (i + 1) * LVAR_SIZE, arg_type);
             current_function->argc++;
             current_function->stack_size += LVAR_SIZE;
         }
     }
-    expect_operator(")");
+    expect_reserved(")");
 
     // parse body
-    expect_operator("{");
-
     Node head = {};
     Node *cursor = &head;
+
+    expect_reserved("{");
     while(!consume_reserved("}"))
     {
         cursor->next = stmt();
@@ -136,102 +131,26 @@ static Function *func(void)
 
 /*
 make a statement
-* stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
+```
+stmt ::= declaration |
+         expr ";" |
+         "{" stmt* "}" |
+         "do" stmt "while" "(" expr ")" ";" |
+         "for" "(" expr? ";" expr? ";" expr? ")" stmt |
+         "if" "(" expr ")" stmt ("else" stmt)? |
+         "return" expr ";" |
+         "while" "(" expr ")" stmt
+```
 */
 static Node *stmt(void)
 {
     Node *node;
 
-    if(consume_reserved("if"))
+    if(consume_reserved("{"))
     {
-        node = new_node(ND_IF);
-        expect_operator("(");
-        node->cond = expr();
-        expect_operator(")");
-        node->lhs = stmt();
-        if(consume_reserved("else"))
-        {
-            node->rhs = stmt();
-        }
-
-        return node;
-    }
-    else if(consume_reserved("while"))
-    {
-        node = new_node(ND_WHILE);
-        expect_operator("(");
-        node->cond = expr();
-        expect_operator(")");
-        node->lhs = stmt();
-
-        return node;
-    }
-    else if(consume_reserved("do"))
-    {
-        node = new_node(ND_DO);
-        node->lhs = stmt();
-        if(!consume_reserved("while"))
-        {
-            report_error(NULL, "expected `while`\n");
-        }
-        expect_operator("(");
-        node->cond = expr();
-        expect_operator(")");
-        expect_operator(";");
-
-        return node;
-    }
-    else if(consume_reserved("for"))
-    {
-        // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
-        // clause-1, expression-2 and/or expression-3 may be empty.
-        node = new_node(ND_FOR);
-        expect_operator("(");
-
-        if(consume_reserved(";"))
-        {
-            node->preexpr = NULL;
-        }
-        else
-        {
-            // parse clause-1
-            node->preexpr = expr();
-            expect_operator(";");
-        }
-
-        if(consume_reserved(";"))
-        {
-            node->cond = NULL;
-        }
-        else
-        {
-            // parse expression-2
-            node->cond = expr();
-            expect_operator(";");
-        }
-
-        if(consume_reserved(")"))
-        {
-            node->postexpr = NULL;
-        }
-        else
-        {
-            // parse expression-3
-            node->postexpr = expr();
-            expect_operator(")");
-        }
-
-        // parse loop body
-        node->lhs = stmt();
-
-        return node;
-    }
-    else if(consume_reserved("{"))
-    {
+        // parse statements until reaching '}'
         Node head = {};
         Node *cursor = &head;
-
-        // parse statements until reaching '}'
         while(!consume_reserved("}"))
         {
             cursor->next = stmt();
@@ -243,47 +162,143 @@ static Node *stmt(void)
 
         return node;
     }
+    if(consume_reserved("do"))
+    {
+        node = new_node(ND_DO);
+
+        // parse loop body
+        node->lhs = stmt();
+
+        expect_reserved("while");
+        expect_reserved("(");
+
+        // parse loop condition
+        node->cond = expr();
+
+        expect_reserved(")");
+        expect_reserved(";");
+
+        return node;
+    }
+    else if(consume_reserved("for"))
+    {
+        // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
+        // clause-1, expression-2 and/or expression-3 may be empty.
+        Node *node = new_node(ND_FOR);
+        expect_reserved("(");
+
+        // parse clause-1
+        if(!consume_reserved(";"))
+        {
+            node->preexpr = expr();
+            expect_reserved(";");
+        }
+
+        // parse expression-2
+        if(!consume_reserved(";"))
+        {
+            node->cond = expr();
+            expect_reserved(";");
+        }
+
+        // parse expression-3
+        if(!consume_reserved(")"))
+        {
+            node->postexpr = expr();
+            expect_reserved(")");
+        }
+
+        // parse loop body
+        node->lhs = stmt();
+
+        return node;
+    }
+    else if(consume_reserved("if"))
+    {
+        node = new_node(ND_IF);
+        expect_reserved("(");
+
+        // parse condition
+        node->cond = expr();
+
+        expect_reserved(")");
+
+        // parse statement in case of condition being true
+        node->lhs = stmt();
+
+        // parse statement in case of condition being false
+        if(consume_reserved("else"))
+        {
+            node->rhs = stmt();
+        }
+
+        return node;
+    }
     else if(consume_reserved("return"))
     {
         node = new_node(ND_RETURN);
         node->lhs = expr();
+        expect_reserved(";");
+
+        return node;
     }
-    else if(consume_reserved("int"))
+    else if(consume_reserved("while"))
     {
-        node = declaration();
+        node = new_node(ND_WHILE);
+        expect_reserved("(");
+
+        // parse loop condition
+        node->cond = expr();
+
+        expect_reserved(")");
+
+        // parse loop body
+        node->lhs = stmt();
+
+        return node;
     }
     else
     {
-        node = expr();
-    }
+        if(consume_reserved("int"))
+        {
+            // declaration
+            node = declaration();
+            expect_reserved(";");
 
-    if(!consume_reserved(";"))
-    {
-        report_error(NULL, "expected ';'\n");
-    }
+            return node;
+        }
+        else
+        {
+            // expression statement
+            node = expr();
+            expect_reserved(";");
 
-    return node;
+            return node;
+        }
+    }
 }
 
 
 /*
 make a declaration
-* declaration ::= "int" declarator ";"
+```
+declaration ::= "int" declarator ";"
+```
 */
 static Node *declaration(void)
 {
     // parse declarator
     Type *type;
-    Token *tok;
+    Token *token;
 
-    expect_declarator(&type, &tok);
-    if(get_lvar(tok) != NULL)
+    expect_declarator(&type, &token);
+    if(get_lvar(token) != NULL)
     {
         report_error(NULL, "duplicated declaration\n");
     }
 
     current_function->stack_size += LVAR_SIZE;
-    current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size, type);
+    current_function->locals = new_lvar(token, current_function->locals, current_function->stack_size, type);
 
     Node *node = new_node(ND_DECL);
     node->lvar = current_function->locals;
@@ -294,7 +309,9 @@ static Node *declaration(void)
 
 /*
 make an expression
-* expr ::= assign
+```
+expr ::= assign
+```
 */
 static Node *expr(void)
 {
@@ -304,7 +321,9 @@ static Node *expr(void)
 
 /*
 make an assignment expression
-* assign ::= equality ("=" assign)?
+```
+assign ::= equality ("=" assign)?
+```
 */
 static Node *assign(void)
 {
@@ -322,7 +341,9 @@ static Node *assign(void)
 
 /*
 make an equality
-* equality ::= relational ("==" relational | "!=" relational)*
+```
+equality ::= relational ("==" relational | "!=" relational)*
+```
 */
 static Node *equality(void)
 {
@@ -349,7 +370,9 @@ static Node *equality(void)
 
 /*
 make a relational expression
-* relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
+```
+relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
+```
 */
 static Node *relational(void)
 {
@@ -384,7 +407,9 @@ static Node *relational(void)
 
 /*
 make an addition term
-* add ::= mul ("+" mul | "-" mul)*
+```
+add ::= mul ("+" mul | "-" mul)*
+```
 */
 static Node *add(void)
 {
@@ -435,13 +460,15 @@ static Node *add(void)
 
 /*
 make a multiplication term
-* mul ::= unary ("*" unary | "/" unary)*
+```
+mul ::= unary ("*" unary | "/" unary)*
+```
 */
 static Node *mul(void)
 {
     Node *node = unary();
 
-    // parse tokens while finding a primary
+    // parse tokens while finding an unary
     while(true)
     {
         if(consume_reserved("*"))
@@ -462,7 +489,9 @@ static Node *mul(void)
 
 /*
 make an unary
-* unary ::= unary ::= sizeof unary | ("+" | "-")? primary | "&" unary | "*" unary
+```
+unary ::= unary ::= sizeof unary | ("+" | "-")? primary | "&" unary | "*" unary
+```
 */
 static Node *unary(void)
 {
@@ -505,7 +534,9 @@ static Node *unary(void)
 
 /*
 make a primary
-* primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+```
+primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+```
 */
 static Node *primary(void)
 {
@@ -514,19 +545,19 @@ static Node *primary(void)
     {
         Node *node = expr();
  
-        expect_operator(")");
+        expect_reserved(")");
  
         return node;
     }
 
     // identifier
-    Token *tok = consume_ident();
-    if(tok != NULL)
+    Token *ident = consume_ident();
+    if(ident != NULL)
     {
         if(consume_reserved("("))
         {
             // function
-            Node *node = new_node_func(tok);
+            Node *node = new_node_func(ident);
             if(consume_reserved(")"))
             {
                 for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
@@ -542,7 +573,7 @@ static Node *primary(void)
                 {
                     node->args[i] = expr();
                 }
-                expect_operator(")");
+                expect_reserved(")");
             }
 
             return node;
@@ -550,7 +581,7 @@ static Node *primary(void)
         else
         {
             // local variable
-            return new_node_lvar(tok);
+            return new_node_lvar(ident);
         }
     }
 
@@ -639,9 +670,9 @@ static Node *new_node_num(int val)
 /*
 make a new node for local variable
 */
-static Node *new_node_lvar(const Token *tok)
+static Node *new_node_lvar(const Token *token)
 {
-    LVar *lvar = get_lvar(tok);
+    LVar *lvar = get_lvar(token);
     if(lvar == NULL)
     {
         report_error(NULL, "undefined variable");
@@ -658,11 +689,11 @@ static Node *new_node_lvar(const Token *tok)
 /*
 make a new node for function call
 */
-static Node *new_node_func(const Token *tok)
+static Node *new_node_func(const Token *token)
 {
     Node *node = new_node(ND_FUNC);
-    node->ident = calloc(tok->len, (sizeof(char) + 1));
-    strncpy(node->ident, tok->str, tok->len);
+    node->ident = calloc(token->len, (sizeof(char) + 1));
+    strncpy(node->ident, token->str, token->len);
 
     return node;
 }
@@ -671,13 +702,12 @@ static Node *new_node_func(const Token *tok)
 /*
 make a new local variable
 */
-static LVar *new_lvar(const Token *tok, LVar *cur_lvar, int offset, Type *type)
+static LVar *new_lvar(const Token *token, LVar *cur_lvar, int offset, Type *type)
 {
     LVar *lvar = calloc(1, sizeof(LVar));
-
     lvar->next = cur_lvar;
-    lvar->str = tok->str;
-    lvar->len = tok->len;
+    lvar->str = token->str;
+    lvar->len = token->len;
     lvar->offset = offset;
     lvar->type = type;
 
@@ -690,13 +720,13 @@ get a function argument or an existing local variable
 * If there exists a function argument or a local variable with a given token, this function returns the variable.
 * Otherwise, it returns NULL.
 */
-static LVar *get_lvar(const Token *tok)
+static LVar *get_lvar(const Token *token)
 {
     // search list of function arguments
     for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (current_function->args[i] != NULL); i++)
     {
         LVar *lvar = current_function->args[i];
-        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
+        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, lvar->len) == 0))
         {
             return lvar;
         }
@@ -705,7 +735,7 @@ static LVar *get_lvar(const Token *tok)
     // search list of local variables
     for(LVar *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
     {
-        if((lvar->len == tok->len) && (strncmp(tok->str, lvar->str, lvar->len) == 0))
+        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, lvar->len) == 0))
         {
             return lvar;
         }
@@ -718,14 +748,14 @@ static LVar *get_lvar(const Token *tok)
 /*
 make a new function
 */
-static Function *new_function(const Token *tok)
+static Function *new_function(const Token *token)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
     // initialize the name
-    new_func->name = calloc(tok->len + 1, sizeof(char));
-    strncpy(new_func->name, tok->str, tok->len);
-    new_func->name[tok->len] = '\0';
+    new_func->name = calloc(token->len + 1, sizeof(char));
+    strncpy(new_func->name, token->str, token->len);
+    new_func->name[token->len] = '\0';
 
     // initialize arguments
     for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)

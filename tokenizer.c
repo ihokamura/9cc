@@ -21,47 +21,50 @@
 
 
 // function prototype
-static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
-static int is_operator(const char *str);
-static int is_keyword(const char *str);
+static bool consume_declarator(Type **type, Token **token);
+static int is_reserved(const char *str);
 static int is_ident(const char *str);
+static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 
 
 // global variable
-static const char *keyword_string_list[] = {
-    "return",
-    "if",
-    "else",
-    "while",
-    "do",
-    "for",
-    "int",
-};
-// list of operator strings
+// list of punctuators
 // It is necessary to put longer strings above than shorter strings.
-static const char *operator_string_list[] = {
-    "sizeof",
+static const char *punctuator_list[] = {
     "==",
     "!=",
     "<=",
     ">=",
-    "+",
-    "-",
-    "*",
-    "/",
     "(",
     ")",
-    "<",
-    ">",
-    "=",
     "{",
     "}",
-    ";",
-    ",",
     "&",
+    "*",
+    "+",
+    "-",
+    "/",
+    "<",
+    ">",
+    ";",
+    "=",
+    ",",
 };
+static const size_t PUNCTUATOR_LIST_SIZE = sizeof(punctuator_list) / sizeof(punctuator_list[0]); // number of punctuators
+// list of keywords
+static const char *keyword_list[] = {
+    "do",
+    "else",
+    "for",
+    "if",
+    "int",
+    "return",
+    "sizeof",
+    "while",
+};
+static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords
 static char *user_input; // input of compiler
-static Token *token; // currently parsing token
+static Token *current_token; // currently parsing token
 
 
 /*
@@ -72,15 +75,15 @@ consume a reserved string
 bool consume_reserved(const char *str)
 {
     if(
-        (token->kind != TK_RESERVED) || 
-        (token->len != strlen(str)) || 
-        (strncmp(token->str, str, token->len) != 0)
+        (current_token->kind != TK_RESERVED) || 
+        (current_token->len != strlen(str)) || 
+        (strncmp(current_token->str, str, current_token->len) != 0)
         )
     {
         return false;
     }
 
-    token = token->next;
+    current_token = current_token->next;
 
     return true;
 }
@@ -93,16 +96,15 @@ consume an identifier
 */
 Token *consume_ident(void)
 {
-    if(token->kind != TK_IDENT)
+    if(current_token->kind != TK_IDENT)
     {
         return NULL;
     }
 
-    Token *ident_tok = token;
+    Token *ident_token = current_token;
+    current_token = current_token->next;
 
-    token = token->next;
-
-    return ident_tok;
+    return ident_token;
 }
 
 
@@ -111,7 +113,7 @@ consume a declarator
 * If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
 * Otherwise, it returns false.
 */
-bool consume_declarator(Type **type, Token **tok)
+static bool consume_declarator(Type **type, Token **token)
 {
     // consume pointers
     Type head = {};
@@ -128,35 +130,29 @@ bool consume_declarator(Type **type, Token **tok)
     if(ident == NULL)
     {
         *type = NULL;
-        *tok = NULL;
+        *token = NULL;
         return false;
     }
     else
     {
         *type = head.ptr_to;
-        *tok = ident;
+        *token = ident;
         return true;
     }
 }
 
 
 /*
-parse an operator
-* If the next token is a given operator, this function parses the token.
+parse a reserved string
+* If the next token is a given string, this function parses the token.
 * Otherwise, it reports an error.
 */
-void expect_operator(const char *op)
+void expect_reserved(const char *str)
 {
-    if(
-        (token->kind != TK_RESERVED) || 
-        (token->len != strlen(op)) || 
-        (strncmp(token->str, op, token->len) != 0)
-        )
+    if(!consume_reserved(str))
     {
-        report_error(token->str, "not '%s'.", op);
+        report_error(current_token->str, "expected '%s'.", str);
     }
-
-    token = token->next;
 }
 
 
@@ -167,14 +163,13 @@ parse a number
 */
 int expect_number(void)
 {
-    if(token->kind != TK_NUM)
+    if(current_token->kind != TK_NUM)
     {
-        report_error(token->str, "not a number.");
+        report_error(current_token->str, "expected a number.");
     }
 
-    int val = token->val;
-
-    token = token->next;
+    int val = current_token->val;
+    current_token = current_token->next;
 
     return val;
 }
@@ -185,11 +180,11 @@ parse a declarator
 * If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
 * Otherwise, it reports an error.
 */
-void expect_declarator(Type **type, Token **tok)
+void expect_declarator(Type **type, Token **token)
 {
-    if(!consume_declarator(type, tok))
+    if(!consume_declarator(type, token))
     {
-        report_error(token->str, "expected a declarator.");
+        report_error(current_token->str, "expected a declarator.");
     }
 }
 
@@ -203,9 +198,8 @@ void tokenize(char *str)
     user_input = str;
 
     // initialize token stream
-    Token head;
-    head.next = NULL;
-    Token *current = &head;
+    Token head = {};
+    Token *cursor = &head;
 
     while(*str)
     {
@@ -218,20 +212,11 @@ void tokenize(char *str)
             continue;
         }
 
-        // parse an operator
-        len = is_operator(str);
+        // parse a reserved string
+        len = is_reserved(str);
         if(len > 0)
         {
-            current = new_token(TK_RESERVED, current, str, len);
-            str += len;
-            continue;
-        }
-
-        // parse keyword
-        len = is_keyword(str);
-        if(len > 0)
-        {
-            current = new_token(TK_RESERVED, current, str, len);
+            cursor = new_token(TK_RESERVED, cursor, str, len);
             str += len;
             continue;
         }
@@ -240,7 +225,7 @@ void tokenize(char *str)
         len = is_ident(str);
         if(len > 0)
         {
-            current = new_token(TK_IDENT, current, str, len);
+            cursor = new_token(TK_IDENT, cursor, str, len);
             str += len;
             continue;
         }
@@ -248,18 +233,18 @@ void tokenize(char *str)
         // parse a number
         if(isdigit(*str))
         {
-            current = new_token(TK_NUM, current, str, 0);
-            current->val = strtol(str, &str, 10);
+            cursor = new_token(TK_NUM, cursor, str, 0);
+            cursor->val = strtol(str, &str, 10);
             continue;
         }
 
         // Other characters are not accepted as a token.
-        report_error(token->str, "cannot tokenize.");
+        report_error(current_token->str, "cannot tokenize.");
     }
 
     // end token stream
-    new_token(TK_EOF, current, str, 0);
-    token = head.next;
+    new_token(TK_EOF, cursor, str, 0);
+    current_token = head.next;
 }
 
 
@@ -268,7 +253,7 @@ check if the current token is the end of input
 */
 bool at_eof(void)
 {
-    return (token->kind == TK_EOF);
+    return (current_token->kind == TK_EOF);
 }
 
 
@@ -297,29 +282,14 @@ void report_error(char *loc, const char *fmt, ...)
 
 
 /*
-make a new token and concatenate it to the current token
+check if the following string is reserved
 */
-static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
+static int is_reserved(const char *str)
 {
-    Token *new_tok = calloc(1, sizeof(Token));
-
-    new_tok->kind = kind;
-    new_tok->str = str;
-    new_tok->len = len;
-    cur_tok->next = new_tok;
-
-    return new_tok;
-}
-
-
-/*
-check if the following string is an operator
-*/
-static int is_operator(const char *str)
-{
-    for(int i = 0; i < sizeof(operator_string_list) / sizeof(operator_string_list[0]); i++)
+    // check operators
+    for(size_t i = 0; i < PUNCTUATOR_LIST_SIZE; i++)
     {
-        const char *op = operator_string_list[i];
+        const char *op = punctuator_list[i];
         size_t len = strlen(op);
         if(strncmp(str, op, len) == 0)
         {
@@ -327,21 +297,12 @@ static int is_operator(const char *str)
         }
     }
 
-    return 0;
-}
-
-
-/*
-check if the following string is a keyword
-*/
-static int is_keyword(const char *str)
-{
-    for(int i = 0; i < sizeof(keyword_string_list) / sizeof(keyword_string_list[0]); i++)
+    // check keywords
+    for(size_t i = 0; i < KEYWORD_LIST_SIZE; i++)
     {
-        // parse keyword
-        const char *keyword = keyword_string_list[i];
-        size_t len = strlen(keyword);
-        if((strncmp(str, keyword, len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
+        const char *kw = keyword_list[i];
+        size_t len = strlen(kw);
+        if((strncmp(str, kw, len) == 0) && (!isalnum(str[len]) && (str[len] != '_')))
         {
             return len;
         }
@@ -372,4 +333,20 @@ static int is_ident(const char *str)
     }
 
     return len;
+}
+
+
+/*
+make a new token and concatenate it to the current token
+*/
+static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
+{
+    Token *new_tok = calloc(1, sizeof(Token));
+
+    new_tok->kind = kind;
+    new_tok->str = str;
+    new_tok->len = len;
+    cur_tok->next = new_tok;
+
+    return new_tok;
 }

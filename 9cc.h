@@ -126,9 +126,9 @@ void generate(Function *functions);
 // tokenizer.c
 bool consume_reserved(const char *str);
 Token *consume_ident(void);
-void expect_operator(const char *op);
+void expect_reserved(const char *str);
 int expect_number(void);
-void expect_declarator(Type **type, Token **tok);
+void expect_declarator(Type **type, Token **token);
 void tokenize(char *str);
 bool at_eof(void);
 void report_error(char *loc, const char *fmt, ...);
