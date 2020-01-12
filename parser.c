@@ -528,19 +528,6 @@ static Node *primary(void)
 
 
 /*
-make a new type
-*/
-Type *new_type(TypeKind kind)
-{
-    Type *type = calloc(1, sizeof(Type));
-    type->ty = kind;
-    type->ptr_to = NULL;
-
-    return type;
-}
-
-
-/*
 make a new node
 */
 static Node *new_node(NodeKind kind)

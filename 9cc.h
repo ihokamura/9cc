@@ -117,7 +117,6 @@ struct Function {
 // function prototype
 // parser.c
 void construct(Function **functions);
-Type *new_type(TypeKind kind);
 // generator.c
 void generate(Function *functions);
 // tokenizer.c
@@ -129,6 +128,8 @@ void expect_declarator(Type **type, Token **tok);
 void tokenize(char *str);
 bool at_eof(void);
 void report_error(char *loc, const char *fmt, ...);
+// type.c
+Type *new_type(TypeKind kind);
 
 
 // global variable
