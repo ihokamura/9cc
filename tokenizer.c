@@ -40,6 +40,7 @@ static const char *keyword_string_list[] = {
 // list of operator strings
 // It is necessary to put longer strings above than shorter strings.
 static const char *operator_string_list[] = {
+    "sizeof",
     "==",
     "!=",
     "<=",

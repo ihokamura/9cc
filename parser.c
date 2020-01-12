@@ -462,21 +462,29 @@ static Node *mul(void)
 
 /*
 make an unary
-* unary ::= ("+" | "-")? primary | "&" unary | "*" unary
+* unary ::= unary ::= sizeof unary | ("+" | "-")? primary | "&" unary | "*" unary
 */
 static Node *unary(void)
 {
     Node *node;
 
-    if(consume_reserved("&"))
+    if(consume_reserved("sizeof"))
+    {
+        Node *operand = unary();
+        node = new_node_num(operand->type->size);
+    }
+    else if(consume_reserved("&"))
     {
         node = new_node(ND_ADDR);
         node->lhs = unary();
+        node->type = new_type(TY_PTR);
+        node->type->ptr_to = node->lhs->type;
     }
     else if (consume_reserved("*"))
     {
         node = new_node(ND_DEREF);
         node->lhs = unary();
+        node->type = node->lhs->type->ptr_to;
     }
     else if(consume_reserved("+"))
     {
@@ -561,6 +569,7 @@ static Node *new_node(NodeKind kind)
     node->kind = kind;
     node->lhs = NULL;
     node->rhs = NULL;
+    node->type = NULL;
     node->val = 0;
     node->lvar = NULL;
     node->cond = NULL;
@@ -586,6 +595,30 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     node->lhs = lhs;
     node->rhs = rhs;
 
+    switch(kind)
+    {
+    case ND_ADD:
+    case ND_SUB:
+    case ND_MUL:
+    case ND_DIV:
+    case ND_EQ:
+    case ND_NEQ:
+    case ND_L:
+    case ND_LEQ:
+    case ND_ASSIGN:
+        node->type = new_type(TY_INT);
+        break;
+
+    case ND_PTR_ADD:
+    case ND_PTR_SUB:
+        node->type = new_type(TY_PTR);
+        break;
+    
+    default:
+        node->type = new_type(TY_INT);
+        break;
+    }
+
     return node;
 }
 
@@ -596,6 +629,7 @@ make a new node for number
 static Node *new_node_num(int val)
 {
     Node *node = new_node(ND_NUM);
+    node->type = new_type(TY_INT);
     node->val = val;
 
     return node;
@@ -614,6 +648,7 @@ static Node *new_node_lvar(const Token *tok)
     }
 
     Node *node = new_node(ND_LVAR);
+    node->type = lvar->type;
     node->lvar = lvar;
 
     return node;

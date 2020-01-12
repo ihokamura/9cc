@@ -125,6 +125,16 @@ try 3 "int **func(int ***x){return *x;} int main(){int a; int *b; int **c; int *
 
 # pointer addition and subtraction
 try_func 2 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; print_int(*q); q = q - 1; return *q;}"
+
+# sizeof operator
+try 4 "int main(){return sizeof(1);}"
+try 4 "int main(){return sizeof sizeof(1);}"
+try 4 "int main(){int x; return sizeof(x);}"
+try 8 "int main(){int *y; return sizeof(y);}"
+try 8 "int main(){int x; return sizeof(&x);}"
+try 4 "int main(){int *y; return sizeof(*y);}"
+try 4 "int main(){int x; return sizeof(x + 3);}"
+try 8 "int main(){int *y; return sizeof(y + 3);}"
 }
 
 try_all

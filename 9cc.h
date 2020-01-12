@@ -94,6 +94,7 @@ struct Node {
     NodeKind kind;  // kind of node
     Node *lhs;      // left hand side
     Node *rhs;      // right hand side
+    Type *type;     // type of node
     int val;        // value of node (only for ND_NUM)
     LVar *lvar;     // information of local variable (only for ND_LVAR)
     Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)

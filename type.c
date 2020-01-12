@@ -16,8 +16,8 @@
 
 
 // global variable
-static const size_t SIZEOF_INT = 4;
-static const size_t SIZEOF_PTR = 8;
+static const size_t SIZEOF_INT = 4; // size of int type
+static const size_t SIZEOF_PTR = 8; // size of pointer type
 
 
 /*
