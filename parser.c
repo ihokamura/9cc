@@ -20,7 +20,7 @@
 static void program(void);
 static Function *func(void);
 static Node *stmt(void);
-static Node *decl(void);
+static Node *declaration(void);
 static Node *expr(void);
 static Node *assign(void);
 static Node *equality(void);
@@ -29,7 +29,6 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *primary(void);
-static Type *new_type(TypeKind kind);
 static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
@@ -57,7 +56,7 @@ void construct(Function **functions)
 
 /*
 make a program
-* program = func*
+* program ::= func*
 */
 static void program(void)
 {
@@ -76,36 +75,31 @@ static void program(void)
 
 /*
 make a function
-* func = "int" ident "(" ("int" ident ("," "int" ident)*)? ")" "{" stmt* "}"
+* func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
 */
 static Function *func(void)
 {
-    // parse function name
+    // parse function name and type of return value
     if(!consume_reserved("int"))
     {
         report_error(NULL, "expected 'int'\n");
     }
-    Token *tok = consume_ident();
-    if(tok == NULL)
-    {
-        report_error(NULL, "expected function definition\n");
-    }
 
-    // make a new function
+    Type *type;
+    Token *tok;
+
+    expect_declarator(&type, &tok);
     current_function = new_function(tok);
 
     // parse arguments
     expect_operator("(");
     if(consume_reserved("int"))
     {
+        Type *type;
         Token *arg;
-        arg = consume_ident();
-        if(arg == NULL)
-        {
-            report_error(NULL, "expected argument\n");
-        }
 
-        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE, new_type(TY_INT));
+        expect_declarator(&type, &arg);
+        current_function->args[0] = new_lvar(arg, NULL, LVAR_SIZE, type);
         current_function->argc++;
         current_function->stack_size += LVAR_SIZE;
 
@@ -116,13 +110,8 @@ static Function *func(void)
                 report_error(NULL, "expected 'int'\n");
             }
 
-            arg = consume_ident();
-            if(arg == NULL)
-            {
-                report_error(NULL, "expected argument\n");
-            }
-
-            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE, new_type(TY_INT));
+            expect_declarator(&type, &arg);
+            current_function->args[i] = new_lvar(arg, NULL, (i + 1) * LVAR_SIZE, type);
             current_function->argc++;
             current_function->stack_size += LVAR_SIZE;
         }
@@ -147,7 +136,7 @@ static Function *func(void)
 
 /*
 make a statement
-* stmt = decl | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}
+* stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
 */
 static Node *stmt(void)
 {
@@ -261,7 +250,7 @@ static Node *stmt(void)
     }
     else if(consume_reserved("int"))
     {
-        node = decl();
+        node = declaration();
     }
     else
     {
@@ -279,28 +268,22 @@ static Node *stmt(void)
 
 /*
 make a declaration
-* decl = "int" "*"* ident ";"
+* declaration ::= "int" declarator ";"
 */
-static Node *decl(void)
+static Node *declaration(void)
 {
-    // parse specifier
-    Type head = {};
-    Type *cursor = &head;
-    while(consume_reserved("*"))
-    {
-        cursor->ptr_to = new_type(TY_PTR);
-        cursor = cursor->ptr_to;
-    }
+    // parse declarator
+    Type *type;
+    Token *tok;
 
-    Token *tok = consume_ident();
+    expect_declarator(&type, &tok);
     if(get_lvar(tok) != NULL)
     {
         report_error(NULL, "duplicated declaration\n");
     }
-    cursor->ptr_to = new_type(TY_INT);
 
     current_function->stack_size += LVAR_SIZE;
-    current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size, head.ptr_to);
+    current_function->locals = new_lvar(tok, current_function->locals, current_function->stack_size, type);
 
     Node *node = new_node(ND_DECL);
     node->lvar = current_function->locals;
@@ -311,7 +294,7 @@ static Node *decl(void)
 
 /*
 make an expression
-* expr = assign
+* expr ::= assign
 */
 static Node *expr(void)
 {
@@ -321,7 +304,7 @@ static Node *expr(void)
 
 /*
 make an assignment expression
-* assign = equality ("=" assign)?
+* assign ::= equality ("=" assign)?
 */
 static Node *assign(void)
 {
@@ -339,7 +322,7 @@ static Node *assign(void)
 
 /*
 make an equality
-* equality = relational ("==" relational | "!=" relational)*
+* equality ::= relational ("==" relational | "!=" relational)*
 */
 static Node *equality(void)
 {
@@ -366,7 +349,7 @@ static Node *equality(void)
 
 /*
 make a relational expression
-* relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+* relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 */
 static Node *relational(void)
 {
@@ -401,7 +384,7 @@ static Node *relational(void)
 
 /*
 make an addition term
-* add = mul ("+" mul | "-" mul)*
+* add ::= mul ("+" mul | "-" mul)*
 */
 static Node *add(void)
 {
@@ -428,7 +411,7 @@ static Node *add(void)
 
 /*
 make a multiplication term
-* mul = unary ("*" unary | "/" unary)*
+* mul ::= unary ("*" unary | "/" unary)*
 */
 static Node *mul(void)
 {
@@ -455,7 +438,7 @@ static Node *mul(void)
 
 /*
 make an unary
-* unary = ("+" | "-")? primary | "&" unary | "*" unary
+* unary ::= ("+" | "-")? primary | "&" unary | "*" unary
 */
 static Node *unary(void)
 {
@@ -490,7 +473,7 @@ static Node *unary(void)
 
 /*
 make a primary
-* `primary = num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"`
+* primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
 */
 static Node *primary(void)
 {
@@ -547,7 +530,7 @@ static Node *primary(void)
 /*
 make a new type
 */
-static Type *new_type(TypeKind kind)
+Type *new_type(TypeKind kind)
 {
     Type *type = calloc(1, sizeof(Type));
     type->ty = kind;

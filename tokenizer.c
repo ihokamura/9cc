@@ -37,6 +37,8 @@ static const char *keyword_string_list[] = {
     "for",
     "int",
 };
+// list of operator strings
+// It is necessary to put longer strings above than shorter strings.
 static const char *operator_string_list[] = {
     "==",
     "!=",
@@ -104,6 +106,40 @@ Token *consume_ident(void)
 
 
 /*
+consume a declarator
+* If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
+* Otherwise, it returns false.
+*/
+bool consume_declarator(Type **type, Token **tok)
+{
+    // consume pointers
+    Type head = {};
+    Type *cursor = &head;
+    while(consume_reserved("*"))
+    {
+        cursor->ptr_to = new_type(TY_PTR);
+        cursor = cursor->ptr_to;
+    }
+    cursor->ptr_to = new_type(TY_INT);
+
+    // consume an identifier
+    Token *ident = consume_ident();
+    if(ident == NULL)
+    {
+        *type = NULL;
+        *tok = NULL;
+        return false;
+    }
+    else
+    {
+        *type = head.ptr_to;
+        *tok = ident;
+        return true;
+    }
+}
+
+
+/*
 parse an operator
 * If the next token is a given operator, this function parses the token.
 * Otherwise, it reports an error.
@@ -140,6 +176,20 @@ int expect_number(void)
     token = token->next;
 
     return val;
+}
+
+
+/*
+parse a declarator
+* If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
+* Otherwise, it reports an error.
+*/
+void expect_declarator(Type **type, Token **tok)
+{
+    if(!consume_declarator(type, tok))
+    {
+        report_error(token->str, "expected a declarator.");
+    }
 }
 
 
