@@ -117,7 +117,7 @@ try 6 "int fact(int n){if(n == 0){return 1;} else{return n * fact(n - 1);}} int 
 try 21 "int fib(int n){if(n > 1){return fib(n - 1) + fib(n - 2);} else if(n == 1){return 1;} else{return 0;}} int main(){return fib(8);}"
 
 # address operator and dereference operator
-try 3 "int main(){int x; int y; x = 1; y = &x; return *y + 2;}"
+try 3 "int main(){int x; int *y; x = 1; y = &x; return *y + 2;}"
 try 3 "int main(){int x; int *y; x = 1; y = &x; *y = 3; return x;}"
 try 3 "int main(){int x; int *y; int **z; x = 1; y = &x; z = &y; **z = 3; return x;}"
 try 3 "int func(int *x){return *x;} int main(){int a; int b; a = 3; b = func(&a); return b;}"

@@ -37,6 +37,7 @@ static Node *new_node_func(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, int offset, Type *type);
 static LVar *get_lvar(const Token *token);
 static Function *new_function(const Token *token);
+static Function *get_function(const Token *token);
 
 
 // global variable
@@ -89,6 +90,7 @@ static Function *func(void)
     expect_reserved("int");
     expect_declarator(&ret_type, &func_token);
     current_function = new_function(func_token);
+    current_function->type = ret_type;
 
     // parse arguments
     expect_reserved("(");
@@ -636,7 +638,6 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_NEQ:
     case ND_L:
     case ND_LEQ:
-    case ND_ASSIGN:
         node->type = new_type(TY_INT);
         break;
 
@@ -644,7 +645,11 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_PTR_SUB:
         node->type = new_type(TY_PTR);
         break;
-    
+
+    case ND_ASSIGN:
+        node->type = rhs->type;
+        break;
+
     default:
         node->type = new_type(TY_INT);
         break;
@@ -691,7 +696,20 @@ make a new node for function call
 */
 static Node *new_node_func(const Token *token)
 {
+    Type *type;
+    Function *func = get_function(token);
+    if(func == NULL)
+    {
+        // implicitly assume that the function returns int
+        type = new_type(TY_INT);
+    }
+    else
+    {
+        type = func->type;
+    }
+
     Node *node = new_node(ND_FUNC);
+    node->type = type;
     node->ident = calloc(token->len, (sizeof(char) + 1));
     strncpy(node->ident, token->str, token->len);
 
@@ -726,7 +744,7 @@ static LVar *get_lvar(const Token *token)
     for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (current_function->args[i] != NULL); i++)
     {
         LVar *lvar = current_function->args[i];
-        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, lvar->len) == 0))
+        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, token->len) == 0))
         {
             return lvar;
         }
@@ -735,7 +753,7 @@ static LVar *get_lvar(const Token *token)
     // search list of local variables
     for(LVar *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
     {
-        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, lvar->len) == 0))
+        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, token->len) == 0))
         {
             return lvar;
         }
@@ -764,6 +782,9 @@ static Function *new_function(const Token *token)
     }
     new_func->argc = 0;
 
+    // initialize type of return value
+    new_func->type = NULL;
+
     // initialize function body
     new_func->body = NULL;
 
@@ -774,4 +795,24 @@ static Function *new_function(const Token *token)
     new_func->stack_size = 0;
 
     return new_func;
+}
+
+
+/*
+get an existing function
+* If there exists a function with a given token, this function returns the function.
+* Otherwise, it returns NULL.
+*/
+static Function *get_function(const Token *token)
+{
+    // search list of function
+    for(Function *func = function_list; func != NULL; func = func->next)
+    {
+        if((strlen(func->name) == token->len) && (strncmp(token->str, func->name, token->len) == 0))
+        {
+            return func;
+        }
+    }
+
+    return NULL;
 }

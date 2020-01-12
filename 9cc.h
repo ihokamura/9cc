@@ -72,7 +72,7 @@ struct Token {
 // structure for type
 typedef struct Type Type;
 struct Type {
-    TypeKind ty;         // kind of type
+    TypeKind kind;       // kind of type
     size_t size;         // size of type
     struct Type *ptr_to; // pointer to some type (only for TY_PTR)
 };
@@ -112,6 +112,7 @@ struct Function {
     char *name;        // name of function
     size_t argc;       // number of arguments
     LVar *args[6];     // arguments
+    Type *type;        // type of return value
     Node *body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes

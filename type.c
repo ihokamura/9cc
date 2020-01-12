@@ -26,7 +26,7 @@ make a new type
 Type *new_type(TypeKind kind)
 {
     Type *type = calloc(1, sizeof(Type));
-    type->ty = kind;
+    type->kind = kind;
     type->ptr_to = NULL;
 
     switch(kind)
@@ -53,5 +53,5 @@ check if a given node is pointer-type
 */
 bool is_pointer(const Node *node)
 {
-    return (node->lvar != NULL) && (node->lvar->type->ty == TY_PTR);
+    return (node->type->kind == TY_PTR);
 }
