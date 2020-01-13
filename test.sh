@@ -120,11 +120,17 @@ try 21 "int fib(int n){if(n > 1){return fib(n - 1) + fib(n - 2);} else if(n == 1
 try 3 "int main(){int x; int *y; x = 1; y = &x; return *y + 2;}"
 try 3 "int main(){int x; int *y; x = 1; y = &x; *y = 3; return x;}"
 try 3 "int main(){int x; int *y; int **z; x = 1; y = &x; z = &y; **z = 3; return x;}"
-try 3 "int func(int *x){return *x;} int main(){int a; int b; a = 3; b = func(&a); return b;}"
-try 3 "int **func(int ***x){return *x;} int main(){int a; int *b; int **c; int **d; a = 3; b = &a; c = &b; d = func(&c); return **d;}"
+try 3 "int func(int *x){return *x;} int main(){int a0; int b; a0 = 3; b = func(&a0); return b;}"
+try 3 "int func(int **x){return **x;} int main(){int a0; int *a1; int b; a0 = 3; a1 = &a0; b = func(&a1); return b;}"
+try 3 "int func(int ***x){return ***x;} int main(){int a0; int *a1; int **a2; int b; a0 = 3; a1 = &a0; a2 = &a1; b = func(&a2); return b;}"
+try 3 "int *func(int *x){return x;} int main(){int a0; int *b; a0 = 3; b = func(&a0); return *b;}"
+try 3 "int *func(int **x){return *x;} int main(){int a0; int *a1; int *b; a0 = 3; a1 = &a0; b = func(&a1); return *b;}"
+try 3 "int **func(int **x){return x;} int main(){int a0; int *a1; int **b; a0 = 3; a1 = &a0; b = func(&a1); return **b;}"
 
 # pointer addition and subtraction
-try_func 2 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; print_int(*q); q = q - 1; return *q;}"
+try_func 4 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; return *q;}"
+try_func 4 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = 2 + p; return *q;}"
+try_func 2 "int main(){int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 2; return *(q - 1);}"
 
 # sizeof operator
 try 4 "int main(){return sizeof(1);}"
@@ -135,6 +141,15 @@ try 8 "int main(){int x; return sizeof(&x);}"
 try 4 "int main(){int *y; return sizeof(*y);}"
 try 4 "int main(){int x; return sizeof(x + 3);}"
 try 8 "int main(){int *y; return sizeof(y + 3);}"
+try 4 "int main(){int *y; return sizeof(*(y + 3));}"
+
+# array
+try 2 "int main(){int a[1]; *a = 2; return *a;}"
+try 2 "int main(){int a[2]; *(a + 1) = 2; return 2 * *(a + 1) - 2;}"
+try 3 "int main(){int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1);}"
+try_func 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){*(a + i) = i + 1; print_int(*(a + i));} return *a + *(a + 1) + *(a + 2) + *(a + 3);}"
+try 12 "int main(){int a[3]; return sizeof(a);}"
+try 1 "int main(){int a[3]; return (a == &a);}"
 }
 
 try_all

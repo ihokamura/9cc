@@ -18,5 +18,5 @@ add ::= mul ("+" mul | "-" mul)*
 mul ::= unary ("*" unary | "/" unary)*
 unary ::= sizeof unary | ("+" | "-")? primary | "&" unary | "*" unary
 primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
-declarator ::= "*"* ident
+declarator ::= "*"* ident ("[" num "]")?
 ```

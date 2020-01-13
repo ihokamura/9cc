@@ -35,6 +35,8 @@ static const char *punctuator_list[] = {
     "!=",
     "<=",
     ">=",
+    "[",
+    "]",
     "(",
     ")",
     "{",
@@ -120,10 +122,10 @@ static bool consume_declarator(Type **type, Token **token)
     Type *cursor = &head;
     while(consume_reserved("*"))
     {
-        cursor->ptr_to = new_type(TY_PTR);
-        cursor = cursor->ptr_to;
+        cursor->base = new_type(TY_PTR);
+        cursor = cursor->base;
     }
-    cursor->ptr_to = new_type(TY_INT);
+    cursor->base = new_type(TY_INT);
 
     // consume an identifier
     Token *ident = consume_ident();
@@ -133,12 +135,21 @@ static bool consume_declarator(Type **type, Token **token)
         *token = NULL;
         return false;
     }
-    else
+
+    // consume size of array
+    if(consume_reserved("["))
     {
-        *type = head.ptr_to;
-        *token = ident;
-        return true;
+        Type *array_type = new_type(TY_ARRAY);
+        array_type->base = head.base;
+        array_type->len = expect_number();
+        head.base = array_type;
+        expect_reserved("]");
     }
+
+    *type = head.base;
+    *token = ident;
+
+    return true;
 }
 
 
@@ -286,12 +297,12 @@ check if the following string is reserved
 */
 static int is_reserved(const char *str)
 {
-    // check operators
+    // check punctuators
     for(size_t i = 0; i < PUNCTUATOR_LIST_SIZE; i++)
     {
-        const char *op = punctuator_list[i];
-        size_t len = strlen(op);
-        if(strncmp(str, op, len) == 0)
+        const char *punc = punctuator_list[i];
+        size_t len = strlen(punc);
+        if(strncmp(str, punc, len) == 0)
         {
             return len;
         }

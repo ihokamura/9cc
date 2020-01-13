@@ -27,7 +27,8 @@ Type *new_type(TypeKind kind)
 {
     Type *type = calloc(1, sizeof(Type));
     type->kind = kind;
-    type->ptr_to = NULL;
+    type->base = NULL;
+    type->len = 1;
 
     switch(kind)
     {
@@ -36,6 +37,7 @@ Type *new_type(TypeKind kind)
         break;
 
     case TY_PTR:
+    case TY_ARRAY:
         type->size = SIZEOF_PTR;
         break;
 
@@ -50,8 +52,9 @@ Type *new_type(TypeKind kind)
 
 /*
 check if a given node is pointer-type
+* This function assumes that array-type be pointer-type.
 */
 bool is_pointer(const Node *node)
 {
-    return (node->type->kind == TY_PTR);
+    return (node->type->kind == TY_PTR) || (node->type->kind == TY_ARRAY);
 }

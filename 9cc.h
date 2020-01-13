@@ -27,8 +27,9 @@ typedef enum {
 
 // kind of type
 typedef enum {
-    TY_INT, // int
-    TY_PTR, // pointer
+    TY_INT,   // int
+    TY_PTR,   // pointer
+    TY_ARRAY, // array
 } TypeKind;
 
 // kind of node in AST(abstract syntax tree)
@@ -74,7 +75,8 @@ typedef struct Type Type;
 struct Type {
     TypeKind kind;       // kind of type
     size_t size;         // size of type
-    struct Type *ptr_to; // pointer to some type (only for TY_PTR)
+    struct Type *base;   // base type (only for TY_PTR and TY_ARRAY)
+    size_t len;          // length of array (only for TY_ARRAY)
 };
 
 // structure for local variable

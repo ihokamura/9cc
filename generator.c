@@ -121,9 +121,19 @@ static void generate_node(const Node *node)
 
         case ND_LVAR:
             generate_lvalue(node);
-            put_instruction("  pop rax");
-            put_instruction("  mov rax, [rax]");
-            put_instruction("  push rax");
+            if(node->type->kind != TY_ARRAY)
+            {
+                put_instruction("  pop rax");
+                if(node->type->size == 4)
+                {
+                    put_instruction("  movsxd rax, dword ptr [rax]");
+                }
+                else
+                {
+                    put_instruction("  mov rax, [rax]");
+                }
+                put_instruction("  push rax");
+            }
             return;
 
         case ND_ADDR:
@@ -142,7 +152,14 @@ static void generate_node(const Node *node)
             generate_node(node->rhs);
             put_instruction("  pop rdi");
             put_instruction("  pop rax");
-            put_instruction("  mov [rax], rdi");
+            if(node->type->size == 4)
+            {
+                put_instruction("  mov [rax], edi");
+            }
+            else
+            {
+                put_instruction("  mov [rax], rdi");
+            }
             put_instruction("  push rdi");
             return;
 
@@ -298,7 +315,7 @@ static void generate_node(const Node *node)
             break;
 
         case ND_PTR_ADD:
-            put_instruction("  imul rdi, %ld", node->lhs->type->ptr_to->size);
+            put_instruction("  imul rdi, %ld", node->type->base->size);
             put_instruction("  add rax, rdi");
             break;
 
@@ -307,7 +324,7 @@ static void generate_node(const Node *node)
             break;
 
         case ND_PTR_SUB:
-            put_instruction("  imul rdi, %ld", node->lhs->type->ptr_to->size);
+            put_instruction("  imul rdi, %ld", node->type->base->size);
             put_instruction("  sub rax, rdi");
             break;
 

@@ -67,7 +67,7 @@ static void program(void)
     Function *cursor = &head;
     while(!at_eof())
     {
-        cursor->next = func();
+        function_list = cursor->next = func();
         cursor = cursor->next;
     }
 
@@ -100,17 +100,17 @@ static Function *func(void)
         Token *arg_token;
 
         expect_declarator(&arg_type, &arg_token);
-        current_function->args[0] = new_lvar(arg_token, NULL, LVAR_SIZE, arg_type);
+        current_function->args[0] = new_lvar(arg_token, NULL, current_function->stack_size + LVAR_SIZE, arg_type);
         current_function->argc++;
-        current_function->stack_size += LVAR_SIZE;
+        current_function->stack_size += LVAR_SIZE * arg_type->len;
 
         for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
         {
             expect_reserved("int");
             expect_declarator(&arg_type, &arg_token);
-            current_function->args[i] = new_lvar(arg_token, NULL, (i + 1) * LVAR_SIZE, arg_type);
+            current_function->args[i] = new_lvar(arg_token, NULL, current_function->stack_size + LVAR_SIZE, arg_type);
             current_function->argc++;
-            current_function->stack_size += LVAR_SIZE;
+            current_function->stack_size += LVAR_SIZE * arg_type->len;
         }
     }
     expect_reserved(")");
@@ -299,8 +299,8 @@ static Node *declaration(void)
         report_error(NULL, "duplicated declaration\n");
     }
 
-    current_function->stack_size += LVAR_SIZE;
-    current_function->locals = new_lvar(token, current_function->locals, current_function->stack_size, type);
+    current_function->locals = new_lvar(token, current_function->locals, current_function->stack_size + LVAR_SIZE, type);
+    current_function->stack_size += LVAR_SIZE * type->len;
 
     Node *node = new_node(ND_DECL);
     node->lvar = current_function->locals;
@@ -502,20 +502,27 @@ static Node *unary(void)
     if(consume_reserved("sizeof"))
     {
         Node *operand = unary();
-        node = new_node_num(operand->type->size);
+        if(operand->type->kind == TY_ARRAY)
+        {
+            node = new_node_num(operand->type->base->size * operand->type->len);
+        }
+        else
+        {
+            node = new_node_num(operand->type->size);
+        }
     }
     else if(consume_reserved("&"))
     {
         node = new_node(ND_ADDR);
         node->lhs = unary();
         node->type = new_type(TY_PTR);
-        node->type->ptr_to = node->lhs->type;
+        node->type->base = node->lhs->type;
     }
     else if (consume_reserved("*"))
     {
         node = new_node(ND_DEREF);
         node->lhs = unary();
-        node->type = node->lhs->type->ptr_to;
+        node->type = node->lhs->type->base;
     }
     else if(consume_reserved("+"))
     {
@@ -643,11 +650,20 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 
     case ND_PTR_ADD:
     case ND_PTR_SUB:
-        node->type = new_type(TY_PTR);
+        node->type = lhs->type;
         break;
 
     case ND_ASSIGN:
-        node->type = rhs->type;
+        if(rhs->type->kind == TY_ARRAY)
+        {
+            // convert from array to pointer
+            node->type = new_type(TY_PTR);
+            node->type->base = rhs->type->base;
+        }
+        else
+        {
+            node->type = rhs->type;
+        }
         break;
 
     default:
