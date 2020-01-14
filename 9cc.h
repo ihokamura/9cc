@@ -134,6 +134,8 @@ int expect_number(void);
 void expect_declarator(Type **type, Token **token);
 void tokenize(char *str);
 bool at_eof(void);
+char *make_ident(const Token *token);
+void report_warning(char *loc, const char *fmt, ...);
 void report_error(char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);

@@ -269,6 +269,40 @@ bool at_eof(void)
 
 
 /*
+make string of an identifier
+*/
+char *make_ident(const Token *token)
+{
+    char *ident = calloc(token->len + 1, sizeof(char));
+
+    strncpy(ident, token->str, token->len);
+
+    return ident;
+}
+
+
+/*
+report a warning
+*/
+void report_warning(char *loc, const char *fmt, ...)
+{
+    if(loc != NULL)
+    {
+        // emphasize the position where a warning is detected
+        int pos = (loc - user_input) / sizeof(user_input[0]);
+        fprintf(stderr, "%s\n", user_input);
+        fprintf(stderr, "%*s ^\n", pos, "");
+    }
+
+    // print the warning message
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+}
+
+
+/*
 report an error
 * This function never returns.
 */

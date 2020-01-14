@@ -296,7 +296,7 @@ static Node *declaration(void)
     expect_declarator(&type, &token);
     if(get_lvar(token) != NULL)
     {
-        report_error(NULL, "duplicated declaration\n");
+        report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
     }
 
     current_function->locals = new_lvar(token, current_function->locals, current_function->stack_size + LVAR_SIZE, type);
@@ -696,7 +696,7 @@ static Node *new_node_lvar(const Token *token)
     LVar *lvar = get_lvar(token);
     if(lvar == NULL)
     {
-        report_error(NULL, "undefined variable");
+        report_error(token->str, "undefined variable '%s'", make_ident(token));
     }
 
     Node *node = new_node(ND_LVAR);
@@ -718,6 +718,7 @@ static Node *new_node_func(const Token *token)
     {
         // implicitly assume that the function returns int
         type = new_type(TY_INT);
+        report_warning(token->str, "implicit declaration of function '%s'\n", make_ident(token));
     }
     else
     {
@@ -726,8 +727,7 @@ static Node *new_node_func(const Token *token)
 
     Node *node = new_node(ND_FUNC);
     node->type = type;
-    node->ident = calloc(token->len, (sizeof(char) + 1));
-    strncpy(node->ident, token->str, token->len);
+    node->ident = make_ident(token);
 
     return node;
 }
@@ -787,9 +787,7 @@ static Function *new_function(const Token *token)
     Function *new_func = calloc(1, sizeof(Function));
 
     // initialize the name
-    new_func->name = calloc(token->len + 1, sizeof(char));
-    strncpy(new_func->name, token->str, token->len);
-    new_func->name[token->len] = '\0';
+    new_func->name = make_ident(token);
 
     // initialize arguments
     for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
