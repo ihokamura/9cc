@@ -147,11 +147,13 @@ try 4 "int main(){int *y; return sizeof(*(y + 3));}"
 try 2 "int main(){int a[1]; *a = 2; return *a;}"
 try 2 "int main(){int a[2]; *(a + 1) = 2; return 2 * *(a + 1) - 2;}"
 try 3 "int main(){int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1);}"
-try_func 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){*(a + i) = i + 1; print_int(*(a + i));} return *a + *(a + 1) + *(a + 2) + *(a + 3);}"
+try 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){*(a + i) = i + 1;} return *a + *(a + 1) + *(a + 2) + *(a + 3);}"
+try 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){a[i] = i + 1;} return a[0] + 1[a] + a[2] + 3[a];}"
 try 12 "int main(){int a[3]; return sizeof(a);}"
 try 1 "int main(){int a[3]; return (a == &a);}"
 }
 
 try_all
+#try 10 "int sum(int *a, int n){int i; int s; s = 0; for(i = 0; i < n; i = i + 1){s = s + *(a + i);} return s;} int main(){int a[10]; int n; n = 10; int i; for(i = 0; i < n; i = i + 1){*(a + i) = i;} return sum(a, n);}"
 
 echo OK

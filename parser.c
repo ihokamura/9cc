@@ -28,6 +28,7 @@ static Node *relational(void);
 static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
+static Node *postfix(void);
 static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
@@ -492,7 +493,7 @@ static Node *mul(void)
 /*
 make an unary
 ```
-unary ::= unary ::= sizeof unary | ("+" | "-")? primary | "&" unary | "*" unary
+unary ::= postfix | ("&" | "*" | "+" | "-")? unary | sizeof unary
 ```
 */
 static Node *unary(void)
@@ -526,15 +527,53 @@ static Node *unary(void)
     }
     else if(consume_reserved("+"))
     {
-        node = primary();
+        node = unary();
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_num(0), primary());
+        node = new_node_binary(ND_SUB, new_node_num(0), unary());
     }
     else
     {
-        node = primary();
+        node = postfix();
+    }
+
+    return node;
+}
+
+
+/*
+make a postfix
+```
+postfix ::= primary ("[" expr "]")?
+```
+*/
+static Node *postfix(void)
+{
+    Node *node = primary();
+
+    if(consume_reserved("["))
+    {
+        Node *lhs;
+        Node *index = expr();
+
+        if(is_pointer(node) && !is_pointer(index))
+        {
+            lhs = new_node_binary(ND_PTR_ADD, node, index);
+        }
+        else if(!is_pointer(node) && is_pointer(index))
+        {
+            lhs = new_node_binary(ND_PTR_ADD, index, node);
+        }
+        else
+        {
+            report_error(NULL, "bad operand for [] operator\n");
+        }
+
+        node = new_node(ND_DEREF);
+        node->lhs = lhs;
+        node->type = node->lhs->type->base;
+        expect_reserved("]");
     }
 
     return node;
