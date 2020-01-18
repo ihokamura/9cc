@@ -19,6 +19,7 @@
 // function prototype
 static void program(void);
 static Function *func(void);
+static Type *declarator(Token **token);
 static Node *stmt(void);
 static Node *declaration(void);
 static Node *expr(void);
@@ -35,7 +36,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_lvar(const Token *token);
 static Node *new_node_func(const Token *token);
-static LVar *new_lvar(const Token *token, LVar *cur_lvar, int offset, Type *type);
+static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
 static Function *new_function(const Token *token);
 static Function *get_function(const Token *token);
@@ -89,7 +90,7 @@ static Function *func(void)
     Token *func_token;
 
     expect_reserved("int");
-    expect_declarator(&ret_type, &func_token);
+    ret_type = declarator(&func_token);
     current_function = new_function(func_token);
     current_function->type = ret_type;
 
@@ -100,18 +101,16 @@ static Function *func(void)
         Type *arg_type;
         Token *arg_token;
 
-        expect_declarator(&arg_type, &arg_token);
-        current_function->args[0] = new_lvar(arg_token, NULL, current_function->stack_size + LVAR_SIZE, arg_type);
+        arg_type = declarator(&arg_token);
+        current_function->args[0] = new_lvar(arg_token, NULL, arg_type);
         current_function->argc++;
-        current_function->stack_size += LVAR_SIZE * arg_type->len;
 
         for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
         {
             expect_reserved("int");
-            expect_declarator(&arg_type, &arg_token);
-            current_function->args[i] = new_lvar(arg_token, NULL, current_function->stack_size + LVAR_SIZE, arg_type);
+            arg_type = declarator(&arg_token);
+            current_function->args[i] = new_lvar(arg_token, NULL, arg_type);
             current_function->argc++;
-            current_function->stack_size += LVAR_SIZE * arg_type->len;
         }
     }
     expect_reserved(")");
@@ -129,6 +128,42 @@ static Function *func(void)
     current_function->body = head.next;
 
     return current_function;
+}
+
+
+/*
+make a declarator
+```
+declarator ::= "*"* ident ("[" num "]")?
+```
+*/
+static Type *declarator(Token **token)
+{
+    // consume pointers
+    Type *type = new_type(TY_INT);
+    while(consume_reserved("*"))
+    {
+        type = new_type_pointer(type);
+    }
+
+    // consume identifier
+    Token *ident = consume_ident();
+    if(ident == NULL)
+    {
+        *token = NULL;
+        return false;
+    }
+
+    // consume array length
+    if(consume_reserved("["))
+    {
+        type = new_type_array(type, expect_number());
+        expect_reserved("]");
+    }
+
+    *token = ident;
+
+    return type;
 }
 
 
@@ -294,14 +329,13 @@ static Node *declaration(void)
     Type *type;
     Token *token;
 
-    expect_declarator(&type, &token);
+    type = declarator(&token);
     if(get_lvar(token) != NULL)
     {
         report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
     }
 
-    current_function->locals = new_lvar(token, current_function->locals, current_function->stack_size + LVAR_SIZE, type);
-    current_function->stack_size += LVAR_SIZE * type->len;
+    current_function->locals = new_lvar(token, current_function->locals, type);
 
     Node *node = new_node(ND_DECL);
     node->lvar = current_function->locals;
@@ -503,21 +537,13 @@ static Node *unary(void)
     if(consume_reserved("sizeof"))
     {
         Node *operand = unary();
-        if(operand->type->kind == TY_ARRAY)
-        {
-            node = new_node_num(operand->type->base->size * operand->type->len);
-        }
-        else
-        {
-            node = new_node_num(operand->type->size);
-        }
+        node = new_node_num(operand->type->size);
     }
     else if(consume_reserved("&"))
     {
         node = new_node(ND_ADDR);
         node->lhs = unary();
-        node->type = new_type(TY_PTR);
-        node->type->base = node->lhs->type;
+        node->type = new_type_pointer(node->lhs->type);
     }
     else if (consume_reserved("*"))
     {
@@ -696,8 +722,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         if(rhs->type->kind == TY_ARRAY)
         {
             // convert from array to pointer
-            node->type = new_type(TY_PTR);
-            node->type->base = rhs->type->base;
+            node->type = new_type_pointer(rhs->type->base);
         }
         else
         {
@@ -775,13 +800,15 @@ static Node *new_node_func(const Token *token)
 /*
 make a new local variable
 */
-static LVar *new_lvar(const Token *token, LVar *cur_lvar, int offset, Type *type)
+static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type)
 {
+    current_function->stack_size += type->size;
+
     LVar *lvar = calloc(1, sizeof(LVar));
     lvar->next = cur_lvar;
     lvar->str = token->str;
     lvar->len = token->len;
-    lvar->offset = offset;
+    lvar->offset = current_function->stack_size;
     lvar->type = type;
 
     return lvar;

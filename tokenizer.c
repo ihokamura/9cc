@@ -21,7 +21,6 @@
 
 
 // function prototype
-static bool consume_declarator(Type **type, Token **token);
 static int is_reserved(const char *str);
 static int is_ident(const char *str);
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
@@ -111,49 +110,6 @@ Token *consume_ident(void)
 
 
 /*
-consume a declarator
-* If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
-* Otherwise, it returns false.
-*/
-static bool consume_declarator(Type **type, Token **token)
-{
-    // consume pointers
-    Type head = {};
-    Type *cursor = &head;
-    while(consume_reserved("*"))
-    {
-        cursor->base = new_type(TY_PTR);
-        cursor = cursor->base;
-    }
-    cursor->base = new_type(TY_INT);
-
-    // consume an identifier
-    Token *ident = consume_ident();
-    if(ident == NULL)
-    {
-        *type = NULL;
-        *token = NULL;
-        return false;
-    }
-
-    // consume size of array
-    if(consume_reserved("["))
-    {
-        Type *array_type = new_type(TY_ARRAY);
-        array_type->base = head.base;
-        array_type->len = expect_number();
-        head.base = array_type;
-        expect_reserved("]");
-    }
-
-    *type = head.base;
-    *token = ident;
-
-    return true;
-}
-
-
-/*
 parse a reserved string
 * If the next token is a given string, this function parses the token.
 * Otherwise, it reports an error.
@@ -183,20 +139,6 @@ int expect_number(void)
     current_token = current_token->next;
 
     return val;
-}
-
-
-/*
-parse a declarator
-* If the next token is a declarator, this function parses the token, returns true by value, and returns type and identifier by arguments.
-* Otherwise, it reports an error.
-*/
-void expect_declarator(Type **type, Token **token)
-{
-    if(!consume_declarator(type, token))
-    {
-        report_error(current_token->str, "expected a declarator.");
-    }
 }
 
 

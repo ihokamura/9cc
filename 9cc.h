@@ -131,7 +131,6 @@ bool consume_reserved(const char *str);
 Token *consume_ident(void);
 void expect_reserved(const char *str);
 int expect_number(void);
-void expect_declarator(Type **type, Token **token);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_ident(const Token *token);
@@ -140,9 +139,9 @@ void report_error(char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);
 bool is_pointer(const Node *node);
+Type *new_type_pointer(Type *base);
+Type *new_type_array(Type *base, size_t len);
 
 
 // global variable
-extern const size_t LVAR_SIZE; // size of a local variable in bytes
-extern const char *arg_registers[]; // name of registers for function arguments
 extern const size_t ARG_REGISTERS_SIZE; // number of registers for function arguments

@@ -24,9 +24,9 @@ static void put_instruction(const char *fmt, ...);
 
 
 // global variable
-const size_t LVAR_SIZE = 8; // size of a local variable in bytes
-const char *arg_registers[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of registers for function arguments
-const size_t ARG_REGISTERS_SIZE = sizeof(arg_registers) / sizeof(arg_registers[0]); // number of registers for function arguments
+const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 64-bit registers for function arguments
+const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
+const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
 static int label_number; // serial number of labels
 
 
@@ -85,9 +85,18 @@ static void generate_func(const Function *func)
     put_instruction("  sub rsp, %ld", func->stack_size);
     for(size_t i = 0; i < func->argc; i++)
     {
+        LVar *arg = func->args[i];
+
         put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %ld", LVAR_SIZE * (i + 1));
-        put_instruction("  mov [rax], %s", arg_registers[i]);
+        put_instruction("  sub rax, %d", arg->offset);
+        if(arg->type->size == 4)
+        {
+            put_instruction("  mov [rax], %s", arg_registers32[i]);
+        }
+        else
+        {
+            put_instruction("  mov [rax], %s", arg_registers64[i]);
+        }
     }
 
     // body
@@ -126,7 +135,8 @@ static void generate_node(const Node *node)
                 put_instruction("  pop rax");
                 if(node->type->size == 4)
                 {
-                    put_instruction("  movsxd rax, dword ptr [rax]");
+                    put_instruction("  mov rax, [rax]");
+                    put_instruction("  and rax, 0xFFFF");
                 }
                 else
                 {
@@ -269,7 +279,7 @@ static void generate_node(const Node *node)
             for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
             {
                 generate_node(node->args[i]);
-                put_instruction("  pop %s", arg_registers[i]);
+                put_instruction("  pop %s", arg_registers64[i]);
             }
 
             int number = label_number;

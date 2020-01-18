@@ -36,11 +36,6 @@ Type *new_type(TypeKind kind)
         type->size = SIZEOF_INT;
         break;
 
-    case TY_PTR:
-    case TY_ARRAY:
-        type->size = SIZEOF_PTR;
-        break;
-
     default:
         type->size = SIZEOF_INT;
         break;
@@ -57,4 +52,31 @@ check if a given node is pointer-type
 bool is_pointer(const Node *node)
 {
     return (node->type->kind == TY_PTR) || (node->type->kind == TY_ARRAY);
+}
+
+
+/*
+make a pointer type
+*/
+Type *new_type_pointer(Type *base)
+{
+    Type *type = new_type(TY_PTR);
+    type->size = SIZEOF_PTR;
+    type->base = base;
+
+    return type;
+}
+
+
+/*
+make an array type
+*/
+Type *new_type_array(Type *base, size_t len)
+{
+    Type *type = new_type(TY_ARRAY);
+    type->size = base->size * len;
+    type->base = base;
+    type->len = len;
+
+    return type;
 }
