@@ -20,6 +20,7 @@
 static void program(void);
 static Function *func(void);
 static Type *declarator(Token **token);
+static Type *type_suffix(Type *type);
 static Node *stmt(void);
 static Node *declaration(void);
 static Node *expr(void);
@@ -134,7 +135,7 @@ static Function *func(void)
 /*
 make a declarator
 ```
-declarator ::= "*"* ident ("[" num "]")?
+declarator ::= "*"* ident type-suffix
 ```
 */
 static Type *declarator(Token **token)
@@ -147,21 +148,36 @@ static Type *declarator(Token **token)
     }
 
     // consume identifier
-    Token *ident = consume_ident();
-    if(ident == NULL)
+    *token = consume_ident();
+    if(*token == NULL)
     {
-        *token = NULL;
-        return false;
+        return NULL;
     }
 
-    // consume array length
-    if(consume_reserved("["))
+    // consume type-suffix
+    type = type_suffix(type);
+
+    return type;
+}
+
+
+/*
+make a type-suffix
+```
+type-suffix ::= ("[" num "]" | type-suffix)?
+```
+*/
+static Type *type_suffix(Type *type)
+{
+    if(!consume_reserved("["))
     {
-        type = new_type_array(type, expect_number());
-        expect_reserved("]");
+        return type;
     }
 
-    *token = ident;
+    size_t size = expect_number();
+    expect_reserved("]");
+    type = type_suffix(type);
+    type = new_type_array(type, size);
 
     return type;
 }
@@ -571,14 +587,14 @@ static Node *unary(void)
 /*
 make a postfix
 ```
-postfix ::= primary ("[" expr "]")?
+postfix ::= primary ("[" expr "]")*
 ```
 */
 static Node *postfix(void)
 {
     Node *node = primary();
 
-    if(consume_reserved("["))
+    while(consume_reserved("["))
     {
         Node *lhs;
         Node *index = expr();

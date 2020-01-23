@@ -151,9 +151,19 @@ try 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){*(a + i) = i + 
 try 10 "int main(){int a[4]; int i; for(i = 0; i < 4; i = i + 1){a[i] = i + 1;} return a[0] + 1[a] + a[2] + 3[a];}"
 try 12 "int main(){int a[3]; return sizeof(a);}"
 try 1 "int main(){int a[3]; return (a == &a);}"
+try 0 "int main(){int a[2][3]; a[0][0] = 0; return a[0][0];}"
+try 1 "int main(){int a[2][3]; a[0][1] = 1; return a[0][1];}"
+try 2 "int main(){int a[2][3]; a[0][2] = 2; return a[0][2];}"
+try 3 "int main(){int a[2][3]; a[1][0] = 3; return a[1][0];}"
+try 4 "int main(){int a[2][3]; a[1][1] = 4; return a[1][1];}"
+try 5 "int main(){int a[2][3]; a[1][2] = 5; return a[1][2];}"
+try 5 "int main(){int a[3][2]; a[2][1] = 5; return a[2][1];}"
+try 24 "int main(){int a[3][2]; return sizeof(a);}"
+try 8 "int main(){int a[3][2]; return sizeof(a[0]);}"
+try 4 "int main(){int a[3][2]; return sizeof(a[0][0]);}"
+try 15 "int main(){int a[3][2]; int i; int j; for(i = 0; i < 3; i = i + 1){for(j = 0; j < 2; j = j + 1){a[i][j] = 2 * i + j;}} return a[0][0] + a[0][1] + a[1][0] + a[1][1] + a[2][0] + a[2][1];}"
 }
 
 try_all
-#try 10 "int sum(int *a, int n){int i; int s; s = 0; for(i = 0; i < n; i = i + 1){s = s + *(a + i);} return s;} int main(){int a[10]; int n; n = 10; int i; for(i = 0; i < n; i = i + 1){*(a + i) = i;} return sum(a, n);}"
 
 echo OK

@@ -19,5 +19,6 @@ mul ::= unary ("*" unary | "/" unary)*
 unary ::= postfix | ("&" | "*" | "+" | "-")? unary | sizeof unary
 postfix ::= primary ("[" expr "]")?
 primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
-declarator ::= "*"* ident ("[" num "]")?
+declarator ::= "*"* ident type-suffix
+type-suffix ::= ("[" num "]" | type-suffix)?
 ```

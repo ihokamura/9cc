@@ -17,6 +17,7 @@
 
 
 // function prototype
+static void generate_load(const Type *type);
 static void generate_lvalue(const Node *node);
 static void generate_func(const Function *func);
 static void generate_node(const Node *node);
@@ -43,6 +44,25 @@ void generate(Function *functions)
     {
         generate_func(func);
     }
+}
+
+
+/*
+generate assembler code for loading value to which rax points
+*/
+static void generate_load(const Type *type)
+{
+    put_instruction("  pop rax");
+    if(type->size == 4)
+    {
+        put_instruction("  mov rax, [rax]");
+        put_instruction("  and rax, 0xFFFF");
+    }
+    else
+    {
+        put_instruction("  mov rax, [rax]");
+    }
+    put_instruction("  push rax");
 }
 
 
@@ -132,17 +152,7 @@ static void generate_node(const Node *node)
             generate_lvalue(node);
             if(node->type->kind != TY_ARRAY)
             {
-                put_instruction("  pop rax");
-                if(node->type->size == 4)
-                {
-                    put_instruction("  mov rax, [rax]");
-                    put_instruction("  and rax, 0xFFFF");
-                }
-                else
-                {
-                    put_instruction("  mov rax, [rax]");
-                }
-                put_instruction("  push rax");
+                generate_load(node->type);
             }
             return;
 
@@ -152,9 +162,10 @@ static void generate_node(const Node *node)
 
         case ND_DEREF:
             generate_node(node->lhs);
-            put_instruction("  pop rax");
-            put_instruction("  mov rax, [rax]");
-            put_instruction("  push rax");
+            if(node->type->kind != TY_ARRAY)
+            {
+                generate_load(node->type);
+            }
             return;
 
         case ND_ASSIGN:
