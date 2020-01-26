@@ -18,8 +18,8 @@
 
 // function prototype
 static void prg(void);
-static GVar *gvar(const Token *token, Type *base);
-static Function *func(const Token *token, Type *base);
+static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base);
+static Function *func(const Token *token, Function *cur_func, Type *base);
 static Type *declarator(Token **token);
 static Type *type_suffix(Type *type);
 static Node *stmt(void);
@@ -37,11 +37,11 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *token);
-static GVar *new_gvar(const Token *token, Type *type);
+static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type);
 static GVar *get_gvar(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
-static Function *new_function(const Token *token);
+static Function *new_function(const Token *token, Function *cur_func, Type *base);
 static Function *get_function(const Token *token);
 
 
@@ -72,11 +72,12 @@ static void prg(void)
 {
     GVar gvar_head = {};
     GVar *gvar_cursor = &gvar_head;
+    gvar_list = &gvar_head;
+
     Function func_head = {};
     Function *func_cursor = &func_head;
-
-    gvar_list = &gvar_head;
     function_list = &func_head;
+
     while(!at_eof())
     {
         Type *base;
@@ -88,14 +89,12 @@ static void prg(void)
         if(consume_reserved("("))
         {
             // parse function
-            func_cursor->next = func(token, base);
-            func_cursor = func_cursor->next;
+            func_cursor = func(token, func_cursor, base);
         }
         else
         {
             // parse global variable
-            gvar_cursor->next = gvar(token ,base);
-            gvar_cursor = gvar_cursor->next;
+            gvar_cursor = gvar(token, gvar_cursor, base);
         }
     }
 
@@ -110,11 +109,11 @@ make a global variable
 gvar ::= "int" declarator ";"
 ```
 */
-static GVar *gvar(const Token *token, Type *base)
+static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 {
     expect_reserved(";");
 
-    return new_gvar(token, base);
+    return new_gvar(token, cur_gvar, base);
 }
 
 
@@ -124,11 +123,10 @@ make a function
 func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
 ```
 */
-static Function *func(const Token *token, Type *base)
+static Function *func(const Token *token, Function *cur_func, Type *base)
 {
     // make a new function
-    current_function = new_function(token);
-    current_function->type = base;
+    current_function = new_function(token, cur_func, base);
 
     // parse arguments
     if(consume_reserved("int"))
@@ -849,11 +847,12 @@ static Node *new_node_func(const Token *token)
 /*
 make a new global variable
 */
-static GVar *new_gvar(const Token *token, Type *type)
+static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
 {
     GVar *gvar = calloc(1, sizeof(GVar));
     gvar->name = make_ident(token);
     gvar->type = type;
+    cur_gvar->next = gvar;
 
     return gvar;
 }
@@ -930,7 +929,7 @@ static LVar *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token)
+static Function *new_function(const Token *token, Function *cur_func, Type *base)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
@@ -945,7 +944,7 @@ static Function *new_function(const Token *token)
     new_func->argc = 0;
 
     // initialize type of return value
-    new_func->type = NULL;
+    new_func->type = base;
 
     // initialize function body
     new_func->body = NULL;
@@ -955,6 +954,9 @@ static Function *new_function(const Token *token)
 
     // initialize stack size
     new_func->stack_size = 0;
+
+    // update list of functions
+    cur_func->next = new_func;
 
     return new_func;
 }
