@@ -6,7 +6,8 @@
 
 ## Syntax
 ```
-program ::= func*
+prg ::= (gvar | func)*
+gvar ::= "int" declarator ";"
 func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
 stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
 declaration ::= "int" declarator ";"

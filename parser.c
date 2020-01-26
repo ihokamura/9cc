@@ -17,8 +17,9 @@
 
 
 // function prototype
-static void program(void);
-static Function *func(void);
+static void prg(void);
+static GVar *gvar(const Token *token, Type *base);
+static Function *func(const Token *token, Type *base);
 static Type *declarator(Token **token);
 static Type *type_suffix(Type *type);
 static Node *stmt(void);
@@ -35,8 +36,9 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static Node *new_node_lvar(const Token *token);
 static Node *new_node_func(const Token *token);
+static GVar *new_gvar(const Token *token, Type *type);
+static GVar *get_gvar(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
 static Function *new_function(const Token *token);
@@ -44,6 +46,7 @@ static Function *get_function(const Token *token);
 
 
 // global variable
+static GVar *gvar_list; // list of global variables
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
 
@@ -51,30 +54,67 @@ static Function *current_function; // currently constructing function
 /*
 construct syntax tree
 */
-void construct(Function **functions)
+void construct(Program *program)
 {
-    program();
-    *functions = function_list;
+    prg();
+    program->gvars = gvar_list;
+    program->funcs = function_list;
 }
 
 
 /*
 make a program
 ```
-program ::= func*
+prg ::= (gvar | func)*
 ```
 */
-static void program(void)
+static void prg(void)
 {
-    Function head = {};
-    Function *cursor = &head;
+    GVar gvar_head = {};
+    GVar *gvar_cursor = &gvar_head;
+    Function func_head = {};
+    Function *func_cursor = &func_head;
+
+    gvar_list = &gvar_head;
+    function_list = &func_head;
     while(!at_eof())
     {
-        function_list = cursor->next = func();
-        cursor = cursor->next;
+        Type *base;
+        Token *token;
+
+        // parse identifier and base type
+        expect_reserved("int");
+        base = declarator(&token);
+        if(consume_reserved("("))
+        {
+            // parse function
+            func_cursor->next = func(token, base);
+            func_cursor = func_cursor->next;
+        }
+        else
+        {
+            // parse global variable
+            gvar_cursor->next = gvar(token ,base);
+            gvar_cursor = gvar_cursor->next;
+        }
     }
 
-    function_list = head.next;
+    gvar_list = gvar_head.next;
+    function_list = func_head.next;
+}
+
+
+/*
+make a global variable
+```
+gvar ::= "int" declarator ";"
+```
+*/
+static GVar *gvar(const Token *token, Type *base)
+{
+    expect_reserved(";");
+
+    return new_gvar(token, base);
 }
 
 
@@ -84,19 +124,13 @@ make a function
 func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
 ```
 */
-static Function *func(void)
+static Function *func(const Token *token, Type *base)
 {
-    // parse function name and type of return value
-    Type *ret_type;
-    Token *func_token;
-
-    expect_reserved("int");
-    ret_type = declarator(&func_token);
-    current_function = new_function(func_token);
-    current_function->type = ret_type;
+    // make a new function
+    current_function = new_function(token);
+    current_function->type = base;
 
     // parse arguments
-    expect_reserved("(");
     if(consume_reserved("int"))
     {
         Type *arg_type;
@@ -670,8 +704,26 @@ static Node *primary(void)
         }
         else
         {
-            // local variable
-            return new_node_lvar(ident);
+            // variable
+            GVar *gvar = get_gvar(ident);
+            if(gvar != NULL)
+            {
+                Node *node = new_node(ND_GVAR);
+                node->type = gvar->type;
+                node->gvar = gvar;
+                return node;
+            }
+
+            LVar *lvar = get_lvar(ident);
+            if(lvar != NULL)
+            {
+                Node *node = new_node(ND_LVAR);
+                node->type = lvar->type;
+                node->lvar = lvar;
+                return node;
+            }
+
+            report_error(ident->str, "undefined variable '%s'", make_ident(ident));
         }
     }
 
@@ -769,25 +821,6 @@ static Node *new_node_num(int val)
 
 
 /*
-make a new node for local variable
-*/
-static Node *new_node_lvar(const Token *token)
-{
-    LVar *lvar = get_lvar(token);
-    if(lvar == NULL)
-    {
-        report_error(token->str, "undefined variable '%s'", make_ident(token));
-    }
-
-    Node *node = new_node(ND_LVAR);
-    node->type = lvar->type;
-    node->lvar = lvar;
-
-    return node;
-}
-
-
-/*
 make a new node for function call
 */
 static Node *new_node_func(const Token *token)
@@ -810,6 +843,39 @@ static Node *new_node_func(const Token *token)
     node->ident = make_ident(token);
 
     return node;
+}
+
+
+/*
+make a new global variable
+*/
+static GVar *new_gvar(const Token *token, Type *type)
+{
+    GVar *gvar = calloc(1, sizeof(GVar));
+    gvar->name = make_ident(token);
+    gvar->type = type;
+
+    return gvar;
+}
+
+
+/*
+get an existing global variable
+* If there exists a global variable with a given token, this function returns the variable.
+* Otherwise, it returns NULL.
+*/
+static GVar *get_gvar(const Token *token)
+{
+    // search list of gocal variables
+    for(GVar *gvar = gvar_list->next; gvar != NULL; gvar = gvar->next)
+    {
+        if((strlen(gvar->name) == token->len) && (strncmp(token->str, gvar->name, token->len) == 0))
+        {
+            return gvar;
+        }
+    }
+
+    return NULL;
 }
 
 
@@ -902,7 +968,7 @@ get an existing function
 static Function *get_function(const Token *token)
 {
     // search list of function
-    for(Function *func = function_list; func != NULL; func = func->next)
+    for(Function *func = function_list->next; func != NULL; func = func->next)
     {
         if((strlen(func->name) == token->len) && (strncmp(token->str, func->name, token->len) == 0))
         {

@@ -51,6 +51,7 @@ typedef enum {
     ND_DO,      // do statement
     ND_FOR,     // for statement
     ND_BLOCK,   // block (compound statement)
+    ND_GVAR,    // global variable
     ND_FUNC,    // function call
     ND_DECL,    // declaration
     ND_LVAR,    // local variable
@@ -79,6 +80,14 @@ struct Type {
     size_t len;          // length of array (only for TY_ARRAY)
 };
 
+// structure for global variable
+typedef struct GVar GVar;
+struct GVar {
+    GVar *next; // next element
+    char *name; // name of global variable
+    Type *type; // type of variable
+};
+
 // structure for local variable
 typedef struct LVar LVar;
 struct LVar {
@@ -98,6 +107,7 @@ struct Node {
     Node *rhs;      // right hand side
     Type *type;     // type of node
     int val;        // value of node (only for ND_NUM)
+    GVar *gvar;     // information of global variable (only for ND_GVAR)
     LVar *lvar;     // information of local variable (only for ND_LVAR)
     Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
@@ -120,12 +130,17 @@ struct Function {
     size_t stack_size; // size of stack in bytes
 };
 
+// structure for program
+typedef struct Program {
+    GVar *gvars;     // list of global variables
+    Function *funcs; // list of functions
+} Program;
 
 // function prototype
 // parser.c
-void construct(Function **functions);
+void construct(Program *program);
 // generator.c
-void generate(Function *functions);
+void generate(const Program *program);
 // tokenizer.c
 bool consume_reserved(const char *str);
 Token *consume_ident(void);

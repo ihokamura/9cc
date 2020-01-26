@@ -32,11 +32,11 @@ int main(int argc, char **argv)
     tokenize(user_input);
 
     // construct syntax tree
-    Function *functions;
-    construct(&functions);
+    Program program;
+    construct(&program);
 
     // output assembler according to the syntax tree
-    generate(functions);
+    generate(&program);
 
     return 0;
 }

@@ -19,6 +19,7 @@
 // function prototype
 static void generate_load(const Type *type);
 static void generate_lvalue(const Node *node);
+static void generate_gvar(const GVar *gvar);
 static void generate_func(const Function *func);
 static void generate_node(const Node *node);
 static void put_instruction(const char *fmt, ...);
@@ -34,13 +35,21 @@ static int label_number; // serial number of labels
 /*
 generate assembler code
 */
-void generate(Function *functions)
+void generate(const Program *program)
 {
     // use Intel syntax
     put_instruction(".intel_syntax noprefix");
 
+    // generate global variables
+    put_instruction(".bss");
+    for(GVar *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
+    {
+        generate_gvar(gvar);
+    }
+
     // generate functions
-    for(Function *func = functions; func != NULL; func = func->next)
+    put_instruction(".text");
+    for(Function *func = program->funcs; func != NULL; func = func->next)
     {
         generate_func(func);
     }
@@ -73,6 +82,11 @@ static void generate_lvalue(const Node *node)
 {
     switch(node->kind)
     {
+        case ND_GVAR:
+            put_instruction("  lea rax, %s[rip]", node->gvar->name);
+            put_instruction("  push rax");
+            break;
+
         case ND_LVAR:
             put_instruction("  mov rax, rbp");
             put_instruction("  sub rax, %d", node->lvar->offset);
@@ -87,6 +101,18 @@ static void generate_lvalue(const Node *node)
             report_error(NULL, "expected lvalue");
             break;
     }
+}
+
+
+/*
+generate assembler code of a global variable
+*/
+static void generate_gvar(const GVar *gvar)
+{
+    // put label and allocate memory
+    put_instruction(".global %s", gvar->name);
+    put_instruction("%s:", gvar->name);
+    put_instruction("  .zero %ld\n", gvar->type->size);
 }
 
 
@@ -148,6 +174,7 @@ static void generate_node(const Node *node)
         case ND_DECL:
             return;
 
+        case ND_GVAR:
         case ND_LVAR:
             generate_lvalue(node);
             if(node->type->kind != TY_ARRAY)

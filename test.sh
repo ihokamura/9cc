@@ -162,6 +162,12 @@ try 24 "int main(){int a[3][2]; return sizeof(a);}"
 try 8 "int main(){int a[3][2]; return sizeof(a[0]);}"
 try 4 "int main(){int a[3][2]; return sizeof(a[0][0]);}"
 try 15 "int main(){int a[3][2]; int i; int j; for(i = 0; i < 3; i = i + 1){for(j = 0; j < 2; j = j + 1){a[i][j] = 2 * i + j;}} return a[0][0] + a[0][1] + a[1][0] + a[1][1] + a[2][0] + a[2][1];}"
+
+# global variabletry 1 "int g; int main(){g = 1; return g;}"
+try 3 "int g1; int f1(){g1 = 1; return g1;} int g2; int main(){g2 = 2; return f1() + g2;}"
+try 1 "int g1; int *g2; int main(){int l3; l3 = 1; g1 = 1; g2 = &g1; return *g2;}"
+try 6 "int g[4]; int main(){int i; for(i = 0; i < 4; i = i + 1){g[i] = i;} return g[0] + g[1] + g[2] + g[3];}"
+try 80 "int g[4][5]; int main(){return sizeof g;}"
 }
 
 try_all
