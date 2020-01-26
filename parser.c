@@ -20,7 +20,9 @@
 static void prg(void);
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base);
 static Function *func(const Token *token, Function *cur_func, Type *base);
-static Type *declarator(Token **token);
+static bool peek_typename(void);
+static Type *declarator(Type *type, Token **token);
+static Type *type_spec(void);
 static Type *type_suffix(Type *type);
 static Node *stmt(void);
 static Node *declaration(void);
@@ -80,12 +82,11 @@ static void prg(void)
 
     while(!at_eof())
     {
-        Type *base;
+        // parse identifier and base type
+        Type *base = type_spec();
         Token *token;
 
-        // parse identifier and base type
-        expect_reserved("int");
-        base = declarator(&token);
+        base = declarator(base, &token);
         if(consume_reserved("("))
         {
             // parse function
@@ -106,7 +107,7 @@ static void prg(void)
 /*
 make a global variable
 ```
-gvar ::= "int" declarator ";"
+gvar ::= type-spec declarator ";"
 ```
 */
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
@@ -120,7 +121,7 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 /*
 make a function
 ```
-func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
+func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
 ```
 */
 static Function *func(const Token *token, Function *cur_func, Type *base)
@@ -129,19 +130,24 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
     current_function = new_function(token, cur_func, base);
 
     // parse arguments
-    if(consume_reserved("int"))
+    Type *arg_type = type_spec();
+    if(arg_type != NULL)
     {
-        Type *arg_type;
         Token *arg_token;
 
-        arg_type = declarator(&arg_token);
+        arg_type = declarator(arg_type, &arg_token);
         current_function->args[0] = new_lvar(arg_token, NULL, arg_type);
         current_function->argc++;
 
         for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
         {
-            expect_reserved("int");
-            arg_type = declarator(&arg_token);
+            arg_type = type_spec();
+            if(arg_type == NULL)
+            {
+                report_error(NULL, "expected type specifier\n");
+            }
+
+            arg_type = declarator(arg_type, &arg_token);
             current_function->args[i] = new_lvar(arg_token, NULL, arg_type);
             current_function->argc++;
         }
@@ -165,15 +171,26 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
 
 
 /*
+peek a type name
+*/
+static bool peek_typename(void)
+{
+    return (
+           peek_reserved("char")
+        || peek_reserved("int")
+    );
+}
+
+
+/*
 make a declarator
 ```
 declarator ::= "*"* ident type-suffix
 ```
 */
-static Type *declarator(Token **token)
+static Type *declarator(Type *type, Token **token)
 {
     // consume pointers
-    Type *type = new_type(TY_INT);
     while(consume_reserved("*"))
     {
         type = new_type_pointer(type);
@@ -190,6 +207,29 @@ static Type *declarator(Token **token)
     type = type_suffix(type);
 
     return type;
+}
+
+
+/*
+make a type-spec
+```
+type-spec ::= "char" | "int"
+```
+*/
+static Type *type_spec(void)
+{
+    if(consume_reserved("char"))
+    {
+        return new_type(TY_CHAR);
+    }
+    else if(consume_reserved("int"))
+    {
+        return new_type(TY_INT);
+    }
+    else
+    {
+        return NULL;
+    }
 }
 
 
@@ -345,7 +385,7 @@ static Node *stmt(void)
     }
     else
     {
-        if(consume_reserved("int"))
+        if(peek_typename())
         {
             // declaration
             node = declaration();
@@ -368,16 +408,18 @@ static Node *stmt(void)
 /*
 make a declaration
 ```
-declaration ::= "int" declarator ";"
+declaration ::= type-spec declarator ";"
 ```
 */
 static Node *declaration(void)
 {
-    // parse declarator
-    Type *type;
-    Token *token;
+    // parse type-specifier
+    Type *type = type_spec();
 
-    type = declarator(&token);
+    // parse declarator
+    Token *token;
+    type = declarator(type, &token);
+
     if(get_lvar(token) != NULL)
     {
         report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));

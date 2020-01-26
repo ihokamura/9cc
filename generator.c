@@ -26,7 +26,8 @@ static void put_instruction(const char *fmt, ...);
 
 
 // global variable
-const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 64-bit registers for function arguments
+const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
+const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
 const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
 const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
 static int label_number; // serial number of labels
@@ -62,10 +63,13 @@ generate assembler code for loading value to which rax points
 static void generate_load(const Type *type)
 {
     put_instruction("  pop rax");
-    if(type->size == 4)
+    if(type->size == 1)
     {
-        put_instruction("  mov rax, [rax]");
-        put_instruction("  and rax, 0xFFFF");
+        put_instruction("  movsx rax, byte ptr [rax]");
+    }
+    else if(type->size == 4)
+    {
+        put_instruction("  movsxd rax, dword ptr [rax]");
     }
     else
     {
@@ -135,7 +139,11 @@ static void generate_func(const Function *func)
 
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %d", arg->offset);
-        if(arg->type->size == 4)
+        if(arg->type->size == 1)
+        {
+            put_instruction("  mov [rax], %s", arg_registers8[i]);
+        }
+        else if(arg->type->size == 4)
         {
             put_instruction("  mov [rax], %s", arg_registers32[i]);
         }
@@ -200,7 +208,11 @@ static void generate_node(const Node *node)
         generate_node(node->rhs);
         put_instruction("  pop rdi");
         put_instruction("  pop rax");
-        if(node->type->size == 4)
+        if(node->type->size == 1)
+        {
+            put_instruction("  mov [rax], dil");
+        }
+        else if(node->type->size == 4)
         {
             put_instruction("  mov [rax], edi");
         }

@@ -16,6 +16,7 @@
 
 
 // global variable
+static const size_t SIZEOF_CHAR = 1; // size of char type
 static const size_t SIZEOF_INT = 4; // size of int type
 static const size_t SIZEOF_PTR = 8; // size of pointer type
 
@@ -32,6 +33,10 @@ Type *new_type(TypeKind kind)
 
     switch(kind)
     {
+    case TY_CHAR:
+        type->size = SIZEOF_CHAR;
+        break;
+
     case TY_INT:
         type->size = SIZEOF_INT;
         break;

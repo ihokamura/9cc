@@ -168,6 +168,10 @@ try 3 "int g1; int f1(){g1 = 1; return g1;} int g2; int main(){g2 = 2; return f1
 try 1 "int g1; int *g2; int main(){int l3; l3 = 1; g1 = 1; g2 = &g1; return *g2;}"
 try 6 "int g[4]; int main(){int i; for(i = 0; i < 4; i = i + 1){g[i] = i;} return g[0] + g[1] + g[2] + g[3];}"
 try 80 "int g[4][5]; int main(){return sizeof g;}"
+
+# char type
+try 3 "int main(){char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y;}"
+try 4 "int func(char *c, int i){return *c + i;} int main(){char c; int i; c = 1; i = 2; return func(&c, i) + sizeof(c);}"
 }
 
 try_all

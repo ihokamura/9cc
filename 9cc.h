@@ -27,6 +27,7 @@ typedef enum {
 
 // kind of type
 typedef enum {
+    TY_CHAR,  // char
     TY_INT,   // int
     TY_PTR,   // pointer
     TY_ARRAY, // array
@@ -142,6 +143,7 @@ void construct(Program *program);
 // generator.c
 void generate(const Program *program);
 // tokenizer.c
+bool peek_reserved(const char *str);
 bool consume_reserved(const char *str);
 Token *consume_ident(void);
 void expect_reserved(const char *str);

@@ -54,6 +54,7 @@ static const char *punctuator_list[] = {
 static const size_t PUNCTUATOR_LIST_SIZE = sizeof(punctuator_list) / sizeof(punctuator_list[0]); // number of punctuators
 // list of keywords
 static const char *keyword_list[] = {
+    "char",
     "do",
     "else",
     "for",
@@ -69,17 +70,27 @@ static Token *current_token; // currently parsing token
 
 
 /*
+peek a reserved string
+* If the next token is a given string, this returns true.
+* Otherwise, it returns false.
+*/
+bool peek_reserved(const char *str)
+{
+    return (
+           (current_token->kind == TK_RESERVED)
+        && (current_token->len == strlen(str))
+        && (strncmp(current_token->str, str, current_token->len) == 0));
+}
+
+
+/*
 consume a reserved string
 * If the next token is a given string, this function parses the token and returns true.
 * Otherwise, it returns false.
 */
 bool consume_reserved(const char *str)
 {
-    if(
-        (current_token->kind != TK_RESERVED) || 
-        (current_token->len != strlen(str)) || 
-        (strncmp(current_token->str, str, current_token->len) != 0)
-        )
+    if(!peek_reserved(str))
     {
         return false;
     }

@@ -7,10 +7,10 @@
 ## Syntax
 ```
 prg ::= (gvar | func)*
-gvar ::= "int" declarator ";"
-func ::= "int" declarator "(" ("int" declarator ("," "int" declarator)*)? ")" "{" stmt* "}"
+gvar ::= type-spec declarator ";"
+func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
 stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
-declaration ::= "int" declarator ";"
+declaration ::= type-spec declarator ";"
 expr ::= assign
 assign ::= equality ("=" assign)?
 equality ::= relational ("==" relational | "!=" relational)*
@@ -20,6 +20,7 @@ mul ::= unary ("*" unary | "/" unary)*
 unary ::= postfix | ("&" | "*" | "+" | "-")? unary | sizeof unary
 postfix ::= primary ("[" expr "]")?
 primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+type-spec ::= "char" | "int"
 declarator ::= "*"* ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?
 ```
