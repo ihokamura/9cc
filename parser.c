@@ -10,6 +10,7 @@
 * parser (syntax tree constructor)
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -40,15 +41,20 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *token);
 static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type);
+static GVar *new_str(const Token *token);
 static GVar *get_gvar(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
 static Function *new_function(const Token *token, Function *cur_func, Type *base);
 static Function *get_function(const Token *token);
+static char *new_strlabel(void);
 
 
 // global variable
 static GVar *gvar_list; // list of global variables
+static GVar *str_list; // list of string-literals
+static GVar *current_str; // currently parsing string-literal
+static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
 
@@ -60,6 +66,7 @@ void construct(Program *program)
 {
     prg();
     program->gvars = gvar_list;
+    program->strs = str_list;
     program->funcs = function_list;
 }
 
@@ -75,6 +82,9 @@ static void prg(void)
     GVar gvar_head = {};
     GVar *gvar_cursor = &gvar_head;
     gvar_list = &gvar_head;
+
+    GVar str_head = {};
+    str_list = current_str = &str_head;
 
     Function func_head = {};
     Function *func_cursor = &func_head;
@@ -100,6 +110,7 @@ static void prg(void)
     }
 
     gvar_list = gvar_head.next;
+    str_list = str_head.next;
     function_list = func_head.next;
 }
 
@@ -197,8 +208,7 @@ static Type *declarator(Type *type, Token **token)
     }
 
     // consume identifier
-    *token = consume_ident();
-    if(*token == NULL)
+    if(!consume_token(TK_IDENT, token))
     {
         return NULL;
     }
@@ -699,7 +709,7 @@ static Node *postfix(void)
 /*
 make a primary
 ```
-primary ::= num | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+primary ::= num | str | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
 ```
 */
 static Node *primary(void)
@@ -715,13 +725,13 @@ static Node *primary(void)
     }
 
     // identifier
-    Token *ident = consume_ident();
-    if(ident != NULL)
+    Token *token;
+    if(consume_token(TK_IDENT, &token))
     {
         if(consume_reserved("("))
         {
             // function
-            Node *node = new_node_func(ident);
+            Node *node = new_node_func(token);
             if(consume_reserved(")"))
             {
                 for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
@@ -745,7 +755,7 @@ static Node *primary(void)
         else
         {
             // variable
-            GVar *gvar = get_gvar(ident);
+            GVar *gvar = get_gvar(token);
             if(gvar != NULL)
             {
                 Node *node = new_node(ND_GVAR);
@@ -754,7 +764,7 @@ static Node *primary(void)
                 return node;
             }
 
-            LVar *lvar = get_lvar(ident);
+            LVar *lvar = get_lvar(token);
             if(lvar != NULL)
             {
                 Node *node = new_node(ND_LVAR);
@@ -763,8 +773,17 @@ static Node *primary(void)
                 return node;
             }
 
-            report_error(ident->str, "undefined variable '%s'", make_ident(ident));
+            report_error(token->str, "undefined variable '%s'", make_ident(token));
         }
+    }
+
+    // string-literal
+    if(consume_token(TK_STR, &token))
+    {
+        Node *node = new_node(ND_GVAR);
+        node->gvar = new_str(token);
+        node->type = node->gvar->type;
+        return node;
     }
 
     // number
@@ -901,6 +920,24 @@ static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
 
 
 /*
+make a new global variable
+*/
+static GVar *new_str(const Token *token)
+{
+    GVar *str = calloc(1, sizeof(GVar));
+    str->name = new_strlabel();
+    str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
+    str->content = calloc(token->len + 1, sizeof(char));
+    strncpy(str->content, token->str, token->len);
+
+    current_str->next = str;
+    current_str = current_str->next;
+
+    return str;
+}
+
+
+/*
 get an existing global variable
 * If there exists a global variable with a given token, this function returns the variable.
 * Otherwise, it returns NULL.
@@ -1021,4 +1058,19 @@ static Function *get_function(const Token *token)
     }
 
     return NULL;
+}
+
+
+/*
+make a new label for string-literal
+*/
+static char *new_strlabel(void)
+{
+    // A label for string-literal is of the form "LS<number>", so the length of buffer should be more than 2 + 10 + 1.
+    char *label = calloc(15, sizeof(char));
+
+    sprintf(label, "LS%d", str_label);
+    str_label++;
+
+    return label;
 }

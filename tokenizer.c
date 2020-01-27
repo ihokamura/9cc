@@ -23,6 +23,7 @@
 // function prototype
 static int is_reserved(const char *str);
 static int is_ident(const char *str);
+static int is_str(const char *str);
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 
 
@@ -102,21 +103,22 @@ bool consume_reserved(const char *str)
 
 
 /*
-consume an identifier
-* If the next token is an identifier, this function parses the identifier and returns the token.
-* Otherwise, it returns NULL.
+consume a token
+* If the next token is a given kind of token, this function parses and returns the token by argument and true by value.
+* Otherwise, it returns false.
 */
-Token *consume_ident(void)
+bool consume_token(TokenKind kind, Token **token)
 {
-    if(current_token->kind != TK_IDENT)
+    if(current_token->kind != kind)
     {
-        return NULL;
+        *token = NULL;
+        return false;
     }
 
-    Token *ident_token = current_token;
+    *token = current_token;
     current_token = current_token->next;
 
-    return ident_token;
+    return true;
 }
 
 
@@ -194,6 +196,15 @@ void tokenize(char *str)
             continue;
         }
 
+        // parse a string-literal
+        len = is_str(str);
+        if(len > 0)
+        {
+            cursor = new_token(TK_STR, cursor, str + 1, len - 2);
+            str += len;
+            continue;
+        }
+
         // parse a number
         if(isdigit(*str))
         {
@@ -237,7 +248,7 @@ char *make_ident(const Token *token)
 /*
 report a warning
 */
-void report_warning(char *loc, const char *fmt, ...)
+void report_warning(const char *loc, const char *fmt, ...)
 {
     if(loc != NULL)
     {
@@ -259,7 +270,7 @@ void report_warning(char *loc, const char *fmt, ...)
 report an error
 * This function never returns.
 */
-void report_error(char *loc, const char *fmt, ...)
+void report_error(const char *loc, const char *fmt, ...)
 {
     if(loc != NULL)
     {
@@ -327,6 +338,35 @@ static int is_ident(const char *str)
         {
             len++;
             str++;
+        }
+    }
+
+    return len;
+}
+
+
+/*
+check if the following string is a string-literal
+*/
+static int is_str(const char *str)
+{
+    int len = 0;
+
+    if(*str == '"')
+    {
+        len++;
+        while((str[len] != '\0') && (str[len] != '"'))
+        {
+            len++;
+        }
+
+        if(str[len] == '"')
+        {
+            len++;
+        }
+        else
+        {
+            report_error(str, "expected '\"'");
         }
     }
 

@@ -22,6 +22,7 @@ typedef enum {
     TK_RESERVED, // reserved token
     TK_IDENT,    // identifier
     TK_NUM,      // integer
+    TK_STR,      // string-literal
     TK_EOF,      // end of input
 } TokenKind;
 
@@ -87,6 +88,7 @@ struct GVar {
     GVar *next; // next element
     char *name; // name of global variable
     Type *type; // type of variable
+    char *content; // content of string-literal including '\0' (only for string-literal)
 };
 
 // structure for local variable
@@ -134,6 +136,7 @@ struct Function {
 // structure for program
 typedef struct Program {
     GVar *gvars;     // list of global variables
+    GVar *strs;      // list of string-literals
     Function *funcs; // list of functions
 } Program;
 
@@ -145,14 +148,14 @@ void generate(const Program *program);
 // tokenizer.c
 bool peek_reserved(const char *str);
 bool consume_reserved(const char *str);
-Token *consume_ident(void);
+bool consume_token(TokenKind kind, Token **token);
 void expect_reserved(const char *str);
 int expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_ident(const Token *token);
-void report_warning(char *loc, const char *fmt, ...);
-void report_error(char *loc, const char *fmt, ...);
+void report_warning(const char *loc, const char *fmt, ...);
+void report_error(const char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);
 bool is_pointer(const Node *node);

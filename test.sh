@@ -172,6 +172,9 @@ try 80 "int g[4][5]; int main(){return sizeof g;}"
 # char type
 try 3 "int main(){char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y;}"
 try 4 "int func(char *c, int i){return *c + i;} int main(){char c; int i; c = 1; i = 2; return func(&c, i) + sizeof(c);}"
+
+# string-literal
+try 111 'int main(){char *s; s = "foo"; return s[1];}'
 }
 
 try_all

@@ -20,6 +20,7 @@
 static void generate_load(const Type *type);
 static void generate_lvalue(const Node *node);
 static void generate_gvar(const GVar *gvar);
+static void generate_str(const GVar *str);
 static void generate_func(const Function *func);
 static void generate_node(const Node *node);
 static void put_instruction(const char *fmt, ...);
@@ -46,6 +47,13 @@ void generate(const Program *program)
     for(GVar *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
     {
         generate_gvar(gvar);
+    }
+
+    // generate string-literals
+    put_instruction(".data");
+    for(GVar *str = program->strs; str != NULL; str = str->next)
+    {
+        generate_str(str);
     }
 
     // generate functions
@@ -117,6 +125,18 @@ static void generate_gvar(const GVar *gvar)
     put_instruction(".global %s", gvar->name);
     put_instruction("%s:", gvar->name);
     put_instruction("  .zero %ld\n", gvar->type->size);
+}
+
+
+/*
+generate assembler code of a string-literal
+*/
+static void generate_str(const GVar *str)
+{
+    // put label and allocate memory
+    put_instruction(".global %s", str->name);
+    put_instruction("%s:", str->name);
+    put_instruction("  .string \"%s\"\n", str->content);
 }
 
 
