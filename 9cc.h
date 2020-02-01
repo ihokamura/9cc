@@ -17,6 +17,12 @@
 #include <stdbool.h>
 
 
+// type of source code
+typedef enum {
+    SRC_FILE, // file
+    SRC_CMD,  // command line
+} SourceType;
+
 // kind of token
 typedef enum {
     TK_RESERVED, // reserved token
@@ -154,6 +160,8 @@ int expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_ident(const Token *token);
+void set_source(SourceType type);
+char *read_file(const char *path);
 void report_warning(const char *loc, const char *fmt, ...);
 void report_error(const char *loc, const char *fmt, ...);
 // type.c

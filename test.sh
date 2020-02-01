@@ -5,7 +5,7 @@ try()
     expected="$1"
     input="$2"
 
-    ./9cc "$input" > tmp.s
+    ./9cc -c "$input" > tmp.s
     gcc tmp.s -o tmp
 
     ./tmp
@@ -24,9 +24,28 @@ try_func()
     expected="$1"
     input="$2"
 
-    ./9cc "$input" > tmp.s
+    ./9cc -c "$input" > tmp.s
     gcc test_functions.c -o test_functions.o -std=c11 -g -Wall -c
     gcc tmp.s test_functions.o -o tmp
+
+    ./tmp
+    actual="$?"
+
+    if [ "$actual" = "$expected" ]; then
+        echo "$input => $actual"
+    else
+        echo "$input => $expected expected, but got $actual"
+        exit 1
+    fi
+}
+
+try_file()
+{
+    expected="$1"
+    input="test_code"
+
+    ./9cc $input > tmp.s
+    gcc tmp.s -o tmp
 
     ./tmp
     actual="$?"
@@ -175,6 +194,9 @@ try 4 "int func(char *c, int i){return *c + i;} int main(){char c; int i; c = 1;
 
 # string-literal
 try 111 'int main(){char *s; s = "foo"; return s[1];}'
+
+# input from a file
+try_file 45
 }
 
 try_all

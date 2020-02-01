@@ -1,8 +1,11 @@
 # 9cc compiler
 
-## Reference
-[1] https://www.sigbus.info/compilerbook
-[2] https://www.bottlecaps.de/rr/ui
+
+## Usage
+```
+9cc [ <file> | -c <code> ]
+```
+
 
 ## Syntax
 ```
@@ -24,3 +27,9 @@ type-spec ::= "char" | "int"
 declarator ::= "*"* ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?
 ```
+
+
+## Reference
+[1] https://www.sigbus.info/compilerbook
+
+[2] https://www.bottlecaps.de/rr/ui
