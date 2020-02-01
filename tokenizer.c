@@ -22,6 +22,8 @@
 
 
 // function prototype
+static int is_space(const char *str);
+static int is_comment(const char *str);
 static int is_reserved(const char *str);
 static int is_ident(const char *str);
 static int is_str(const char *str);
@@ -176,9 +178,18 @@ void tokenize(char *str)
         int len;
 
         // ignore space
-        if(isspace(*str))
+        len = is_space(str);
+        if(len > 0)
         {
-            str++;
+            str += len;
+            continue;
+        }
+
+        // ignore comment
+        len = is_comment(str);
+        if(len > 0)
+        {
+            str += len;
             continue;
         }
 
@@ -344,6 +355,54 @@ void report_error(const char *loc, const char *fmt, ...)
     exit(1);
 }
 
+
+/*
+check if the following string is space
+*/
+static int is_space(const char *str)
+{
+    int len = 0;
+
+    while(isspace(str[len]))
+    {
+        len++;
+    }
+
+    return len;
+}
+
+
+/*
+check if the following string is comment
+*/
+static int is_comment(const char *str)
+{
+    int len = 0;
+
+    if(strncmp(str, "//", 2) == 0)
+    {
+        // line comment
+        len = 2;
+        while(str[len] != '\n')
+        {
+            len++;
+        }
+    }
+    else if(strncmp(str, "/*", 2) == 0)
+    {
+        // block comment
+        const char *start = &str[2];
+        char *end = strstr(start, "*/");
+        if(end == NULL)
+        {
+            report_error(str, "block comment is not closed with \"*/\".\n");
+        }
+
+        len = (end - start) + 4; // add 4 to count "/*" and "*/"
+    }
+
+    return len;
+}
 
 /*
 check if the following string is reserved

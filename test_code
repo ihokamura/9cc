@@ -1,7 +1,10 @@
+/*
+main function of test code
+*/
 int main()
 {
-    int i;
-    int sum;
+    int i;   // counter
+    int sum; // sum
 
     sum = 0;
     for(i = 0; i < 10; i = i + 1)
