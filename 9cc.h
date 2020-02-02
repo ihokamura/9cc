@@ -123,7 +123,7 @@ struct Node {
     Node *postexpr; // post-expression (only for ND_FOR)
     Node *body;     // body of compound statements (only for ND_BLOCK)
     char *ident;    // identifier (only for ND_FUNC)
-    Node *args[6];  // arguments (only for ND_FUNC)
+    Node *args;     // arguments (only for ND_FUNC)
 };
 
 // structure for function
@@ -131,9 +131,8 @@ typedef struct Function Function;
 struct Function {
     Function *next;    // next element
     char *name;        // name of function
-    size_t argc;       // number of arguments
-    LVar *args[6];     // arguments
     Type *type;        // type of return value
+    LVar *args;        // arguments
     Node *body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
@@ -169,7 +168,3 @@ Type *new_type(TypeKind kind);
 bool is_pointer(const Node *node);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
-
-
-// global variable
-extern const size_t ARG_REGISTERS_SIZE; // number of registers for function arguments

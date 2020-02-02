@@ -6,6 +6,11 @@ test functions called from assembler code
 #include <stdlib.h>
 
 
+#ifdef USE_EXTFUNC
+extern int extfunc1();
+extern int extfunc2(int a1, int a2, int a3, int a4, int a5, int a6, int a7);
+#endif
+
 // function without argument returning nothing
 void testfunc1(void)
 {
@@ -34,6 +39,36 @@ int testfunc4(int a1, int a2, int a3, int a4, int a5, int a6)
     return r;
 }
 
+// function with multiple (more than 6) arguments returning an integer
+int testfunc5(int a1, int a2, int a3, int a4, int a5, int a6, int a7)
+{
+    int r = 123;
+    printf("function call: testfunc5(%d, %d, %d, %d, %d, %d, %d) -> %d\n", a1, a2, a3, a4, a5, a6, a7, r);
+    return r;
+}
+
+// function with multiple (more than 6) arguments returning an integer
+int testfunc6(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8)
+{
+    int r = 123;
+    printf("function call: testfunc6(%d, %d, %d, %d, %d, %d, %d, %d) -> %d\n", a1, a2, a3, a4, a5, a6, a7, a8, r);
+    return r;
+}
+
+#ifdef USE_EXTFUNC
+int testfunc7(void)
+{
+    int r;
+
+    r = extfunc1();
+    printf("extfunc1() -> r%d\n", r);
+
+    r = extfunc2(1, 2, 3, 4, 5, 6, 7);
+    printf("extfunc2(1, 2, 3, 4, 5, 6, 7) -> %d\n", r);
+
+    return 123;
+}
+#endif
 
 // print an int-type variable
 void print_int(int n)

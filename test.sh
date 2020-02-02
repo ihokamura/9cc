@@ -39,6 +39,26 @@ try_func()
     fi
 }
 
+try_extfunc()
+{
+    expected="$1"
+    input="$2"
+
+    ./9cc -c "$input" > tmp.s
+    gcc test_functions.c -o test_functions.o -std=c11 -g -Wall -c -DUSE_EXTFUNC
+    gcc tmp.s test_functions.o -o tmp
+
+    ./tmp
+    actual="$?"
+
+    if [ "$actual" = "$expected" ]; then
+        echo "$input => $actual"
+    else
+        echo "$input => $expected expected, but got $actual"
+        exit 1
+    fi
+}
+
 try_file()
 {
     expected="$1"
@@ -126,12 +146,17 @@ try_func 0 "int main(){testfunc2(1); return 0;}"
 try_func 3 "int main(){int alpha; int beta; alpha = 1; beta = 2; testfunc3(alpha, beta); return alpha + beta;}"
 try_func 3 "int main(){int alpha; int beta; alpha = 2; beta = 1; testfunc4(alpha, beta, alpha + beta, alpha - beta, alpha * beta, alpha / beta); return alpha + beta;}"
 try_func 123 "int main(){int alpha; int beta; alpha = 2; beta = 1; return testfunc4(alpha, beta, alpha + beta, alpha - beta, alpha * beta, alpha / beta);}"
+try_func 123 "int main(){return testfunc5(1, 2, 3, 4, 5, 6, 7);}"
+try_func 123 "int main(){return testfunc6(1, 2, 3, 4, 5, 6, 7, 8);}"
 
 # function definition
 try 0 "int func(){return 0;} int main(){return func();}"
 try 3 "int func(int x, int y){return x + y;} int main(){int tmp; tmp = func(1, 2); return tmp;}"
 try 3 "int func1(){return 1;} int func2(){return 2;} int main(){return func1() + func2();}"
 try_func 0 "int func(int a, int b, int c, int d, int e, int f){print_int(a); print_int(b); print_int(c); print_int(d); print_int(e); print_int(f); return 0;} int main(){int tmp; tmp = func(1, 2, 3, 4, 5, 6); return tmp;}"
+try_func 123 'int func(int a1, int a2, int a3, int a4, int a5, int a6, int a7){int r; r = 123; print_int(a1); print_int(a2); print_int(a3); print_int(a4); print_int(a5); print_int(a6); print_int(a7); return r;} int main(){return func(1, 2, 3, 4, 5, 6, 7);}'
+try_func 123 'int func(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8){int r; r = 123; print_int(a1); print_int(a2); print_int(a3); print_int(a4); print_int(a5); print_int(a6); print_int(a7); print_int(a8); return r;} int main(){return func(1, 2, 3, 4, 5, 6, 7, 8);}'
+try_extfunc 123 "int extfunc1(){return 123;} int extfunc2(int a1, int a2, int a3, int a4, int a5, int a6, int a7){int r; r = 123; print_int(a1); print_int(a2); print_int(a3); print_int(a4); print_int(a5); print_int(a6); print_int(a7); return r;} int main(){return testfunc7();}"
 try 6 "int fact(int n){if(n == 0){return 1;} else{return n * fact(n - 1);}} int main(){return fact(3);}"
 try 21 "int fib(int n){if(n > 1){return fib(n - 1) + fib(n - 2);} else if(n == 1){return 1;} else{return 0;}} int main(){return fib(8);}"
 

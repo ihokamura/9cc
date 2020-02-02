@@ -22,7 +22,7 @@ add ::= mul ("+" mul | "-" mul)*
 mul ::= unary ("*" unary | "/" unary)*
 unary ::= postfix | ("&" | "*" | "+" | "-")? unary | sizeof unary
 postfix ::= primary ("[" expr "]")?
-primary ::= num | str | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
 type-spec ::= "char" | "int"
 declarator ::= "*"* ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?
@@ -33,3 +33,5 @@ type-suffix ::= ("[" num "]" | type-suffix)?
 [1] https://www.sigbus.info/compilerbook
 
 [2] https://www.bottlecaps.de/rr/ui
+
+[3] https://wiki.osdev.org/System_V_ABI

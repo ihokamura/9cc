@@ -18,10 +18,12 @@
 
 // function prototype
 static void generate_load(const Type *type);
+static void generate_store(const Type *type);
 static void generate_lvalue(const Node *node);
 static void generate_gvar(const GVar *gvar);
 static void generate_str(const GVar *str);
 static void generate_func(const Function *func);
+static void generate_args(const Node *args);
 static void generate_node(const Node *node);
 static void put_instruction(const char *fmt, ...);
 
@@ -66,7 +68,7 @@ void generate(const Program *program)
 
 
 /*
-generate assembler code for loading value to which rax points
+generate assembler code to load value
 */
 static void generate_load(const Type *type)
 {
@@ -84,6 +86,29 @@ static void generate_load(const Type *type)
         put_instruction("  mov rax, [rax]");
     }
     put_instruction("  push rax");
+}
+
+
+/*
+generate assembler code to store value
+*/
+static void generate_store(const Type *type)
+{
+    put_instruction("  pop rdi");
+    put_instruction("  pop rax");
+    if(type->size == 1)
+    {
+        put_instruction("  mov [rax], dil");
+    }
+    else if(type->size == 4)
+    {
+        put_instruction("  mov [rax], edi");
+    }
+    else
+    {
+        put_instruction("  mov [rax], rdi");
+    }
+    put_instruction("  push rdi");
 }
 
 
@@ -153,24 +178,44 @@ static void generate_func(const Function *func)
     put_instruction("  push rbp");
     put_instruction("  mov rbp, rsp");
     put_instruction("  sub rsp, %ld", func->stack_size);
-    for(size_t i = 0; i < func->argc; i++)
-    {
-        LVar *arg = func->args[i];
 
+    // arguments
+    size_t argc = 0;
+    for(LVar *arg = func->args; arg != NULL; arg = arg->next)
+    {
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %d", arg->offset);
-        if(arg->type->size == 1)
+
+        if(argc < ARG_REGISTERS_SIZE)
         {
-            put_instruction("  mov [rax], %s", arg_registers8[i]);
-        }
-        else if(arg->type->size == 4)
-        {
-            put_instruction("  mov [rax], %s", arg_registers32[i]);
+            // load argument from a register
+            if(arg->type->size == 1)
+            {
+                put_instruction("  mov [rax], %s", arg_registers8[argc]);
+            }
+            else if(arg->type->size == 4)
+            {
+                put_instruction("  mov [rax], %s", arg_registers32[argc]);
+            }
+            else
+            {
+                put_instruction("  mov [rax], %s", arg_registers64[argc]);
+            }
         }
         else
         {
-            put_instruction("  mov [rax], %s", arg_registers64[i]);
+            // load argument from the stack
+            put_instruction("  push rax");
+            put_instruction("  mov rax, rbp");
+            put_instruction("  add rax, %d", (argc - ARG_REGISTERS_SIZE + 2) * 8);
+            put_instruction("  push rax");
+            generate_load(arg->type);
+            generate_store(arg->type);
+            put_instruction("  pop rdi");
         }
+
+        // count number of arguments
+        argc++;
     }
 
     // body
@@ -184,6 +229,28 @@ static void generate_func(const Function *func)
     put_instruction("  mov rsp, rbp");
     put_instruction("  pop rbp");
     put_instruction("  ret");
+}
+
+
+/*
+generate assembler code of function arguments
+*/
+static void generate_args(const Node *args)
+{
+    // push arguments
+    size_t argc = 0;
+    for(const Node *arg = args; arg != NULL; arg = arg->next)
+    {
+        generate_node(arg);
+        argc++;
+    }
+
+    // pop up to ARG_REGISTERS_SIZE arguments to registers
+    size_t argc_reg = (argc < ARG_REGISTERS_SIZE) ? argc : ARG_REGISTERS_SIZE;
+    for(size_t i = 0; i < argc_reg; i++)
+    {
+        put_instruction("  pop %s", arg_registers64[i]);
+    }
 }
 
 
@@ -226,21 +293,7 @@ static void generate_node(const Node *node)
     case ND_ASSIGN:
         generate_lvalue(node->lhs);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        if(node->type->size == 1)
-        {
-            put_instruction("  mov [rax], dil");
-        }
-        else if(node->type->size == 4)
-        {
-            put_instruction("  mov [rax], edi");
-        }
-        else
-        {
-            put_instruction("  mov [rax], rdi");
-        }
-        put_instruction("  push rdi");
+        generate_store(node->type);
         return;
 
     case ND_RETURN:
@@ -345,32 +398,33 @@ static void generate_node(const Node *node)
 
     case ND_FUNC:
     {
-        // evaluate arguments
-        for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (node->args[i] != NULL); i++)
-        {
-            generate_node(node->args[i]);
-            put_instruction("  pop %s", arg_registers64[i]);
-        }
-
         int number = label_number;
         label_number++;
 
-        // note that x86-64 ABI requires rsp to be a multiple of 16 before function calls
+        // System V ABI for x86-64 requires that
+        // * rsp be a multiple of 16 before function call.
+        // * Arguments be passed in rdi, rsi, rdx, rcx, r8, r9, and further ones be passed on the stack in reverse order.
+        // * The number of floating point arguments be set to al if the callee is a variadic function.
+
+        // check alignment of rsp before function call
         put_instruction("  mov rax, rsp");
         put_instruction("  and rax, 0xF");
         put_instruction("  cmp rax, 0");
         put_instruction("  je  .Lbegin%d", number);
         // case 1: rsp has not been aligned yet
         put_instruction("  sub rsp, 8");
+        generate_args(node->args);
         put_instruction("  mov rax, 0");
         put_instruction("  call %s", node->ident);
         put_instruction("  add rsp, 8");
         put_instruction("  jmp .Lend%d", number);
         put_instruction(".Lbegin%d:", number);
         // case 2: rsp has already been aligned
+        generate_args(node->args);
         put_instruction("  mov rax, 0");
         put_instruction("  call %s", node->ident);
         put_instruction(".Lend%d:", number);
+        // push return value
         put_instruction("  push rax");
         return;
     }
@@ -445,7 +499,7 @@ static void generate_node(const Node *node)
         break;
     }
 
-    // push return value
+    // push the result of operation
     put_instruction("  push rax");
 }
 

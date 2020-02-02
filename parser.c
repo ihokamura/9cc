@@ -97,7 +97,7 @@ static void prg(void)
         Token *token;
 
         base = declarator(base, &token);
-        if(consume_reserved("("))
+        if(peek_reserved("("))
         {
             // parse function
             func_cursor = func(token, func_cursor, base);
@@ -141,16 +141,19 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
     current_function = new_function(token, cur_func, base);
 
     // parse arguments
+    expect_reserved("(");
     Type *arg_type = type_spec();
     if(arg_type != NULL)
     {
+        LVar arg_head = {};
+        LVar *arg_cursor = &arg_head;
         Token *arg_token;
 
         arg_type = declarator(arg_type, &arg_token);
-        current_function->args[0] = new_lvar(arg_token, NULL, arg_type);
-        current_function->argc++;
+        arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
+        arg_cursor = arg_cursor->next;
 
-        for(size_t i = 1; (i < ARG_REGISTERS_SIZE) && consume_reserved(","); i++)
+        while(consume_reserved(","))
         {
             arg_type = type_spec();
             if(arg_type == NULL)
@@ -159,23 +162,24 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
             }
 
             arg_type = declarator(arg_type, &arg_token);
-            current_function->args[i] = new_lvar(arg_token, NULL, arg_type);
-            current_function->argc++;
+            arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
+            arg_cursor = arg_cursor->next;
         }
+        current_function->args = arg_head.next;
     }
     expect_reserved(")");
 
     // parse body
-    Node head = {};
-    Node *cursor = &head;
+    Node body_head = {};
+    Node *body_cursor = &body_head;
 
     expect_reserved("{");
     while(!consume_reserved("}"))
     {
-        cursor->next = stmt();
-        cursor = cursor->next;
+        body_cursor->next = stmt();
+        body_cursor = body_cursor->next;
     }
-    current_function->body = head.next;
+    current_function->body = body_head.next;
 
     return current_function;
 }
@@ -709,7 +713,7 @@ static Node *postfix(void)
 /*
 make a primary
 ```
-primary ::= num | str | ident ("(" (expr ("," expr)*)? ")")? | "(" expr ")"
+primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
 ```
 */
 static Node *primary(void)
@@ -730,24 +734,22 @@ static Node *primary(void)
     {
         if(consume_reserved("("))
         {
-            // function
+            // function call
             Node *node = new_node_func(token);
-            if(consume_reserved(")"))
+
+            // parse arguments
+            while(!consume_reserved(")"))
             {
-                for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
+                Node *arg = assign();
+
+                // append the argument at the head in order to push arguments in reverse order when generating assembler code
+                arg->next = node->args;
+                node->args = arg;
+                if(!consume_reserved(","))
                 {
-                    node->args[i] = NULL;
+                    expect_reserved(")");
+                    break;
                 }
-            }
-            else
-            {
-                // arguments
-                node->args[0] = expr();
-                for(size_t i = 1; (i < sizeof(node->args) / sizeof(node->args[0])) && consume_reserved(","); i++)
-                {
-                    node->args[i] = expr();
-                }
-                expect_reserved(")");
             }
 
             return node;
@@ -809,10 +811,7 @@ static Node *new_node(NodeKind kind)
     node->postexpr = NULL;
     node->body = NULL;
     node->ident = NULL;
-    for(size_t i = 0; i < sizeof(node->args) / sizeof(node->args[0]); i++)
-    {
-        node->args[i] = NULL;
-    }
+    node->args = NULL;
 
     return node;
 }
@@ -983,9 +982,8 @@ get a function argument or an existing local variable
 static LVar *get_lvar(const Token *token)
 {
     // search list of function arguments
-    for(size_t i = 0; (i < ARG_REGISTERS_SIZE) && (current_function->args[i] != NULL); i++)
+    for(LVar *lvar = current_function->args; lvar != NULL; lvar = lvar->next)
     {
-        LVar *lvar = current_function->args[i];
         if((lvar->len == token->len) && (strncmp(token->str, lvar->str, token->len) == 0))
         {
             return lvar;
@@ -1016,11 +1014,7 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
     new_func->name = make_ident(token);
 
     // initialize arguments
-    for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
-    {
-        new_func->args[i] = NULL;
-    }
-    new_func->argc = 0;
+    new_func->args = NULL;
 
     // initialize type of return value
     new_func->type = base;
