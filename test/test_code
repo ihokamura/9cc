@@ -1,0 +1,438 @@
+/*
+test code for 9cc compiler
+*/
+
+
+/*
+assertion for char type
+*/
+int assert_char(char expected, char actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%d expected, but got %d\n", expected, actual);
+        return 1;
+    }
+}
+
+
+/*
+assertion for int type
+*/
+int assert_int(int expected, int actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%d expected, but got %d\n", expected, actual);
+        return 1;
+    }
+}
+
+
+/*
+number
+*/
+int test_number()
+{
+    assert_int(0, 0);
+    assert_int(42, 42);
+
+    return 0;
+}
+
+
+/*
+additive operator
+*/
+int test_additive()
+{
+    assert_int(21, 5+20-4);
+
+    return 0;
+}
+
+
+/*
+multiplicative operator
+*/
+int test_multiplicative()
+{
+    assert_int(47, 5 + 6 * 7);
+    assert_int(15, 5 * (9 - 6));
+    assert_int(4, (3 + 5) / 2);
+
+    return 0;
+}
+
+
+/*
+unary operator
+*/
+int test_unary()
+{
+    assert_int(10, -10 + 20);
+    assert_int(1, +1 * -2 - (-3));
+
+    return 0;
+}
+
+
+/*
+comparision operator
+*/
+int test_comparision()
+{
+    assert_int(1, 42 == 6 * 7);
+    assert_int(0, 42 != 6 * 7);
+    assert_int(0, 42 < 6 * 7);
+    assert_int(1, 42 <= 6 * 7);
+    assert_int(0, 42 > 6 * 7);
+    assert_int(1, 42 >= 6 * 7);
+
+    return 0;
+}
+
+
+/*
+local variable
+*/
+int test_local_variable()
+{
+    int a; int b; a = 1; b = 2; assert_int(3, a + b);
+    int x; int y; int q; x = 42; y = x / 2; q = (x - y) / 7; assert_int(3, q);
+    int alpha; int beta; int gamma; alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha; assert_int(4, gamma);
+
+    return 0;
+}
+
+
+/*
+if statement
+*/
+int test_if_statement()
+{
+    int tmp; int condition;
+    tmp = 3; condition = 1; if(condition == 1) tmp = tmp * 2; assert_int(6, tmp);
+    tmp = 3; condition = 1; if(condition != 0) tmp = tmp * 2; else tmp = tmp * 3; assert_int(6, tmp);
+    tmp = 3; condition = 0; if(condition) tmp = tmp * 2; else tmp = tmp * 3; assert_int(9, tmp);
+
+    return 0;
+}
+
+
+/*
+while statement
+*/
+int test_while_statement()
+{
+    int sum; int i;
+    sum = i = 0; while(i < 10){sum = sum + i; i = i + 1;} assert_int(45, sum);
+    sum = i = 0; while(1){if(i >= 10) return sum; sum = sum + i; i = i + 1;} assert_int(45, sum);
+
+    return 0;
+}
+
+
+/*
+do statement
+*/
+int test_do_statement()
+{
+    int sum; int i;
+    sum = i = 0; do{sum = sum + i; i = i + 1;} while(i < 10); assert_int(45, sum);
+    sum = i = 0; do{if(i >= 10) {return sum;} else {sum = sum + i; i = i + 1; }} while(1); assert_int(45, sum);
+
+    return 0;
+}
+
+
+/*
+for statement
+*/
+int test_for_statement()
+{
+    int sum; int i;
+    sum = 0; for(i = 0; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
+    sum = 0; i = 0; for(; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
+    sum = 0; for(i = 0; i < 10; ){sum = sum + i; i = i + 1;} assert_int(45, sum);
+
+    return 0;
+}
+
+
+/*
+function call
+*/
+int test_function_call()
+{
+    assert_int(0, func_call_return0());
+    assert_int(3, func_call_return1() + func_call_return2());
+    assert_int(3, func_call_add(1, 2));
+    assert_int(543210, func_call_arg6(0, 1, 2, 3, 4, 5));
+    assert_int(6543210, func_call_arg7(0, 1, 2, 3, 4, 5, 6));
+    assert_int(76543210, func_call_arg8(0, 1, 2, 3, 4, 5, 6, 7));
+}
+
+
+/*
+function definition
+*/
+int func_def_return0()
+{
+    return 0;
+}
+int func_def_return1()
+{
+    return 1;
+}
+int func_def_return2()
+{
+    return 2;
+}
+int func_def_add(int x, int y)
+{
+    return x + y;
+}
+int func_def_arg6(int a0, int a1, int a2, int a3, int a4, int a5)
+{
+    return a0 + a1*10 + a2*100 + a3*1000 + a4*10000 + a5*100000;
+}
+int func_def_arg7(int a0, int a1, int a2, int a3, int a4, int a5, int a6)
+{
+    return a0 + a1*10 + a2*100 + a3*1000 + a4*10000 + a5*100000 + a6*1000000;
+}
+int func_def_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7)
+{
+    return a0 + a1*10 + a2*100 + a3*1000 + a4*10000 + a5*100000 + a6*1000000 + a7*10000000;
+}
+int func_def_factorial(int n)
+{
+    if(n == 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return n * func_def_factorial(n - 1);
+    }
+}
+int func_def_fibonacci(int n)
+{
+    if(n == 0)
+    {
+        return 0;
+    }
+    else if (n == 1)
+    {
+        return 1;
+    }
+    else
+    {
+        return func_def_fibonacci(n - 2) + func_def_fibonacci(n - 1);
+    }
+}
+int test_function_definition()
+{
+    assert_int(0, func_def_return0());
+    assert_int(3, func_def_return1() + func_def_return2());
+    assert_int(3, func_def_add(1, 2));
+    assert_int(6, func_def_factorial(3));
+    assert_int(543210, func_def_arg6(0, 1, 2, 3, 4, 5));
+    assert_int(6543210, func_def_arg7(0, 1, 2, 3, 4, 5, 6));
+    assert_int(76543210, func_def_arg8(0, 1, 2, 3, 4, 5, 6, 7));
+    assert_int(6, func_def_factorial(3));    
+    assert_int(21, func_def_fibonacci(8));
+
+    return 0;
+}
+
+
+/*
+address operator and dereference operator
+*/
+int func_def_argp1(int *x)
+{
+    return *x;
+}
+int func_def_argp2(int **x)
+{
+    return **x;
+}
+int func_def_argp3(int ***x)
+{
+    return ***x;
+}
+int *func_def_returnp1(int *x)
+{
+    return x;
+}
+int **func_def_returnp2(int **x)
+{
+    return x;
+}
+int test_address_dereference()
+{
+    int x; int *y; int **z;
+    x = 1; y = &x; assert_int(3, *y + 2);
+    x = 1; y = &x; *y = 3; assert_int(3 , x);
+    x = 1; y = &x; z = &y; **z = 3; assert_int(3, x);
+
+    int a0; int *a1; int **a2; int b0; int *b1; int **b2;
+    a0 = 3; b0 = func_def_argp1(&a0); assert_int(3, b0);
+    a0 = 3; a1 = &a0; b0 = func_def_argp2(&a1); assert_int(3, b0);
+    a0 = 3; a1 = &a0; a2 = &a1; b0 = func_def_argp3(&a2); assert_int(3, b0);
+    a0 = 3; b1 = func_def_returnp1(&a0); assert_int(3, *b1);
+    a0 = 3; a1 = &a0; b2 = func_def_returnp2(&a1); assert_int(3, **b2);
+
+    return 0;
+}
+
+
+/*
+sizeof operator
+*/
+int test_sizeof()
+{
+    int x; int *y;
+    assert_int(4, sizeof(1));
+    assert_int(4, sizeof sizeof(1));
+    assert_int(4, sizeof(x));
+    assert_int(8, sizeof(y));
+    assert_int(8, sizeof(&x));
+    assert_int(4, sizeof(*y));
+    assert_int(4, sizeof(x + 3));
+    assert_int(8, sizeof(y + 3));
+    assert_int(4, sizeof(*(y + 3)));
+}
+
+
+/*
+pointer addition and subtraction
+*/
+int test_pointer_addition_subtraction()
+{
+    int *p; int *q; alloc4(&p, 1, 2, 4, 8);
+    q = p + 2; assert_int(4, *q);
+    q = 2 + p; assert_int(4, *q);
+    q = p + 2; assert_int(2, *(q - 1));
+
+    return 0;
+}
+
+
+/*
+array
+*/
+int test_array()
+{
+    int a1[1]; int a2[2]; int a3[3]; int a4[4]; int a32[3][2]; int *p; int i; int j;
+    *a1 = 2; assert_int(2, *a1);
+    *(a2 + 1) = 2; assert_int(2, 2 * *(a2 + 1) - 2);
+    *a2 = 1; *(a2 + 1) = 2; p = a2; assert_int(3, *p + *(p + 1));
+    for(i = 0; i < 4; i = i + 1){*(a4 + i) = i + 1;} assert_int(10, *a4 + *(a4 + 1) + *(a4 + 2) + *(a4 + 3));
+    for(i = 0; i < 4; i = i + 1){a4[i] = i + 1;} assert_int(10, a4[0] + 1[a4] + a4[2] + 3[a4]);
+    assert_int(12, sizeof(a3));
+    assert_int(1, (a3 == &a3));
+    a32[0][0] = 0; assert_int(0, a32[0][0]);
+    a32[0][1] = 1; assert_int(1, a32[0][1]);
+    a32[0][2] = 2; assert_int(2, a32[0][2]);
+    a32[1][0] = 3; assert_int(3, a32[1][0]);
+    a32[1][1] = 4; assert_int(4, a32[1][1]);
+    a32[1][2] = 5; assert_int(5, a32[1][2]);
+    a32[2][1] = 5; assert_int(5, a32[2][1]);
+    assert_int(24, sizeof(a32));
+    assert_int(8, sizeof(a32[0]));
+    assert_int(4, sizeof(a32[0][0]));
+    for(i = 0; i < 3; i = i + 1){for(j = 0; j < 2; j = j + 1){a32[i][j] = 2 * i + j;}} assert_int(15, a32[0][0] + a32[0][1] + a32[1][0] + a32[1][1] + a32[2][0] + a32[2][1]);
+
+    return 0;
+}
+
+
+/*
+global variable
+*/
+int gvar_int1; int gvar_int2; int *gvar_p1; int gvar_a4[4]; int gvar_a45[4][5];
+int func_def_set_gvar_int1()
+{
+    gvar_int1 = 1;
+
+    return gvar_int1;
+}
+int test_global_variable()
+{
+    int i;
+    gvar_int1 = 1; assert_int(1, gvar_int1);
+    gvar_int2 = 2; assert_int(3, func_def_set_gvar_int1() + gvar_int2);
+    gvar_int1 = 3; gvar_p1 = &gvar_int1; assert_int(3, *gvar_p1);
+    for(i = 0; i < 4; i = i + 1){gvar_a4[i] = i;} assert_int(6, gvar_a4[0] + gvar_a4[1] + gvar_a4[2] + gvar_a4[3]);
+    assert_int(80, sizeof gvar_a45);
+
+    return 0;
+}
+
+
+/*
+char type
+*/
+int func_def_arg_pc_i(char *c, int i)
+{
+    return *c + i;
+}
+int test_char()
+{
+    char x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_int(4, x[0] + y);
+    char c; int i; c = 1; i = 2; assert_int(4, func_def_arg_pc_i(&c, i) + sizeof(c));
+
+    return 0;
+}
+
+
+/*
+string-literal
+*/
+int test_string_literal()
+{
+    char *s;
+    s = "foo";
+    assert_char(111, s[1]);
+
+    return 0;
+}
+
+
+/*
+main function of test code
+*/
+int main()
+{
+    test_number();
+    test_additive();
+    test_multiplicative();
+    test_unary();
+    test_comparision();
+    test_local_variable();
+    test_if_statement();
+    test_while_statement();
+    test_do_statement();
+    test_for_statement();
+    test_function_call();
+    test_function_definition();
+    test_address_dereference();
+    test_sizeof();
+    test_pointer_addition_subtraction();
+    test_array();
+    test_global_variable();
+    test_char();
+    test_string_literal();
+
+    return 0;
+}
