@@ -192,7 +192,9 @@ static bool peek_typename(void)
 {
     return (
            peek_reserved("char")
+        || peek_reserved("short")
         || peek_reserved("int")
+        || peek_reserved("long")
     );
 }
 
@@ -227,7 +229,7 @@ static Type *declarator(Type *type, Token **token)
 /*
 make a type-spec
 ```
-type-spec ::= "char" | "int"
+type-spec ::= "char" | "short" | "int" | "long"
 ```
 */
 static Type *type_spec(void)
@@ -236,9 +238,17 @@ static Type *type_spec(void)
     {
         return new_type(TY_CHAR);
     }
+    else if(consume_reserved("short"))
+    {
+        return new_type(TY_SHORT);
+    }
     else if(consume_reserved("int"))
     {
         return new_type(TY_INT);
+    }
+    else if(consume_reserved("long"))
+    {
+        return new_type(TY_LONG);
     }
     else
     {
@@ -836,7 +846,14 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_NEQ:
     case ND_L:
     case ND_LEQ:
-        node->type = new_type(TY_INT);
+        if((lhs->type->kind == TY_LONG) || (rhs->type->kind == TY_LONG))
+        {
+            node->type = new_type(TY_LONG);
+        }
+        else
+        {
+            node->type = new_type(TY_INT);
+        }
         break;
 
     case ND_PTR_ADD:

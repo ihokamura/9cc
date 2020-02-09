@@ -35,7 +35,9 @@ typedef enum {
 // kind of type
 typedef enum {
     TY_CHAR,  // char
+    TY_SHORT, // short
     TY_INT,   // int
+    TY_LONG,  // long
     TY_PTR,   // pointer
     TY_ARRAY, // array
 } TypeKind;

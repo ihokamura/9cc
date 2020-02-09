@@ -65,8 +65,10 @@ static const char *keyword_list[] = {
     "for",
     "if",
     "int",
+    "long",
     "return",
     "sizeof",
+    "short",
     "while",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords

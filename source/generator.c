@@ -30,6 +30,7 @@ static void put_instruction(const char *fmt, ...);
 
 // global variable
 const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
+const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for function arguments
 const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
 const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
 const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
@@ -75,7 +76,11 @@ static void generate_load(const Type *type)
     put_instruction("  pop rax");
     if(type->size == 1)
     {
-        put_instruction("  movsx rax, byte ptr [rax]");
+        put_instruction("  movsxb rax, byte ptr [rax]");
+    }
+    else if(type->size == 2)
+    {
+        put_instruction("  movsxw rax, word ptr [rax]");
     }
     else if(type->size == 4)
     {
@@ -98,11 +103,15 @@ static void generate_store(const Type *type)
     put_instruction("  pop rax");
     if(type->size == 1)
     {
-        put_instruction("  mov [rax], dil");
+        put_instruction("  mov byte ptr [rax], dil");
+    }
+    else if(type->size == 2)
+    {
+        put_instruction("  mov word ptr [rax], di");
     }
     else if(type->size == 4)
     {
-        put_instruction("  mov [rax], edi");
+        put_instruction("  mov dword ptr [rax], edi");
     }
     else
     {
@@ -191,11 +200,15 @@ static void generate_func(const Function *func)
             // load argument from a register
             if(arg->type->size == 1)
             {
-                put_instruction("  mov [rax], %s", arg_registers8[argc]);
+                put_instruction("  mov byte ptr [rax], %s", arg_registers8[argc]);
+            }
+            else if(arg->type->size == 2)
+            {
+                put_instruction("  mov word ptr [rax], %s", arg_registers16[argc]);
             }
             else if(arg->type->size == 4)
             {
-                put_instruction("  mov [rax], %s", arg_registers32[argc]);
+                put_instruction("  mov dword ptr [rax], %s", arg_registers32[argc]);
             }
             else
             {

@@ -21,6 +21,23 @@ int assert_char(char expected, char actual)
 
 
 /*
+assertion for short type
+*/
+int assert_short(short expected, short actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%d expected, but got %d\n", expected, actual);
+        return 1;
+    }
+}
+
+
+/*
 assertion for int type
 */
 int assert_int(int expected, int actual)
@@ -32,6 +49,23 @@ int assert_int(int expected, int actual)
     else
     {
         printf("%d expected, but got %d\n", expected, actual);
+        return 1;
+    }
+}
+
+
+/*
+assertion for long type
+*/
+int assert_long(long expected, long actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%ld expected, but got %ld\n", expected, actual);
         return 1;
     }
 }
@@ -301,16 +335,40 @@ sizeof operator
 */
 int test_sizeof()
 {
-    int x; int *y;
     assert_int(4, sizeof(1));
     assert_int(4, sizeof sizeof(1));
-    assert_int(4, sizeof(x));
-    assert_int(8, sizeof(y));
-    assert_int(8, sizeof(&x));
-    assert_int(4, sizeof(*y));
-    assert_int(4, sizeof(x + 3));
-    assert_int(8, sizeof(y + 3));
-    assert_int(4, sizeof(*(y + 3)));
+
+    char c; char *pc;
+    assert_int(1, sizeof(c));
+    assert_int(8, sizeof(pc));
+    assert_int(8, sizeof(&c));
+    assert_int(1, sizeof(*pc));
+    assert_int(4, sizeof(c + 1));
+    assert_int(8, sizeof(pc + 1));
+
+    short s; short *ps;
+    assert_int(2, sizeof(s));
+    assert_int(8, sizeof(ps));
+    assert_int(8, sizeof(&s));
+    assert_int(2, sizeof(*ps));
+    assert_int(4, sizeof(s + 1));
+    assert_int(8, sizeof(ps + 1));
+
+    int i; int *pi;
+    assert_int(4, sizeof(i));
+    assert_int(8, sizeof(pi));
+    assert_int(8, sizeof(&i));
+    assert_int(4, sizeof(*pi));
+    assert_int(4, sizeof(i + 1));
+    assert_int(8, sizeof(pi + 1));
+
+    long l; long *pl;
+    assert_int(8, sizeof(l));
+    assert_int(8, sizeof(pl));
+    assert_int(8, sizeof(&l));
+    assert_int(8, sizeof(*pl));
+    assert_int(8, sizeof(l + 1));
+    assert_int(8, sizeof(pl + 1));
 }
 
 
@@ -390,7 +448,39 @@ int func_def_arg_pc_i(char *c, int i)
 int test_char()
 {
     char x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_int(4, x[0] + y);
-    char c; int i; c = 1; i = 2; assert_int(4, func_def_arg_pc_i(&c, i) + sizeof(c));
+    char c; int i; c = 1; i = 2; assert_int(3, func_def_arg_pc_i(&c, i));
+
+    return 0;
+}
+
+
+/*
+short type
+*/
+int func_def_arg_ps_i(short *s, int i)
+{
+    return *s + i;
+}
+int test_short()
+{
+    short x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_int(4, x[0] + y);
+    short s; int i; s = 1; i = 2; assert_int(3, func_def_arg_ps_i(&s, i));
+
+    return 0;
+}
+
+
+/*
+long type
+*/
+long func_def_arg_pl_i(long *l, int i)
+{
+    return *l + i;
+}
+int test_long()
+{
+    long x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_long(4, x[0] + y);
+    long l; int i; l = 1; i = 2; assert_int(3, func_def_arg_pl_i(&l, i));
 
     return 0;
 }
@@ -432,6 +522,8 @@ int main()
     test_array();
     test_global_variable();
     test_char();
+    test_short();
+    test_long();
     test_string_literal();
 
     return 0;
