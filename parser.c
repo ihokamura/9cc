@@ -852,7 +852,8 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         }
         else
         {
-            node->type = rhs->type;
+            // implicitly convert to smaller type
+            node->type = (lhs->type->size < rhs->type->size ? lhs->type : rhs->type);
         }
         break;
 
