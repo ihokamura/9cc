@@ -4,6 +4,15 @@ test code for 9cc compiler
 
 
 /*
+print title of a test case
+*/
+int put_title(char *title)
+{
+    return printf("--- %s ---\n", title);
+}
+
+
+/*
 assertion for char type
 */
 int assert_char(char expected, char actual)
@@ -76,6 +85,8 @@ number
 */
 int test_number()
 {
+    put_title("number");
+
     assert_int(0, 0);
     assert_int(42, 42);
 
@@ -88,6 +99,8 @@ additive operator
 */
 int test_additive()
 {
+    put_title("additive operator");
+
     assert_int(21, 5+20-4);
 
     return 0;
@@ -99,6 +112,8 @@ multiplicative operator
 */
 int test_multiplicative()
 {
+    put_title("multiplicative operator");
+
     assert_int(47, 5 + 6 * 7);
     assert_int(15, 5 * (9 - 6));
     assert_int(4, (3 + 5) / 2);
@@ -112,6 +127,8 @@ unary operator
 */
 int test_unary()
 {
+    put_title("unary operator");
+
     assert_int(10, -10 + 20);
     assert_int(1, +1 * -2 - (-3));
 
@@ -124,6 +141,8 @@ comparision operator
 */
 int test_comparision()
 {
+    put_title("comparision operator");
+
     assert_int(1, 42 == 6 * 7);
     assert_int(0, 42 != 6 * 7);
     assert_int(0, 42 < 6 * 7);
@@ -140,6 +159,8 @@ local variable
 */
 int test_local_variable()
 {
+    put_title("local variable");
+
     int a; int b; a = 1; b = 2; assert_int(3, a + b);
     int x; int y; int q; x = 42; y = x / 2; q = (x - y) / 7; assert_int(3, q);
     int alpha; int beta; int gamma; alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha; assert_int(4, gamma);
@@ -153,6 +174,8 @@ if statement
 */
 int test_if_statement()
 {
+    put_title("if statement");
+
     int tmp; int condition;
     tmp = 3; condition = 1; if(condition == 1) tmp = tmp * 2; assert_int(6, tmp);
     tmp = 3; condition = 1; if(condition != 0) tmp = tmp * 2; else tmp = tmp * 3; assert_int(6, tmp);
@@ -167,6 +190,8 @@ while statement
 */
 int test_while_statement()
 {
+    put_title("while statement");
+
     int sum; int i;
     sum = i = 0; while(i < 10){sum = sum + i; i = i + 1;} assert_int(45, sum);
     sum = i = 0; while(1){if(i >= 10) return sum; sum = sum + i; i = i + 1;} assert_int(45, sum);
@@ -180,6 +205,8 @@ do statement
 */
 int test_do_statement()
 {
+    put_title("do statement");
+
     int sum; int i;
     sum = i = 0; do{sum = sum + i; i = i + 1;} while(i < 10); assert_int(45, sum);
     sum = i = 0; do{if(i >= 10) {return sum;} else {sum = sum + i; i = i + 1; }} while(1); assert_int(45, sum);
@@ -193,6 +220,8 @@ for statement
 */
 int test_for_statement()
 {
+    put_title("for statement");
+
     int sum; int i;
     sum = 0; for(i = 0; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
     sum = 0; i = 0; for(; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
@@ -207,6 +236,8 @@ function call
 */
 int test_function_call()
 {
+    put_title("function call");
+
     assert_int(0, func_call_return0());
     assert_int(3, func_call_return1() + func_call_return2());
     assert_int(3, func_call_add(1, 2));
@@ -275,6 +306,8 @@ int func_def_fibonacci(int n)
 }
 int test_function_definition()
 {
+    put_title("function definition");
+
     assert_int(0, func_def_return0());
     assert_int(3, func_def_return1() + func_def_return2());
     assert_int(3, func_def_add(1, 2));
@@ -314,6 +347,8 @@ int **func_def_returnp2(int **x)
 }
 int test_address_dereference()
 {
+    put_title("address operator and dereference operator");
+
     int x; int *y; int **z;
     x = 1; y = &x; assert_int(3, *y + 2);
     x = 1; y = &x; *y = 3; assert_int(3 , x);
@@ -335,6 +370,8 @@ sizeof operator
 */
 int test_sizeof()
 {
+    put_title("sizeof operator");
+
     assert_int(4, sizeof(1));
     assert_int(4, sizeof sizeof(1));
 
@@ -377,6 +414,8 @@ pointer addition and subtraction
 */
 int test_pointer_addition_subtraction()
 {
+    put_title("pointer addition and subtraction");
+
     int *p; int *q; alloc4(&p, 1, 2, 4, 8);
     q = p + 2; assert_int(4, *q);
     q = 2 + p; assert_int(4, *q);
@@ -391,6 +430,8 @@ array
 */
 int test_array()
 {
+    put_title("array");
+
     int a1[1]; int a2[2]; int a3[3]; int a4[4]; int a32[3][2]; int *p; int i; int j;
     *a1 = 2; assert_int(2, *a1);
     *(a2 + 1) = 2; assert_int(2, 2 * *(a2 + 1) - 2);
@@ -427,6 +468,8 @@ int func_def_set_gvar_int1()
 }
 int test_global_variable()
 {
+    put_title("global variable");
+
     int i;
     gvar_int1 = 1; assert_int(1, gvar_int1);
     gvar_int2 = 2; assert_int(3, func_def_set_gvar_int1() + gvar_int2);
@@ -447,6 +490,8 @@ int func_def_arg_pc_i(char *c, int i)
 }
 int test_char()
 {
+    put_title("char type");
+
     char x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_int(4, x[0] + y);
     char c; int i; c = 1; i = 2; assert_int(3, func_def_arg_pc_i(&c, i));
 
@@ -463,6 +508,8 @@ int func_def_arg_ps_i(short *s, int i)
 }
 int test_short()
 {
+    put_title("short type");
+
     short x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_int(4, x[0] + y);
     short s; int i; s = 1; i = 2; assert_int(3, func_def_arg_ps_i(&s, i));
 
@@ -479,6 +526,8 @@ long func_def_arg_pl_i(long *l, int i)
 }
 int test_long()
 {
+    put_title("long type");
+
     long x[3]; x[0] = 1; x[1] = 2; int y; y = 3; assert_long(4, x[0] + y);
     long l; int i; l = 1; i = 2; assert_int(3, func_def_arg_pl_i(&l, i));
 
@@ -491,6 +540,8 @@ string-literal
 */
 int test_string_literal()
 {
+    put_title("string-literal");
+
     char *s;
     s = "foo";
     assert_char(111, s[1]);
