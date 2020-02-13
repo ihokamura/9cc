@@ -57,6 +57,7 @@ static GVar *current_str; // currently parsing string-literal
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
+static size_t stack_alignment_size = 8; // alignment size of function stack
 
 
 /*
@@ -180,6 +181,9 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
         body_cursor = body_cursor->next;
     }
     current_function->body = body_head.next;
+
+    // align stack size
+    current_function->stack_size = (current_function->stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
 
     return current_function;
 }
