@@ -24,7 +24,7 @@ mul ::= unary ("*" unary | "/" unary)*
 unary ::= postfix | ("++" | "--") unary | ("&" | "*" | "+" | "-") unary | sizeof unary
 postfix ::= primary ("[" expr "]")?
 primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
-type-spec ::= "char" | "int"
+type-spec ::= "char" | "short" | "int" | "long"
 declarator ::= "*"* ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?
 ```

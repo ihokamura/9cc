@@ -173,6 +173,9 @@ void report_warning(const char *loc, const char *fmt, ...);
 void report_error(const char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);
-bool is_pointer(const Node *node);
+bool is_integer(const Type *type);
+bool is_pointer(const Type *type);
+bool is_array(const Type *type);
+bool is_pointer_or_array(const Type *type);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);

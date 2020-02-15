@@ -61,12 +61,43 @@ Type *new_type(TypeKind kind)
 
 
 /*
-check if a given node is pointer-type
-* This function assumes that array-type be pointer-type.
+check if a given type is an integer type
 */
-bool is_pointer(const Node *node)
+bool is_integer(const Type *type)
 {
-    return (node->type->kind == TY_PTR) || (node->type->kind == TY_ARRAY);
+    return (
+           (type->kind == TY_CHAR)
+        || (type->kind == TY_SHORT)
+        || (type->kind == TY_INT)
+        || (type->kind == TY_LONG)
+        );
+}
+
+
+/*
+check if a given type is a pointer type
+*/
+bool is_pointer(const Type *type)
+{
+    return (type->kind == TY_PTR);
+}
+
+
+/*
+check if a given type is an array type
+*/
+bool is_array(const Type *type)
+{
+    return (type->kind == TY_ARRAY);
+}
+
+
+/*
+check if a given type is a pointer type or an array type
+*/
+bool is_pointer_or_array(const Type *type)
+{
+    return (is_pointer(type) || is_array(type));
 }
 
 

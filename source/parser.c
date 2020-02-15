@@ -492,33 +492,73 @@ static Node *assign(void)
     }
     else if(consume_reserved("+="))
     {
-        if(is_pointer(node))
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(rhs->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, node, assign());
+            report_error(NULL, "bad operand for compound assignment +=");
+        }
+
+        if(is_integer(lhs->type))
+        {
+            node = new_node_binary(ND_ADD_EQ, lhs, rhs);
+        }
+        else if(is_pointer(lhs->type))
+        {
+            node = new_node_binary(ND_PTR_ADD_EQ, lhs, rhs);
         }
         else
         {
-            node = new_node_binary(ND_ADD_EQ, node, assign());
+            report_error(NULL, "bad operand for compound assignment +=");
         }
     }
     else if(consume_reserved("-="))
     {
-        if(is_pointer(node))
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(rhs->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, node, assign());
+            report_error(NULL, "bad operand for compound assignment -=");
+        }
+
+        if(is_integer(lhs->type))
+        {
+            node = new_node_binary(ND_SUB_EQ, lhs, rhs);
+        }
+        else if(is_pointer(lhs->type))
+        {
+            node = new_node_binary(ND_PTR_SUB_EQ, lhs, rhs);
         }
         else
         {
-            node = new_node_binary(ND_SUB_EQ, node, assign());
+            report_error(NULL, "bad operand for compound assignment -=");
         }
     }
     else if(consume_reserved("*="))
     {
-        node = new_node_binary(ND_MUL_EQ, node, assign());
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment *=");
+        }
+
+        node = new_node_binary(ND_MUL_EQ, lhs, rhs);
     }
     else if(consume_reserved("/="))
     {
-        node = new_node_binary(ND_DIV_EQ, node, assign());
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment /=");
+        }
+
+        node = new_node_binary(ND_DIV_EQ, lhs, rhs);
     }
 
     return node;
@@ -609,17 +649,21 @@ static Node *add(void)
             Node *lhs = node;
             Node *rhs = mul();
 
-            if(is_pointer(lhs) && !is_pointer(rhs))
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                node = new_node_binary(ND_ADD, lhs, rhs);
+            }
+            else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(ND_PTR_ADD, lhs, rhs);
             }
-            else if(!is_pointer(lhs) && is_pointer(rhs))
+            else if(is_integer(lhs->type) && is_pointer_or_array(rhs->type))
             {
                 node = new_node_binary(ND_PTR_ADD, rhs, lhs);
             }
             else
             {
-                node = new_node_binary(ND_ADD, lhs, rhs);
+                report_error(NULL, "bad operand for binary operator +");
             }
         }
         else if(consume_reserved("-"))
@@ -627,13 +671,17 @@ static Node *add(void)
             Node *lhs = node;
             Node *rhs = mul();
 
-            if(is_pointer(lhs) && !is_pointer(rhs))
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                node = new_node_binary(ND_SUB, lhs, rhs);
+            }
+            else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(ND_PTR_SUB, lhs, rhs);
             }
             else
             {
-                node = new_node_binary(ND_SUB, lhs, rhs);
+                report_error(NULL, "bad operand for binary operator -");
             }
         }
         else
@@ -694,25 +742,35 @@ static Node *unary(void)
     else if(consume_reserved("++"))
     {
         Node *operand = unary();
-        if(is_pointer(operand))
+
+        if(is_integer(operand->type))
+        {
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_num(1));
+        }
+        else if(is_pointer(operand->type))
         {
             node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_num(1));
         }
         else
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_num(1));
+            report_error(NULL, "bad operand for prefix increment operator ++");
         }
     }
     else if(consume_reserved("--"))
     {
         Node *operand = unary();
-        if(is_pointer(operand))
+
+        if(is_integer(operand->type))
+        {
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_num(1));
+        }
+        else if(is_pointer(operand->type))
         {
             node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_num(1));
         }
         else
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_num(1));
+            report_error(NULL, "bad operand for prefix decrement operator --");
         }
     }
     else if(consume_reserved("&"))
@@ -759,11 +817,11 @@ static Node *postfix(void)
         Node *lhs;
         Node *index = expr();
 
-        if(is_pointer(node) && !is_pointer(index))
+        if(is_pointer_or_array(node->type) && is_integer(index->type))
         {
             lhs = new_node_binary(ND_PTR_ADD, node, index);
         }
-        else if(!is_pointer(node) && is_pointer(index))
+        else if(is_integer(node->type) && is_pointer_or_array(index->type))
         {
             lhs = new_node_binary(ND_PTR_ADD, index, node);
         }
@@ -924,7 +982,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         break;
 
     case ND_ASSIGN:
-        if(rhs->type->kind == TY_ARRAY)
+        if(is_array(rhs->type))
         {
             // convert from array to pointer
             node->type = new_type_pointer(rhs->type->base);
