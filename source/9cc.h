@@ -56,6 +56,9 @@ typedef enum {
     ND_LEQ,     // order comparision (<=)
     ND_ASSIGN,  // assignment expression (=)
     ND_ADD_EQ,  // compound assignment expression for addition (+=)
+    ND_SUB_EQ,  // compound assignment expression for subtraction (-=)
+    ND_MUL_EQ,  // compound assignment expression for multiplication (*=)
+    ND_DIV_EQ,  // compound assignment expression for division (/=)
     ND_RETURN,  // return statement
     ND_IF,      // if statement
     ND_WHILE,   // while statement

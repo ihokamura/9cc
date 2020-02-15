@@ -478,7 +478,7 @@ static Node *expr(void)
 make an assignment expression
 ```
 assign ::= equality (assign-op assign)?
-assign-op ::= "=" | "+="
+assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 ```
 */
 static Node *assign(void)
@@ -493,6 +493,18 @@ static Node *assign(void)
     else if(consume_reserved("+="))
     {
         node = new_node_binary(ND_ADD_EQ, node, assign());
+    }
+    else if(consume_reserved("-="))
+    {
+        node = new_node_binary(ND_SUB_EQ, node, assign());
+    }
+    else if(consume_reserved("*="))
+    {
+        node = new_node_binary(ND_MUL_EQ, node, assign());
+    }
+    else if(consume_reserved("/="))
+    {
+        node = new_node_binary(ND_DIV_EQ, node, assign());
     }
 
     return node;

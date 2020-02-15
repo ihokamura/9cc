@@ -178,6 +178,9 @@ int test_assignment()
 
     int a; assert_int(123, a = 123);
     int b; b = 123; assert_int(369, b += 246);
+    int c; c = 123; assert_int(246, c -= -123);
+    int d; d = 123; assert_int(369, d *= 3);
+    int e; e = 123; assert_int(41, e /= 3);
 
     return 0;
 }

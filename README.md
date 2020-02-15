@@ -16,7 +16,7 @@ stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("e
 declaration ::= type-spec declarator ";"
 expr ::= assign
 assign ::= equality (assign-op assign)?
-assign-op ::= "=" | "+="
+assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 add ::= mul ("+" mul | "-" mul)*
