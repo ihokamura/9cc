@@ -15,7 +15,8 @@ func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarato
 stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
 declaration ::= type-spec declarator ";"
 expr ::= assign
-assign ::= equality ("=" assign)?
+assign ::= equality (assign-op assign)?
+assign-op ::= "=" | "+="
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 add ::= mul ("+" mul | "-" mul)*

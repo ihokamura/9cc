@@ -138,7 +138,7 @@ static void generate_lvalue(const Node *node)
         put_instruction("  sub rax, %d", node->lvar->offset);
         put_instruction("  push rax");
         break;
-    
+
     case ND_DEREF:
         generate_node(node->lhs);
         break;
@@ -308,6 +308,18 @@ static void generate_node(const Node *node)
         generate_node(node->rhs);
         generate_store(node->type);
         return;
+
+    case ND_ADD_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        put_instruction("  pop rdi");
+        put_instruction("  pop rax");
+        put_instruction("  add rax, rdi");
+        put_instruction("  push rax");
+        generate_store(node->type);
+        break;
 
     case ND_RETURN:
         generate_node(node->lhs);

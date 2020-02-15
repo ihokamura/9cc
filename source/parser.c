@@ -477,7 +477,8 @@ static Node *expr(void)
 /*
 make an assignment expression
 ```
-assign ::= equality ("=" assign)?
+assign ::= equality (assign-op assign)?
+assign-op ::= "=" | "+="
 ```
 */
 static Node *assign(void)
@@ -488,6 +489,10 @@ static Node *assign(void)
     if(consume_reserved("="))
     {
         node = new_node_binary(ND_ASSIGN, node, assign());
+    }
+    else if(consume_reserved("+="))
+    {
+        node = new_node_binary(ND_ADD_EQ, node, assign());
     }
 
     return node;
@@ -866,6 +871,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         break;
 
     case ND_ASSIGN:
+    case ND_ADD_EQ:
         if(rhs->type->kind == TY_ARRAY)
         {
             // convert from array to pointer

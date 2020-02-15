@@ -55,6 +55,7 @@ typedef enum {
     ND_L,       // strict order comparision (<)
     ND_LEQ,     // order comparision (<=)
     ND_ASSIGN,  // assignment expression (=)
+    ND_ADD_EQ,  // compound assignment expression for addition (+=)
     ND_RETURN,  // return statement
     ND_IF,      // if statement
     ND_WHILE,   // while statement

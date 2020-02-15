@@ -170,6 +170,20 @@ int test_local_variable()
 
 
 /*
+assignment
+*/
+int test_assignment()
+{
+    put_title("assignment");
+
+    int a; assert_int(123, a = 123);
+    int b; b = 123; assert_int(369, b += 246);
+
+    return 0;
+}
+
+
+/*
 if statement
 */
 int test_if_statement()
@@ -561,6 +575,7 @@ int main()
     test_unary();
     test_comparision();
     test_local_variable();
+    test_assignment();
     test_if_statement();
     test_while_statement();
     test_do_statement();
