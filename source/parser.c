@@ -492,11 +492,25 @@ static Node *assign(void)
     }
     else if(consume_reserved("+="))
     {
-        node = new_node_binary(ND_ADD_EQ, node, assign());
+        if(is_pointer(node))
+        {
+            node = new_node_binary(ND_PTR_ADD_EQ, node, assign());
+        }
+        else
+        {
+            node = new_node_binary(ND_ADD_EQ, node, assign());
+        }
     }
     else if(consume_reserved("-="))
     {
-        node = new_node_binary(ND_SUB_EQ, node, assign());
+        if(is_pointer(node))
+        {
+            node = new_node_binary(ND_PTR_SUB_EQ, node, assign());
+        }
+        else
+        {
+            node = new_node_binary(ND_SUB_EQ, node, assign());
+        }
     }
     else if(consume_reserved("*="))
     {
@@ -883,7 +897,6 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         break;
 
     case ND_ASSIGN:
-    case ND_ADD_EQ:
         if(rhs->type->kind == TY_ARRAY)
         {
             // convert from array to pointer
@@ -894,6 +907,19 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
             // implicitly convert to smaller type
             node->type = (lhs->type->size < rhs->type->size ? lhs->type : rhs->type);
         }
+        break;
+
+    case ND_ADD_EQ:
+    case ND_SUB_EQ:
+    case ND_MUL_EQ:
+    case ND_DIV_EQ:
+        // implicitly convert to smaller type
+        node->type = (lhs->type->size < rhs->type->size ? lhs->type : rhs->type);
+        break;
+
+    case ND_PTR_ADD_EQ:
+    case ND_PTR_SUB_EQ:
+        node->type = new_type_pointer(lhs->type->base);
         break;
 
     default:

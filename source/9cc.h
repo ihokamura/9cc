@@ -44,34 +44,36 @@ typedef enum {
 
 // kind of node in AST(abstract syntax tree)
 typedef enum {
-    ND_ADD,     // addition (num + num)
-    ND_PTR_ADD, // pointer addition (ptr + num | num + ptr)
-    ND_SUB,     // subtraction (num - num)
-    ND_PTR_SUB, // pointer subtraction (ptr - num)
-    ND_MUL,     // multiplication (*)
-    ND_DIV,     // division (/)
-    ND_EQ,      // equality comparision (==)
-    ND_NEQ,     // inequality comparision (!=)
-    ND_L,       // strict order comparision (<)
-    ND_LEQ,     // order comparision (<=)
-    ND_ASSIGN,  // assignment expression (=)
-    ND_ADD_EQ,  // compound assignment expression for addition (+=)
-    ND_SUB_EQ,  // compound assignment expression for subtraction (-=)
-    ND_MUL_EQ,  // compound assignment expression for multiplication (*=)
-    ND_DIV_EQ,  // compound assignment expression for division (/=)
-    ND_RETURN,  // return statement
-    ND_IF,      // if statement
-    ND_WHILE,   // while statement
-    ND_DO,      // do statement
-    ND_FOR,     // for statement
-    ND_BLOCK,   // block (compound statement)
-    ND_GVAR,    // global variable
-    ND_FUNC,    // function call
-    ND_DECL,    // declaration
-    ND_LVAR,    // local variable
-    ND_ADDR,    // address (&)
-    ND_DEREF,   // dereference (*)
-    ND_NUM,     // integer
+    ND_ADD,        // addition (num + num)
+    ND_PTR_ADD,    // pointer addition (ptr + num | num + ptr)
+    ND_SUB,        // subtraction (num - num)
+    ND_PTR_SUB,    // pointer subtraction (ptr - num)
+    ND_MUL,        // multiplication (*)
+    ND_DIV,        // division (/)
+    ND_EQ,         // equality comparision (==)
+    ND_NEQ,        // inequality comparision (!=)
+    ND_L,          // strict order comparision (<)
+    ND_LEQ,        // order comparision (<=)
+    ND_ASSIGN,     // assignment expression (=)
+    ND_ADD_EQ,     // compound assignment expression for addition (+=)
+    ND_PTR_ADD_EQ, // compound assignment expression for pointer addition (+=)
+    ND_SUB_EQ,     // compound assignment expression for subtraction (-=)
+    ND_PTR_SUB_EQ, // compound assignment expression for pointer subtraction (-=)
+    ND_MUL_EQ,     // compound assignment expression for multiplication (*=)
+    ND_DIV_EQ,     // compound assignment expression for division (/=)
+    ND_RETURN,     // return statement
+    ND_IF,         // if statement
+    ND_WHILE,      // while statement
+    ND_DO,         // do statement
+    ND_FOR,        // for statement
+    ND_BLOCK,      // block (compound statement)
+    ND_GVAR,       // global variable
+    ND_FUNC,       // function call
+    ND_DECL,       // declaration
+    ND_LVAR,       // local variable
+    ND_ADDR,       // address (&)
+    ND_DEREF,      // dereference (*)
+    ND_NUM,        // integer
 } NodeKind;
 
 

@@ -321,6 +321,19 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         break;
 
+    case ND_PTR_ADD_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        put_instruction("  pop rdi");
+        put_instruction("  pop rax");
+        put_instruction("  imul rdi, %ld", node->type->base->size);
+        put_instruction("  add rax, rdi");
+        put_instruction("  push rax");
+        generate_store(node->type);
+        break;
+
     case ND_SUB_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
@@ -328,6 +341,19 @@ static void generate_node(const Node *node)
         generate_node(node->rhs);
         put_instruction("  pop rdi");
         put_instruction("  pop rax");
+        put_instruction("  sub rax, rdi");
+        put_instruction("  push rax");
+        generate_store(node->type);
+        break;
+
+    case ND_PTR_SUB_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        put_instruction("  pop rdi");
+        put_instruction("  pop rax");
+        put_instruction("  imul rdi, %ld", node->type->base->size);
         put_instruction("  sub rax, rdi");
         put_instruction("  push rax");
         generate_store(node->type);
