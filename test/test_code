@@ -24,6 +24,7 @@ int assert_char(char expected, char actual)
     else
     {
         printf("%d expected, but got %d\n", expected, actual);
+        exit(1);
         return 1;
     }
 }
@@ -41,6 +42,7 @@ int assert_short(short expected, short actual)
     else
     {
         printf("%d expected, but got %d\n", expected, actual);
+        exit(1);
         return 1;
     }
 }
@@ -58,6 +60,7 @@ int assert_int(int expected, int actual)
     else
     {
         printf("%d expected, but got %d\n", expected, actual);
+        exit(1);
         return 1;
     }
 }
@@ -131,6 +134,13 @@ int test_unary()
 
     assert_int(10, -10 + 20);
     assert_int(1, +1 * -2 - (-3));
+
+    int a; a = 123; ++a; assert_int(124, a);
+    int b; b = 123; --b; assert_int(122, b);
+
+    int *p; alloc4(&p, 1, 2, 4, 8);
+    ++p; ++p; assert_int(*p, 4);
+    --p; assert_int(*p, 2);
 
     return 0;
 }

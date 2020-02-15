@@ -676,7 +676,10 @@ static Node *mul(void)
 /*
 make an unary
 ```
-unary ::= postfix | ("&" | "*" | "+" | "-")? unary | sizeof unary
+unary ::= postfix
+        | ("++" | "--") unary
+        | ("&" | "*" | "+" | "-") unary
+        | sizeof unary
 ```
 */
 static Node *unary(void)
@@ -687,6 +690,30 @@ static Node *unary(void)
     {
         Node *operand = unary();
         node = new_node_num(operand->type->size);
+    }
+    else if(consume_reserved("++"))
+    {
+        Node *operand = unary();
+        if(is_pointer(operand))
+        {
+            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_num(1));
+        }
+        else
+        {
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_num(1));
+        }
+    }
+    else if(consume_reserved("--"))
+    {
+        Node *operand = unary();
+        if(is_pointer(operand))
+        {
+            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_num(1));
+        }
+        else
+        {
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_num(1));
+        }
     }
     else if(consume_reserved("&"))
     {
