@@ -133,6 +133,7 @@ static void generate_lvalue(const Node *node)
         put_instruction("  push rax");
         break;
 
+    case ND_DECL:
     case ND_LVAR:
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %d", node->lvar->offset);
@@ -280,6 +281,12 @@ static void generate_node(const Node *node)
         return;
 
     case ND_DECL:
+        if(node->init != NULL)
+        {
+            generate_lvalue(node);
+            generate_node(node->init);
+            generate_store(node->type);
+        }
         return;
 
     case ND_GVAR:

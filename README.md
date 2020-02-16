@@ -13,7 +13,8 @@ prg ::= (gvar | func)*
 gvar ::= type-spec declarator ";"
 func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
 stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
-declaration ::= type-spec declarator ";"
+declaration ::= type-spec declarator ("=" initializer)? ";"
+initializer ::= assign
 expr ::= assign
 assign ::= equality (assign-op assign)?
 assign-op ::= "=" | "+=" | "-=" | "*=" | "/="

@@ -126,6 +126,7 @@ struct Node {
     int val;        // value of node (only for ND_NUM)
     GVar *gvar;     // information of global variable (only for ND_GVAR)
     LVar *lvar;     // information of local variable (only for ND_LVAR)
+    Node *init;     // initializer (only for ND_LVAR)
     Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)

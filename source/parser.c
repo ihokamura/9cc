@@ -27,6 +27,7 @@ static Type *type_spec(void);
 static Type *type_suffix(Type *type);
 static Node *stmt(void);
 static Node *declaration(void);
+static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
 static Node *equality(void);
@@ -417,7 +418,6 @@ static Node *stmt(void)
         {
             // declaration
             node = declaration();
-            expect_reserved(";");
 
             return node;
         }
@@ -436,7 +436,7 @@ static Node *stmt(void)
 /*
 make a declaration
 ```
-declaration ::= type-spec declarator ";"
+declaration ::= type-spec declarator ("=" initializer)? ";"
 ```
 */
 static Node *declaration(void)
@@ -447,18 +447,35 @@ static Node *declaration(void)
     // parse declarator
     Token *token;
     type = declarator(type, &token);
-
     if(get_lvar(token) != NULL)
     {
         report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
     }
 
-    current_function->locals = new_lvar(token, current_function->locals, type);
-
     Node *node = new_node(ND_DECL);
-    node->lvar = current_function->locals;
+    node->type = type;
+    node->lvar = current_function->locals = new_lvar(token, current_function->locals, type);
+
+    // parse initializer
+    if(consume_reserved("="))
+    {
+        node->init = initializer();
+    }
+    expect_reserved(";");
 
     return node;
+}
+
+
+/*
+make an initializer
+```
+initializer ::= assign
+```
+*/
+static Node *initializer(void)
+{
+    return assign();
 }
 
 
@@ -935,7 +952,9 @@ static Node *new_node(NodeKind kind)
     node->rhs = NULL;
     node->type = NULL;
     node->val = 0;
+    node->gvar = NULL;
     node->lvar = NULL;
+    node->init = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
     node->postexpr = NULL;
