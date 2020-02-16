@@ -96,6 +96,9 @@ struct Type {
     size_t len;          // length of array (only for TY_ARRAY)
 };
 
+// structure for node in AST (forward declaration)
+typedef struct Node Node;
+
 // structure for global variable
 typedef struct GVar GVar;
 struct GVar {
@@ -103,6 +106,7 @@ struct GVar {
     char *name; // name of global variable
     Type *type; // type of variable
     char *content; // content of string-literal including '\0' (only for string-literal)
+    Node *init; // initializer
 };
 
 // structure for local variable
@@ -113,10 +117,10 @@ struct LVar {
     int len;    // length of token string
     int offset; // offset from base pointer (rbp)
     Type *type; // type of variable
+    Node *init; // initializer
 };
 
 // structure for node in AST
-typedef struct Node Node;
 struct Node {
     Node *next;     // next element
     NodeKind kind;  // kind of node
@@ -126,7 +130,6 @@ struct Node {
     int val;        // value of node (only for ND_NUM)
     GVar *gvar;     // information of global variable (only for ND_GVAR)
     LVar *lvar;     // information of local variable (only for ND_LVAR)
-    Node *init;     // initializer (only for ND_LVAR)
     Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;  // pre-expression (only for ND_FOR)
     Node *postexpr; // post-expression (only for ND_FOR)

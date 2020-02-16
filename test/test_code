@@ -584,6 +584,10 @@ int test_string_literal()
 /*
 initializer
 */
+char gvar_char_init = 1;
+short gvar_short_init = 2;
+int gvar_int_init = 3;
+long gvar_long_init = 4;
 int test_initializer()
 {
     put_title("initializer");
@@ -595,6 +599,11 @@ int test_initializer()
 
     int *p; alloc4(&p, 1, 2, 4, 8); int *q = &p[1]; assert_int(4, q[1]);
     char *ps = "foo"; assert_char(111, ps[1]);
+
+    assert_int(1, gvar_char_init);
+    assert_int(2, gvar_short_init);
+    assert_int(3, gvar_int_init);
+    assert_int(4, gvar_long_init);
 
     return 0;
 }

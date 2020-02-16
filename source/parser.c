@@ -120,14 +120,21 @@ static void prg(void)
 /*
 make a global variable
 ```
-gvar ::= type-spec declarator ";"
+gvar ::= type-spec declarator ("=" initializer) ";"
 ```
 */
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 {
+    GVar *gvar = new_gvar(token, cur_gvar, base);
+
+    // parse initializer
+    if(consume_reserved("="))
+    {
+        gvar->init = initializer();
+    }
     expect_reserved(";");
 
-    return new_gvar(token, cur_gvar, base);
+    return gvar;
 }
 
 
@@ -459,7 +466,7 @@ static Node *declaration(void)
     // parse initializer
     if(consume_reserved("="))
     {
-        node->init = initializer();
+        node->lvar->init = initializer();
     }
     expect_reserved(";");
 
@@ -954,7 +961,6 @@ static Node *new_node(NodeKind kind)
     node->val = 0;
     node->gvar = NULL;
     node->lvar = NULL;
-    node->init = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
     node->postexpr = NULL;
@@ -1080,8 +1086,11 @@ make a new global variable
 static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
 {
     GVar *gvar = calloc(1, sizeof(GVar));
+    gvar->next = NULL;
     gvar->name = make_ident(token);
     gvar->type = type;
+    gvar->content = NULL;
+    gvar->init = NULL;
     cur_gvar->next = gvar;
 
     return gvar;
@@ -1089,13 +1098,17 @@ static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
 
 
 /*
-make a new global variable
+make a new string-literal
+* String-literal is regarded as a global variable.
 */
 static GVar *new_str(const Token *token)
 {
     GVar *str = calloc(1, sizeof(GVar));
+    str->next = NULL;
     str->name = new_strlabel();
     str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
+    str->init = NULL;
+
     str->content = calloc(token->len + 1, sizeof(char));
     strncpy(str->content, token->str, token->len);
 
@@ -1139,6 +1152,7 @@ static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type)
     lvar->len = token->len;
     lvar->offset = current_function->stack_size;
     lvar->type = type;
+    lvar->init = NULL;
 
     return lvar;
 }

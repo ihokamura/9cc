@@ -46,7 +46,7 @@ void generate(const Program *program)
     put_instruction(".intel_syntax noprefix");
 
     // generate global variables
-    put_instruction(".bss");
+    put_instruction(".data");
     for(GVar *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
     {
         generate_gvar(gvar);
@@ -159,7 +159,33 @@ static void generate_gvar(const GVar *gvar)
     // put label and allocate memory
     put_instruction(".global %s", gvar->name);
     put_instruction("%s:", gvar->name);
-    put_instruction("  .zero %ld\n", gvar->type->size);
+    if(gvar->init == NULL)
+    {
+        put_instruction("  .zero %ld\n", gvar->type->size);
+    }
+    else
+    {
+        Type *type = gvar->init->type;
+        if(is_integer(type))
+        {
+            if(type->size == 1)
+            {
+                put_instruction("  .byte %d\n", gvar->init->val);
+            }
+            else if(type->size == 2)
+            {
+                put_instruction("  .value %d\n", gvar->init->val);
+            }
+            else if(type->size == 4)
+            {
+                put_instruction("  .long %d\n", gvar->init->val);
+            }
+            else
+            {
+                put_instruction("  .quad %d\n", gvar->init->val);
+            }
+        }
+    }
 }
 
 
@@ -281,10 +307,10 @@ static void generate_node(const Node *node)
         return;
 
     case ND_DECL:
-        if(node->init != NULL)
+        if(node->lvar->init != NULL)
         {
             generate_lvalue(node);
-            generate_node(node->init);
+            generate_node(node->lvar->init);
             generate_store(node->type);
         }
         return;
