@@ -53,8 +53,7 @@ static char *new_strlabel(void);
 
 // global variable
 static GVar *gvar_list; // list of global variables
-static GVar *str_list; // list of string-literals
-static GVar *current_str; // currently parsing string-literal
+static GVar *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
@@ -68,7 +67,6 @@ void construct(Program *program)
 {
     prg();
     program->gvars = gvar_list;
-    program->strs = str_list;
     program->funcs = function_list;
 }
 
@@ -82,11 +80,8 @@ prg ::= (gvar | func)*
 static void prg(void)
 {
     GVar gvar_head = {};
-    GVar *gvar_cursor = &gvar_head;
+    current_gvar = &gvar_head;
     gvar_list = &gvar_head;
-
-    GVar str_head = {};
-    str_list = current_str = &str_head;
 
     Function func_head = {};
     Function *func_cursor = &func_head;
@@ -107,12 +102,11 @@ static void prg(void)
         else
         {
             // parse global variable
-            gvar_cursor = gvar(token, gvar_cursor, base);
+            current_gvar = gvar(token, current_gvar, base);
         }
     }
 
     gvar_list = gvar_head.next;
-    str_list = str_head.next;
     function_list = func_head.next;
 }
 
@@ -125,16 +119,16 @@ gvar ::= type-spec declarator ("=" initializer) ";"
 */
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 {
-    GVar *gvar = new_gvar(token, cur_gvar, base);
+    current_gvar = new_gvar(token, cur_gvar, base);
 
     // parse initializer
     if(consume_reserved("="))
     {
-        gvar->init = initializer();
+        current_gvar->init = initializer();
     }
     expect_reserved(";");
 
-    return gvar;
+    return current_gvar;
 }
 
 
@@ -1112,8 +1106,8 @@ static GVar *new_str(const Token *token)
     str->content = calloc(token->len + 1, sizeof(char));
     strncpy(str->content, token->str, token->len);
 
-    current_str->next = str;
-    current_str = current_str->next;
+    current_gvar->next = str;
+    current_gvar = current_gvar->next;
 
     return str;
 }

@@ -21,7 +21,6 @@ static void generate_load(const Type *type);
 static void generate_store(const Type *type);
 static void generate_lvalue(const Node *node);
 static void generate_gvar(const GVar *gvar);
-static void generate_str(const GVar *str);
 static void generate_func(const Function *func);
 static void generate_args(const Node *args);
 static void generate_node(const Node *node);
@@ -50,13 +49,6 @@ void generate(const Program *program)
     for(GVar *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
     {
         generate_gvar(gvar);
-    }
-
-    // generate string-literals
-    put_instruction(".data");
-    for(GVar *str = program->strs; str != NULL; str = str->next)
-    {
-        generate_str(str);
     }
 
     // generate functions
@@ -156,18 +148,20 @@ generate assembler code of a global variable
 */
 static void generate_gvar(const GVar *gvar)
 {
-    // put label and allocate memory
+    // put label
     put_instruction(".global %s", gvar->name);
     put_instruction("%s:", gvar->name);
-    if(gvar->init == NULL)
+    if(gvar->content != NULL)
     {
-        put_instruction("  .zero %ld\n", gvar->type->size);
+        // allocate memory with string-literal
+        put_instruction("  .string \"%s\"\n", gvar->content);
     }
-    else
+    else if(gvar->init != NULL)
     {
         Type *type = gvar->init->type;
         if(is_integer(type))
         {
+            // allocate memory with an integer
             if(type->size == 1)
             {
                 put_instruction("  .byte %d\n", gvar->init->val);
@@ -186,18 +180,11 @@ static void generate_gvar(const GVar *gvar)
             }
         }
     }
-}
-
-
-/*
-generate assembler code of a string-literal
-*/
-static void generate_str(const GVar *str)
-{
-    // put label and allocate memory
-    put_instruction(".global %s", str->name);
-    put_instruction("%s:", str->name);
-    put_instruction("  .string \"%s\"\n", str->content);
+    else
+    {
+        // allocate memory with zero
+        put_instruction("  .zero %ld\n", gvar->type->size);
+    }
 }
 
 

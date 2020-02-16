@@ -153,7 +153,6 @@ struct Function {
 // structure for program
 typedef struct Program {
     GVar *gvars;     // list of global variables
-    GVar *strs;      // list of string-literals
     Function *funcs; // list of functions
 } Program;
 
