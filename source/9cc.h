@@ -61,6 +61,8 @@ typedef enum {
     ND_PTR_SUB_EQ, // compound assignment expression for pointer subtraction (-=)
     ND_MUL_EQ,     // compound assignment expression for multiplication (*=)
     ND_DIV_EQ,     // compound assignment expression for division (/=)
+    ND_POST_INC,   // post increment operator
+    ND_POST_DEC,   // post decrement operator
     ND_RETURN,     // return statement
     ND_IF,         // if statement
     ND_WHILE,      // while statement

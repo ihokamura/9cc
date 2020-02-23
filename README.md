@@ -23,7 +23,7 @@ relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 add ::= mul ("+" mul | "-" mul)*
 mul ::= unary ("*" unary | "/" unary)*
 unary ::= postfix | ("++" | "--") unary | ("&" | "*" | "+" | "-") unary | sizeof unary
-postfix ::= primary ("[" expr "]")?
+postfix ::= primary ("[" expr "]")* ("++" | "--" )?
 primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
 type-spec ::= "char" | "short" | "int" | "long"
 declarator ::= "*"* ident type-suffix

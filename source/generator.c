@@ -323,6 +323,32 @@ static void generate_node(const Node *node)
         }
         return;
 
+    case ND_POST_INC:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        put_instruction("  pop rax");
+        put_instruction("  mov rbx, rax");
+        put_instruction("  add rax, %d", is_integer(node->type) ? 1 : node->type->base->size);
+        put_instruction("  push rax");
+        generate_store(node->type);
+        put_instruction("  pop rax");
+        put_instruction("  push rbx");
+        return;
+
+    case ND_POST_DEC:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        put_instruction("  pop rax");
+        put_instruction("  mov rbx, rax");
+        put_instruction("  sub rax, %d", is_integer(node->type) ? 1 : node->type->base->size);
+        put_instruction("  push rax");
+        generate_store(node->type);
+        put_instruction("  pop rax");
+        put_instruction("  push rbx");
+        return;
+
     case ND_ASSIGN:
         generate_lvalue(node->lhs);
         generate_node(node->rhs);

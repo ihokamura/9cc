@@ -137,10 +137,14 @@ int test_unary()
 
     int a; a = 123; assert_int(124, ++a); assert_int(124, a);
     int b; b = 123; assert_int(122, --b); assert_int(122, b);
+    int c; c = 123; assert_int(123, c++); assert_int(124, c);
+    int d; d = 123; assert_int(123, d--); assert_int(122, d);
 
     int *p; alloc4(&p, 1, 2, 4, 8);
     ++p; assert_int(4, *(++p)); assert_int(4, *p);
     --p; assert_int(1, *(--p)); assert_int(1, *p);
+    p++; assert_int(2, *(p++)); assert_int(4, *p);
+    p--; assert_int(2, *(p--)); assert_int(1, *p);
 
     return 0;
 }

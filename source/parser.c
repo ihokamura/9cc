@@ -823,13 +823,14 @@ static Node *unary(void)
 /*
 make a postfix
 ```
-postfix ::= primary ("[" expr "]")*
+postfix ::= primary ("[" expr "]")* ("++" | "--" )?
 ```
 */
 static Node *postfix(void)
 {
     Node *node = primary();
 
+    // parse array subscripting
     while(consume_reserved("["))
     {
         Node *lhs;
@@ -852,6 +853,32 @@ static Node *postfix(void)
         node->lhs = lhs;
         node->type = node->lhs->type->base;
         expect_reserved("]");
+    }
+
+    // parse postfix increment and decrement operators
+    if(consume_reserved("++"))
+    {
+        Node *lhs = node;
+
+        if(!(is_integer(lhs->type) || is_pointer(lhs->type)))
+        {
+            report_error(NULL, "bad operand for postfix increment operator ++\n");
+        }
+        node = new_node(ND_POST_INC);
+        node->lhs = lhs;
+        node->type = lhs->type;
+    }
+    else if(consume_reserved("--"))
+    {
+        Node *lhs = node;
+
+        if(!(is_integer(lhs->type) || is_pointer(lhs->type)))
+        {
+            report_error(NULL, "bad operand for postfix decrement operator --\n");
+        }
+        node = new_node(ND_POST_DEC);
+        node->lhs = lhs;
+        node->type = lhs->type;
     }
 
     return node;
