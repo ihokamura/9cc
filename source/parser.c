@@ -38,6 +38,7 @@ static Node *unary(void);
 static Node *postfix(void);
 static Node *primary(void);
 static Node *new_node(NodeKind kind);
+static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
 static Node *new_node_func(const Token *token);
@@ -288,14 +289,14 @@ static Type *type_suffix(Type *type)
 /*
 make a statement
 ```
-stmt ::= declaration |
-         expr ";" |
-         "{" stmt* "}" |
-         "do" stmt "while" "(" expr ")" ";" |
-         "for" "(" expr? ";" expr? ";" expr? ")" stmt |
-         "if" "(" expr ")" stmt ("else" stmt)? |
-         "return" expr ";" |
-         "while" "(" expr ")" stmt
+stmt ::= declaration
+       | "{" stmt* "}"
+       | expr ";"
+       | "if" "(" expr ")" stmt ("else" stmt)?
+       | "while" "(" expr ")" stmt
+       | "do" stmt "while" "(" expr ")" ";"
+       | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "return" expr ";"
 ```
 */
 static Node *stmt(void)
@@ -744,8 +745,9 @@ make an unary
 ```
 unary ::= postfix
         | ("++" | "--") unary
-        | ("&" | "*" | "+" | "-") unary
+        | unary-op unary
         | sizeof unary
+unary-op ::= "&" | "*" | "+" | "-"
 ```
 */
 static Node *unary(void)
@@ -793,15 +795,11 @@ static Node *unary(void)
     }
     else if(consume_reserved("&"))
     {
-        node = new_node(ND_ADDR);
-        node->lhs = unary();
-        node->type = new_type_pointer(node->lhs->type);
+        node = new_node_unary(ND_ADDR, unary());
     }
     else if (consume_reserved("*"))
     {
-        node = new_node(ND_DEREF);
-        node->lhs = unary();
-        node->type = node->lhs->type->base;
+        node = new_node_unary(ND_DEREF, unary());
     }
     else if(consume_reserved("+"))
     {
@@ -849,36 +847,27 @@ static Node *postfix(void)
             report_error(NULL, "bad operand for [] operator\n");
         }
 
-        node = new_node(ND_DEREF);
-        node->lhs = lhs;
-        node->type = node->lhs->type->base;
+        node = new_node_unary(ND_DEREF, lhs);
         expect_reserved("]");
     }
 
     // parse postfix increment and decrement operators
     if(consume_reserved("++"))
     {
-        Node *lhs = node;
-
-        if(!(is_integer(lhs->type) || is_pointer(lhs->type)))
+        if(!(is_integer(node->type) || is_pointer(node->type)))
         {
             report_error(NULL, "bad operand for postfix increment operator ++\n");
         }
-        node = new_node(ND_POST_INC);
-        node->lhs = lhs;
-        node->type = lhs->type;
+
+        node = new_node_unary(ND_POST_INC, node);
     }
     else if(consume_reserved("--"))
     {
-        Node *lhs = node;
-
-        if(!(is_integer(lhs->type) || is_pointer(lhs->type)))
+        if(!(is_integer(node->type) || is_pointer(node->type)))
         {
             report_error(NULL, "bad operand for postfix decrement operator --\n");
         }
-        node = new_node(ND_POST_DEC);
-        node->lhs = lhs;
-        node->type = lhs->type;
+        node = new_node_unary(ND_POST_DEC, node);
     }
 
     return node;
@@ -888,7 +877,10 @@ static Node *postfix(void)
 /*
 make a primary
 ```
-primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
+primary ::= ident ("(" (assign ("," assign)*)? ")")?
+          | num
+          | str
+          | "(" expr ")"
 ```
 */
 static Node *primary(void)
@@ -994,6 +986,37 @@ static Node *new_node(NodeKind kind)
 
 
 /*
+make a new node for unary operations
+*/
+static Node *new_node_unary(NodeKind kind, Node *lhs)
+{
+    Node *node = new_node(kind);
+    node->lhs = lhs;
+
+    switch(kind)
+    {
+    case ND_ADDR:
+        node->type = new_type_pointer(lhs->type);
+        break;
+
+    case ND_DEREF:
+        node->type = lhs->type->base;
+        break;
+
+    case ND_POST_INC:
+    case ND_POST_DEC:
+        node->type = lhs->type;
+        break;
+
+    default:
+        break;
+    }
+
+    return node;
+}
+
+
+/*
 make a new node for binary operations
 */
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
@@ -1086,7 +1109,9 @@ static Node *new_node_func(const Token *token)
     {
         // implicitly assume that the function returns int
         type = new_type(TY_INT);
+#if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
         report_warning(token->str, "implicit declaration of function '%s'\n", make_ident(token));
+#endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
     }
     else
     {

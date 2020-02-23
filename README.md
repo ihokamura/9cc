@@ -12,7 +12,14 @@
 prg ::= (gvar | func)*
 gvar ::= type-spec declarator ("=" initializer) ";"
 func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
-stmt ::= declaration | expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ("else" stmt)? | "while" "(" expr ")" stmt | "do" stmt "while" "(" expr ")" ";" | "for" "(" expr? ";" expr? ";" expr? ")" stmt | "{" stmt* "}"
+stmt ::= declaration
+       | "{" stmt* "}"
+       | expr ";"
+       | "if" "(" expr ")" stmt ("else" stmt)?
+       | "while" "(" expr ")" stmt
+       | "do" stmt "while" "(" expr ")" ";"
+       | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "return" expr ";"
 declaration ::= type-spec declarator ("=" initializer)? ";"
 initializer ::= assign
 expr ::= assign
@@ -22,9 +29,16 @@ equality ::= relational ("==" relational | "!=" relational)*
 relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 add ::= mul ("+" mul | "-" mul)*
 mul ::= unary ("*" unary | "/" unary)*
-unary ::= postfix | ("++" | "--") unary | ("&" | "*" | "+" | "-") unary | sizeof unary
+unary ::= postfix
+        | ("++" | "--") unary
+        | unary-op unary
+        | sizeof unary
+unary-op ::= "&" | "*" | "+" | "-"
 postfix ::= primary ("[" expr "]")* ("++" | "--" )?
-primary ::= num | str | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
+primary ::= ident ("(" (assign ("," assign)*)? ")")?
+          | num
+          | str
+          | "(" expr ")"
 type-spec ::= "char" | "short" | "int" | "long"
 declarator ::= "*"* ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?

@@ -7,6 +7,7 @@
 
 /*
 # Contents of this file
+* definition of macro
 * definition of enumeration
 * definition of structure
 * definition of type
@@ -15,6 +16,15 @@
 */
 
 #include <stdbool.h>
+
+
+// indicator of feature enabled or disabled
+#define ENABLED     (1)
+#define DISABLED    (0)
+
+
+// features
+#define WARN_IMPLICIT_DECLARATION_OF_FUNCTION    (DISABLED) // warn implicit declaration of function
 
 
 // type of source code
@@ -84,7 +94,7 @@ typedef struct Token Token;
 struct Token {
     Token *next;    // next input token
     TokenKind kind; // kind of token
-    int val;        // value of token (only for TK_NUM)
+    long val;       // value of token (only for TK_NUM)
     char *str;      // token string
     int len;        // length of token string
 };
@@ -129,7 +139,7 @@ struct Node {
     Node *lhs;      // left hand side
     Node *rhs;      // right hand side
     Type *type;     // type of node
-    int val;        // value of node (only for ND_NUM)
+    long val;       // value of node (only for ND_NUM)
     GVar *gvar;     // information of global variable (only for ND_GVAR)
     LVar *lvar;     // information of local variable (only for ND_LVAR)
     Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)

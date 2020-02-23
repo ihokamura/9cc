@@ -15,12 +15,19 @@
 #include "9cc.h"
 
 
+// macro
+#define SIZEOF_CHAR     (1)
+#define SIZEOF_SHORT    (2)
+#define SIZEOF_INT      (4)
+#define SIZEOF_LONG     (8)
+#define SIZEOF_PTR      (8)
+
+
 // global variable
-static const size_t SIZEOF_CHAR = 1; // size of char type
-static const size_t SIZEOF_SHORT = 2; // size of short type
-static const size_t SIZEOF_INT = 4; // size of int type
-static const size_t SIZEOF_LONG = 8; // size of long type
-static const size_t SIZEOF_PTR = 8; // size of pointer type
+static Type char_type  = {TY_CHAR,  SIZEOF_CHAR};
+static Type short_type = {TY_SHORT, SIZEOF_SHORT};
+static Type int_type   = {TY_INT,   SIZEOF_INT};
+static Type long_type  = {TY_LONG,  SIZEOF_LONG};
 
 
 /*
@@ -28,31 +35,32 @@ make a new type
 */
 Type *new_type(TypeKind kind)
 {
-    Type *type = calloc(1, sizeof(Type));
-    type->kind = kind;
-    type->base = NULL;
-    type->len = 1;
+    Type *type;
 
     switch(kind)
     {
     case TY_CHAR:
-        type->size = SIZEOF_CHAR;
+        type = &char_type;
         break;
 
     case TY_SHORT:
-        type->size = SIZEOF_SHORT;
+        type = &short_type;
         break;
 
     case TY_INT:
-        type->size = SIZEOF_INT;
+        type = &int_type;
         break;
 
     case TY_LONG:
-        type->size = SIZEOF_LONG;
+        type = &long_type;
         break;
 
     default:
-        type->size = SIZEOF_INT;
+        type = calloc(1, sizeof(Type));
+        type->size = 0;
+        type->kind = kind;
+        type->base = NULL;
+        type->len = 0;
         break;
     }
 

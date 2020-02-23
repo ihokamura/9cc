@@ -16,6 +16,21 @@
 #include "9cc.h"
 
 
+// type definition
+typedef enum {
+    BINOP_ADD,     // addition
+    BINOP_PTR_ADD, // pointer addition
+    BINOP_SUB,     // subtraction
+    BINOP_PTR_SUB, // pointer subtraction
+    BINOP_MUL,     // multiplication
+    BINOP_DIV,     // dividion
+    BINOP_EQ,      // equality
+    BINOP_NEQ,     // inequality
+    BINOP_L,       // strict order
+    BINOP_LEQ,     // order
+} BinaryOperationKind;
+
+
 // function prototype
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
@@ -23,6 +38,7 @@ static void generate_lvalue(const Node *node);
 static void generate_gvar(const GVar *gvar);
 static void generate_func(const Function *func);
 static void generate_args(const Node *args);
+static void generate_binary(const Node *node, BinaryOperationKind kind);
 static void generate_node(const Node *node);
 static void put_instruction(const char *fmt, ...);
 
@@ -282,6 +298,78 @@ static void generate_args(const Node *args)
 
 
 /*
+generate assembler code of binary operation
+*/
+static void generate_binary(const Node *node, BinaryOperationKind kind)
+{
+    // pop RHS to rdi and LHS to rax
+    put_instruction("  pop rdi");
+    put_instruction("  pop rax");
+
+    // execute operation
+    switch(kind)
+    {
+    case BINOP_ADD:
+        put_instruction("  add rax, rdi");
+        break;
+
+    case BINOP_PTR_ADD:
+        put_instruction("  imul rdi, %ld", node->type->base->size);
+        put_instruction("  add rax, rdi");
+        break;
+
+    case BINOP_SUB:
+        put_instruction("  sub rax, rdi");
+        break;
+
+    case BINOP_PTR_SUB:
+        put_instruction("  imul rdi, %ld", node->type->base->size);
+        put_instruction("  sub rax, rdi");
+        break;
+
+    case BINOP_MUL:
+        put_instruction("  imul rax, rdi");
+        break;
+
+    case BINOP_DIV:
+        put_instruction("  cqo");
+        put_instruction("  idiv rdi");
+        break;
+
+    case BINOP_EQ:
+        put_instruction("  cmp rax, rdi");
+        put_instruction("  sete al");
+        put_instruction("  movzb rax, al");
+        break;
+
+    case BINOP_NEQ:
+        put_instruction("  cmp rax, rdi");
+        put_instruction("  setne al");
+        put_instruction("  movzb rax, al");
+        break;
+
+    case BINOP_L:
+        put_instruction("  cmp rax, rdi");
+        put_instruction("  setl al");
+        put_instruction("  movzb rax, al");
+        break;
+
+    case BINOP_LEQ:
+        put_instruction("  cmp rax, rdi");
+        put_instruction("  setle al");
+        put_instruction("  movzb rax, al");
+        break;
+
+    default:
+        break;
+    }
+
+    // push the result of operation
+    put_instruction("  push rax");
+}
+
+
+/*
 generate assembler code of a node, which emulates stack machine
 */
 static void generate_node(const Node *node)
@@ -329,8 +417,9 @@ static void generate_node(const Node *node)
         generate_load(node->lhs->type);
         put_instruction("  pop rax");
         put_instruction("  mov rbx, rax");
-        put_instruction("  add rax, %d", is_integer(node->type) ? 1 : node->type->base->size);
         put_instruction("  push rax");
+        put_instruction("  push 1");
+        generate_binary(node, (is_integer(node->type) ? BINOP_ADD : BINOP_PTR_ADD));
         generate_store(node->type);
         put_instruction("  pop rax");
         put_instruction("  push rbx");
@@ -342,8 +431,9 @@ static void generate_node(const Node *node)
         generate_load(node->lhs->type);
         put_instruction("  pop rax");
         put_instruction("  mov rbx, rax");
-        put_instruction("  sub rax, %d", is_integer(node->type) ? 1 : node->type->base->size);
         put_instruction("  push rax");
+        put_instruction("  push 1");
+        generate_binary(node, (is_integer(node->type) ? BINOP_SUB : BINOP_PTR_SUB));
         generate_store(node->type);
         put_instruction("  pop rax");
         put_instruction("  push rbx");
@@ -360,75 +450,54 @@ static void generate_node(const Node *node)
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  add rax, rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_ADD);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_PTR_ADD_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  imul rdi, %ld", node->type->base->size);
-        put_instruction("  add rax, rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_PTR_ADD);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_SUB_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  sub rax, rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_SUB);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_PTR_SUB_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  imul rdi, %ld", node->type->base->size);
-        put_instruction("  sub rax, rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_PTR_SUB);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_MUL_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  imul rax, rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_MUL);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_DIV_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
         generate_node(node->rhs);
-        put_instruction("  pop rdi");
-        put_instruction("  pop rax");
-        put_instruction("  cqo");
-        put_instruction("  idiv rdi");
-        put_instruction("  push rax");
+        generate_binary(node, BINOP_DIV);
         generate_store(node->type);
-        break;
+        return;
 
     case ND_RETURN:
         generate_node(node->lhs);
@@ -564,6 +633,7 @@ static void generate_node(const Node *node)
     }
 
     default:
+        // in case of binary operation
         break;
     }
 
@@ -571,70 +641,52 @@ static void generate_node(const Node *node)
     generate_node(node->lhs);
     generate_node(node->rhs);
 
-    // pop RHS to rdi and LHS to rax
-    put_instruction("  pop rdi");
-    put_instruction("  pop rax");
-
     // execute operation
     switch(node->kind)
     {
     case ND_ADD:
-        put_instruction("  add rax, rdi");
-        break;
+        generate_binary(node, BINOP_ADD);
+        return;
 
     case ND_PTR_ADD:
-        put_instruction("  imul rdi, %ld", node->type->base->size);
-        put_instruction("  add rax, rdi");
-        break;
+        generate_binary(node, BINOP_PTR_ADD);
+        return;
 
     case ND_SUB:
-        put_instruction("  sub rax, rdi");
-        break;
+        generate_binary(node, BINOP_SUB);
+        return;
 
     case ND_PTR_SUB:
-        put_instruction("  imul rdi, %ld", node->type->base->size);
-        put_instruction("  sub rax, rdi");
-        break;
+        generate_binary(node, BINOP_PTR_SUB);
+        return;
 
     case ND_MUL:
-        put_instruction("  imul rax, rdi");
-        break;
+        generate_binary(node, BINOP_MUL);
+        return;
 
     case ND_DIV:
-        put_instruction("  cqo");
-        put_instruction("  idiv rdi");
-        break;
+        generate_binary(node, BINOP_DIV);
+        return;
 
     case ND_EQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  sete al");
-        put_instruction("  movzb rax, al");
-        break;
+        generate_binary(node, BINOP_EQ);
+        return;
 
     case ND_NEQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setne al");
-        put_instruction("  movzb rax, al");
-        break;
+        generate_binary(node, BINOP_NEQ);
+        return;
 
     case ND_L:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setl al");
-        put_instruction("  movzb rax, al");
-        break;
+        generate_binary(node, BINOP_L);
+        return;
 
     case ND_LEQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setle al");
-        put_instruction("  movzb rax, al");
-        break;
+        generate_binary(node, BINOP_LEQ);
+        return;
 
     default:
         break;
     }
-
-    // push the result of operation
-    put_instruction("  push rax");
 }
 
 
