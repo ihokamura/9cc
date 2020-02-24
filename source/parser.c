@@ -292,7 +292,7 @@ make a statement
 ```
 stmt ::= declaration
        | "{" stmt* "}"
-       | expr ";"
+       | expr? ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "switch" "(" expr ")" stmt
        | "case" num ":" stmt
@@ -468,6 +468,11 @@ static Node *stmt(void)
         {
             // declaration
             node = declaration();
+        }
+        else if(consume_reserved(";"))
+        {
+            // null statement
+            node = new_node(ND_NULL);
         }
         else
         {

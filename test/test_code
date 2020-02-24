@@ -249,7 +249,7 @@ int func_def_switch2(int condition)
 
     case 2:
         r = 2;
-        // intentionally omit break statement
+        ; // intentionally omit break statement
 
     case 3:
         r = 3;

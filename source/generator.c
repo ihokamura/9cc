@@ -378,9 +378,12 @@ static void generate_node(const Node *node)
 {
     // Because this function is recursively called, 
     // * `lab_number` is saved and incremented at the top of each case-statement.
-    // * `brk_number` is saved at the top of each case-statement and is restored at the end of each case-statement.
+    // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
     switch(node->kind)
     {
+    case ND_NULL:
+        return;
+
     case ND_NUM:
         put_instruction("  push %d", node->val);
         return;

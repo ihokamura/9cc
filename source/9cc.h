@@ -83,6 +83,7 @@ typedef enum {
     ND_DO,         // do statement
     ND_FOR,        // for statement
     ND_BLOCK,      // block (compound statement)
+    ND_NULL,       // null statement
     ND_GVAR,       // global variable
     ND_FUNC,       // function call
     ND_DECL,       // declaration

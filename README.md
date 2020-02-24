@@ -14,7 +14,7 @@ gvar ::= type-spec declarator ("=" initializer) ";"
 func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
 stmt ::= declaration
        | "{" stmt* "}"
-       | expr ";"
+       | expr? ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "switch" "(" expr ")" stmt
        | "case" num ":" stmt
