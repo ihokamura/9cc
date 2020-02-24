@@ -77,6 +77,8 @@ typedef enum {
     ND_CONTINUE,   // continue statement
     ND_RETURN,     // return statement
     ND_IF,         // if statement
+    ND_SWITCH,     // switch statement
+    ND_CASE,       // case label of switch statement
     ND_WHILE,      // while statement
     ND_DO,         // do statement
     ND_FOR,        // for statement
@@ -136,20 +138,23 @@ struct LVar {
 
 // structure for node in AST
 struct Node {
-    Node *next;     // next element
-    NodeKind kind;  // kind of node
-    Node *lhs;      // left hand side
-    Node *rhs;      // right hand side
-    Type *type;     // type of node
-    long val;       // value of node (only for ND_NUM)
-    GVar *gvar;     // information of global variable (only for ND_GVAR)
-    LVar *lvar;     // information of local variable (only for ND_LVAR)
-    Node *cond;     // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
-    Node *preexpr;  // pre-expression (only for ND_FOR)
-    Node *postexpr; // post-expression (only for ND_FOR)
-    Node *body;     // body of compound statements (only for ND_BLOCK)
-    char *ident;    // identifier (only for ND_FUNC)
-    Node *args;     // arguments (only for ND_FUNC)
+    Node *next;         // next element
+    NodeKind kind;      // kind of node
+    Node *lhs;          // left hand side
+    Node *rhs;          // right hand side
+    Type *type;         // type of node
+    long val;           // value of node (only for ND_NUM, ND_CASE)
+    GVar *gvar;         // information of global variable (only for ND_GVAR)
+    LVar *lvar;         // information of local variable (only for ND_LVAR)
+    Node *cond;         // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
+    Node *preexpr;      // pre-expression (only for ND_FOR)
+    Node *postexpr;     // post-expression (only for ND_FOR)
+    int case_label;     // sequential number of case label (only for ND_CASE)
+    Node *next_case;    // next case (only for ND_SWITCH, ND_CASE)
+    Node *default_case; // default case (only for ND_SWITCH)
+    Node *body;         // body of compound statements (only for ND_BLOCK)
+    char *ident;        // identifier (only for ND_FUNC)
+    Node *args;         // arguments (only for ND_FUNC)
 };
 
 // structure for function
@@ -180,7 +185,7 @@ bool peek_reserved(const char *str);
 bool consume_reserved(const char *str);
 bool consume_token(TokenKind kind, Token **token);
 void expect_reserved(const char *str);
-int expect_number(void);
+long expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_ident(const Token *token);

@@ -16,6 +16,9 @@ stmt ::= declaration
        | "{" stmt* "}"
        | expr ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
+       | "switch" "(" expr ")" stmt
+       | "case" num ":" stmt
+       | "default" ":" stmt
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt

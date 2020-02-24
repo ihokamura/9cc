@@ -59,6 +59,7 @@ static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
 static size_t stack_alignment_size = 8; // alignment size of function stack
+static Node *current_switch = NULL; // currently parsing switch statement
 
 
 /*
@@ -293,6 +294,9 @@ stmt ::= declaration
        | "{" stmt* "}"
        | expr ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
+       | "switch" "(" expr ")" stmt
+       | "case" num ":" stmt
+       | "default" ":" stmt
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -324,10 +328,36 @@ static Node *stmt(void)
         node = new_node(ND_BREAK);
         expect_reserved(";");
     }
+    else if(consume_reserved("case"))
+    {
+        // parse label expression
+        long val = expect_number();
+        expect_reserved(":");
+
+        // parse statement for the case label
+        node = new_node(ND_CASE);
+        node->lhs = stmt();
+
+        // save the value of label expression and update node of currently parsing switch statement
+        node->val = val;
+        node->next_case = current_switch->next_case;
+        current_switch->next_case = node;
+    }
     else if(consume_reserved("continue"))
     {
         node = new_node(ND_CONTINUE);
         expect_reserved(";");
+    }
+    else if(consume_reserved("default"))
+    {
+        expect_reserved(":");
+
+        // parse statement for the default label
+        node = new_node(ND_CASE);
+        node->lhs = stmt();
+
+        // update node of currently parsing switch statement
+        current_switch->default_case = node;
     }
     else if(consume_reserved("do"))
     {
@@ -400,6 +430,24 @@ static Node *stmt(void)
         node = new_node(ND_RETURN);
         node->lhs = expr();
         expect_reserved(";");
+    }
+    else if(consume_reserved("switch"))
+    {
+        // save node of previous switch statement
+        Node *prev_switch = current_switch;
+
+        // parse controlling expression
+        node = new_node(ND_SWITCH);
+        expect_reserved("(");
+        node->cond = expr();
+        expect_reserved(")");
+
+        // update node of currently parsing switch statement and parse body
+        current_switch = node;
+        node->lhs = stmt();
+
+        // restore node of previous switch statement
+        current_switch = prev_switch;
     }
     else if(consume_reserved("while"))
     {

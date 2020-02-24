@@ -539,6 +539,46 @@ static void generate_node(const Node *node)
         return;
     }
 
+    case ND_SWITCH:
+    {
+        int lab = lab_number;
+        int brk = brk_number;
+        brk_number = lab_number;
+        lab_number++;
+
+        generate_node(node->cond);
+        put_instruction("  pop rax");
+
+        for(Node *case_node = node->next_case; case_node != NULL; case_node = case_node->next_case)
+        {
+            int case_label = lab_number;
+            lab_number++;
+
+            case_node->case_label = case_label;
+            put_instruction("  cmp rax, %d", case_node->val);
+            put_instruction("  je .Lcase%d", case_label);
+        }
+        if(node->default_case != NULL)
+        {
+            int case_label = lab_number;
+            lab_number++;
+
+            node->default_case->case_label = case_label;
+            put_instruction("  jmp .Lcase%d", case_label);
+        }
+
+        generate_node(node->lhs);
+        put_instruction(".Lbreak%d:", lab);
+
+        brk_number = brk;
+        return;
+    }
+
+    case ND_CASE:
+        put_instruction(".Lcase%d:", node->case_label);
+        generate_node(node->lhs);
+        return;
+
     case ND_WHILE:
     {
         int lab = lab_number;

@@ -221,6 +221,109 @@ int test_if_statement()
 
 
 /*
+switch statement
+*/
+int func_def_switch1(int condition)
+{
+    switch(condition)
+    {
+    case 1:
+        return 1;
+
+    case 3:
+        return 3;
+
+    default:
+        return 0;
+    }
+}
+int func_def_switch2(int condition)
+{
+    int r = 0;
+
+    switch(condition)
+    {
+    case 1:
+        r = 1;
+        break;
+
+    case 2:
+        r = 2;
+        // intentionally omit break statement
+
+    case 3:
+        r = 3;
+        break;
+
+    default:
+        r = 0;
+        break;
+    }
+
+    return r;
+}
+int func_def_switch3(int condition1, int condition2)
+{
+    int r = 0;
+
+    switch(condition1)
+    {
+    case 1:
+        r = 1;
+        break;
+
+    case 2:
+    {
+        switch(condition2)
+        {
+        case 5:
+            r = 5;
+            break;
+
+        case 6:
+            r = 6;
+            break;
+
+        default:
+            r = -1;
+            break;
+        }
+        break;
+    }
+
+    case 3:
+        r = 3;
+        break;
+
+    default:
+        r = 0;
+        break;
+    }
+
+    return r;
+}
+int test_switch_statement()
+{
+    put_title("switch statement");
+
+    int condition; int condition1; int condition2; int r;
+    condition = 1; r = func_def_switch1(condition); assert_int(1, r);
+    condition = 3; r = func_def_switch1(condition); assert_int(3, r);
+    condition = 5; r = func_def_switch1(condition); assert_int(0, r);
+    condition = 1; r = func_def_switch2(condition); assert_int(1, r);
+    condition = 2; r = func_def_switch2(condition); assert_int(3, r);
+    condition = 3; r = func_def_switch2(condition); assert_int(3, r);
+    condition = 5; r = func_def_switch2(condition); assert_int(0, r);
+    condition1 = 1; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(1, r);
+    condition1 = 2; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(5, r);
+    condition1 = 2; condition2 = 6; r = func_def_switch3(condition1, condition2); assert_int(6, r);
+    condition1 = 2; condition2 = 7; r = func_def_switch3(condition1, condition2); assert_int(-1, r);
+    condition1 = 3; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(3, r);
+    condition1 = 5; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(0, r);
+}
+
+
+/*
 while statement
 */
 int test_while_statement()
@@ -634,6 +737,7 @@ int main()
     test_local_variable();
     test_assignment();
     test_if_statement();
+    test_switch_statement();
     test_while_statement();
     test_do_statement();
     test_for_statement();

@@ -58,6 +58,7 @@ static const char *punctuator_list[] = {
     "/",
     "<",
     ">",
+    ":",
     ";",
     "=",
     ",",
@@ -66,8 +67,10 @@ static const size_t PUNCTUATOR_LIST_SIZE = sizeof(punctuator_list) / sizeof(punc
 // list of keywords
 static const char *keyword_list[] = {
     "break",
+    "case",
     "char",
     "continue",
+    "default",
     "do",
     "else",
     "for",
@@ -77,6 +80,7 @@ static const char *keyword_list[] = {
     "return",
     "sizeof",
     "short",
+    "switch",
     "while",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords
@@ -157,14 +161,14 @@ parse a number
 * If the next token is a number, this function parses the token and returns the value.
 * Otherwise, it reports an error.
 */
-int expect_number(void)
+long expect_number(void)
 {
     if(current_token->kind != TK_NUM)
     {
         report_error(current_token->str, "expected a number.");
     }
 
-    int val = current_token->val;
+    long val = current_token->val;
     current_token = current_token->next;
 
     return val;
