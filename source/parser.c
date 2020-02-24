@@ -296,6 +296,7 @@ stmt ::= declaration
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "break" ";"
        | "return" expr ";"
 ```
 */
@@ -316,10 +317,13 @@ static Node *stmt(void)
 
         node = new_node(ND_BLOCK);
         node->body = head.next;
-
-        return node;
     }
-    if(consume_reserved("do"))
+    else if(consume_reserved("break"))
+    {
+        node = new_node(ND_BREAK);
+        expect_reserved(";");
+    }
+    else if(consume_reserved("do"))
     {
         node = new_node(ND_DO);
 
@@ -334,14 +338,12 @@ static Node *stmt(void)
 
         expect_reserved(")");
         expect_reserved(";");
-
-        return node;
     }
     else if(consume_reserved("for"))
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
-        Node *node = new_node(ND_FOR);
+        node = new_node(ND_FOR);
         expect_reserved("(");
 
         // parse clause-1
@@ -367,8 +369,6 @@ static Node *stmt(void)
 
         // parse loop body
         node->lhs = stmt();
-
-        return node;
     }
     else if(consume_reserved("if"))
     {
@@ -388,16 +388,12 @@ static Node *stmt(void)
         {
             node->rhs = stmt();
         }
-
-        return node;
     }
     else if(consume_reserved("return"))
     {
         node = new_node(ND_RETURN);
         node->lhs = expr();
         expect_reserved(";");
-
-        return node;
     }
     else if(consume_reserved("while"))
     {
@@ -411,8 +407,6 @@ static Node *stmt(void)
 
         // parse loop body
         node->lhs = stmt();
-
-        return node;
     }
     else
     {
@@ -420,18 +414,16 @@ static Node *stmt(void)
         {
             // declaration
             node = declaration();
-
-            return node;
         }
         else
         {
             // expression statement
             node = expr();
             expect_reserved(";");
-
-            return node;
         }
     }
+
+    return node;
 }
 
 

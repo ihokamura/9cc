@@ -65,6 +65,7 @@ static const char *punctuator_list[] = {
 static const size_t PUNCTUATOR_LIST_SIZE = sizeof(punctuator_list) / sizeof(punctuator_list[0]); // number of punctuators
 // list of keywords
 static const char *keyword_list[] = {
+    "break",
     "char",
     "do",
     "else",

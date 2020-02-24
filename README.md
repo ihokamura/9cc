@@ -19,6 +19,7 @@ stmt ::= declaration
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "break" ";"
        | "return" expr ";"
 declaration ::= type-spec declarator ("=" initializer)? ";"
 initializer ::= assign

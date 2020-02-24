@@ -49,7 +49,8 @@ const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name 
 const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
 const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
 const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
-static int label_number; // serial number of labels
+static int lab_number; // sequential number for labels
+static int brk_number; // sequential number for break statements
 
 
 /*
@@ -374,7 +375,9 @@ generate assembler code of a node, which emulates stack machine
 */
 static void generate_node(const Node *node)
 {
-    // note that `label_number` is saved and incremented at the top of each case-statement because this function is recursively called
+    // Because this function is recursively called, 
+    // * `lab_number` is saved and incremented at the top of each case-statement.
+    // * `brk_number` is saved at the top of each case-statement and is restored at the end of each case-statement.
     switch(node->kind)
     {
     case ND_NUM:
@@ -509,8 +512,8 @@ static void generate_node(const Node *node)
 
     case ND_IF:
     {
-        int number = label_number;
-        label_number++;
+        int lab = lab_number;
+        lab_number++;
 
         generate_node(node->cond);
         put_instruction("  pop rax");
@@ -518,79 +521,96 @@ static void generate_node(const Node *node)
         if(node->rhs == NULL)
         {
             // if ( expression ) statement
-            put_instruction("  je  .Lend%d", number);
+            put_instruction("  je  .Lend%d", lab);
             generate_node(node->lhs);
-            put_instruction(".Lend%d:", number);
+            put_instruction(".Lend%d:", lab);
         }
         else
         {
             // if ( expression ) statement else statement
-            put_instruction("  je  .Lelse%d", number);
+            put_instruction("  je  .Lelse%d", lab);
             generate_node(node->lhs);
-            put_instruction("  jmp .Lend%d", number);
-            put_instruction(".Lelse%d:", number);
+            put_instruction("  jmp .Lend%d", lab);
+            put_instruction(".Lelse%d:", lab);
             generate_node(node->rhs);
-            put_instruction(".Lend%d:", number);
+            put_instruction(".Lend%d:", lab);
         }
         return;
     }
 
     case ND_WHILE:
     {
-        int number = label_number;
-        label_number++;
+        int lab = lab_number;
+        int brk = brk_number;
+        brk_number = lab_number;
+        lab_number++;
 
-        put_instruction(".Lbegin%d:", number);
+        put_instruction(".Lbegin%d:", lab);
         generate_node(node->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
-        put_instruction("  je  .Lend%d", number);
+        put_instruction("  je  .Lend%d", lab);
         generate_node(node->lhs);
-        put_instruction("  jmp .Lbegin%d", number);
-        put_instruction(".Lend%d:", number);
+        put_instruction("  jmp .Lbegin%d", lab);
+        put_instruction(".Lend%d:", lab);
+
+        brk_number = brk;
         return;
     }
 
     case ND_DO:
     {
-        int number = label_number;
-        label_number++;
+        int lab = lab_number;
+        int brk = brk_number;
+        brk_number = lab_number;
+        lab_number++;
 
-        put_instruction(".Lbegin%d:", number);
+        put_instruction(".Lbegin%d:", lab);
         generate_node(node->lhs);
         generate_node(node->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Lbegin%d", number);
+        put_instruction("  jne .Lbegin%d", lab);
+        put_instruction(".Lend%d:", lab);
+
+        brk_number = brk;
         return;
     }
 
     case ND_FOR:
     {
-        int number = label_number;
-        label_number++;
+        int lab = lab_number;
+        int brk = brk_number;
+        brk_number = lab_number;
+        lab_number++;
 
         if(node->preexpr != NULL)
         {
             generate_node(node->preexpr);
         }
-        put_instruction(".Lbegin%d:", number);
+        put_instruction(".Lbegin%d:", lab);
         if(node->cond != NULL)
         {
             generate_node(node->cond);
             put_instruction("  pop rax");
             put_instruction("  cmp rax, 0");
-            put_instruction("  je  .Lend%d", number);
+            put_instruction("  je  .Lend%d", lab);
         }
         generate_node(node->lhs);
         if(node->postexpr != NULL)
         {
             generate_node(node->postexpr);
         }
-        put_instruction("  jmp .Lbegin%d", number);
-        put_instruction(".Lend%d:", number);
+        put_instruction("  jmp .Lbegin%d", lab);
+        put_instruction(".Lend%d:", lab);
+
+        brk_number = brk;
         return;
     }
+
+    case ND_BREAK:
+        put_instruction("  jmp .Lend%d", brk_number);
+        return;
 
     case ND_BLOCK:
         for(Node *n = node->body; n != NULL; n = n->next)
@@ -601,8 +621,8 @@ static void generate_node(const Node *node)
 
     case ND_FUNC:
     {
-        int number = label_number;
-        label_number++;
+        int lab = lab_number;
+        lab_number++;
 
         // System V ABI for x86-64 requires that
         // * rsp be a multiple of 16 before function call.
@@ -613,20 +633,20 @@ static void generate_node(const Node *node)
         put_instruction("  mov rax, rsp");
         put_instruction("  and rax, 0xF");
         put_instruction("  cmp rax, 0");
-        put_instruction("  je  .Lbegin%d", number);
+        put_instruction("  je  .Lbegin%d", lab);
         // case 1: rsp has not been aligned yet
         put_instruction("  sub rsp, 8");
         generate_args(node->args);
         put_instruction("  mov rax, 0");
         put_instruction("  call %s", node->ident);
         put_instruction("  add rsp, 8");
-        put_instruction("  jmp .Lend%d", number);
-        put_instruction(".Lbegin%d:", number);
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Lbegin%d:", lab);
         // case 2: rsp has already been aligned
         generate_args(node->args);
         put_instruction("  mov rax, 0");
         put_instruction("  call %s", node->ident);
-        put_instruction(".Lend%d:", number);
+        put_instruction(".Lend%d:", lab);
         // push return value
         put_instruction("  push rax");
         return;
