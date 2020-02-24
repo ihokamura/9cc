@@ -74,6 +74,7 @@ typedef enum {
     ND_POST_INC,   // post increment operator
     ND_POST_DEC,   // post decrement operator
     ND_BREAK,      // break statement
+    ND_CONTINUE,   // continue statement
     ND_RETURN,     // return statement
     ND_IF,         // if statement
     ND_WHILE,      // while statement

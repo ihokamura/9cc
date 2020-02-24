@@ -67,6 +67,7 @@ static const size_t PUNCTUATOR_LIST_SIZE = sizeof(punctuator_list) / sizeof(punc
 static const char *keyword_list[] = {
     "break",
     "char",
+    "continue",
     "do",
     "else",
     "for",

@@ -296,6 +296,7 @@ stmt ::= declaration
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "continue" ";"
        | "break" ";"
        | "return" expr ";"
 ```
@@ -321,6 +322,11 @@ static Node *stmt(void)
     else if(consume_reserved("break"))
     {
         node = new_node(ND_BREAK);
+        expect_reserved(";");
+    }
+    else if(consume_reserved("continue"))
+    {
+        node = new_node(ND_CONTINUE);
         expect_reserved(";");
     }
     else if(consume_reserved("do"))

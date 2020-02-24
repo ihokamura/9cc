@@ -51,6 +51,7 @@ const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // nam
 const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
 static int lab_number; // sequential number for labels
 static int brk_number; // sequential number for break statements
+static int cnt_number; // sequential number for continue statements
 
 
 /*
@@ -542,10 +543,12 @@ static void generate_node(const Node *node)
     {
         int lab = lab_number;
         int brk = brk_number;
-        brk_number = lab_number;
+        int cnt = cnt_number;
+        brk_number = cnt_number = lab_number;
         lab_number++;
 
         put_instruction(".Lbegin%d:", lab);
+        put_instruction(".Lcontinue%d:", lab);
         generate_node(node->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
@@ -553,8 +556,10 @@ static void generate_node(const Node *node)
         generate_node(node->lhs);
         put_instruction("  jmp .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
+        put_instruction(".Lbreak%d:", lab);
 
         brk_number = brk;
+        cnt_number = cnt;
         return;
     }
 
@@ -562,18 +567,22 @@ static void generate_node(const Node *node)
     {
         int lab = lab_number;
         int brk = brk_number;
-        brk_number = lab_number;
+        int cnt = cnt_number;
+        brk_number = cnt_number = lab_number;
         lab_number++;
 
         put_instruction(".Lbegin%d:", lab);
         generate_node(node->lhs);
+        put_instruction(".Lcontinue%d:", lab);
         generate_node(node->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  jne .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
+        put_instruction(".Lbreak%d:", lab);
 
         brk_number = brk;
+        cnt_number = cnt;
         return;
     }
 
@@ -581,7 +590,8 @@ static void generate_node(const Node *node)
     {
         int lab = lab_number;
         int brk = brk_number;
-        brk_number = lab_number;
+        int cnt = cnt_number;
+        brk_number = cnt_number = lab_number;
         lab_number++;
 
         if(node->preexpr != NULL)
@@ -597,19 +607,26 @@ static void generate_node(const Node *node)
             put_instruction("  je  .Lend%d", lab);
         }
         generate_node(node->lhs);
+        put_instruction(".Lcontinue%d:", lab);
         if(node->postexpr != NULL)
         {
             generate_node(node->postexpr);
         }
         put_instruction("  jmp .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
+        put_instruction(".Lbreak%d:", lab);
 
         brk_number = brk;
+        cnt_number = cnt;
         return;
     }
 
     case ND_BREAK:
-        put_instruction("  jmp .Lend%d", brk_number);
+        put_instruction("  jmp .Lbreak%d", brk_number);
+        return;
+
+    case ND_CONTINUE:
+        put_instruction("  jmp .Lcontinue%d", cnt_number);
         return;
 
     case ND_BLOCK:
