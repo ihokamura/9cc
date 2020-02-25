@@ -801,7 +801,7 @@ static Node *add(void)
 /*
 make a multiplication term
 ```
-mul ::= unary ("*" unary | "/" unary)*
+mul ::= unary ("*" unary | "/" unary | "%" unary)*
 ```
 */
 static Node *mul(void)
@@ -818,6 +818,10 @@ static Node *mul(void)
         else if(consume_reserved("/"))
         {
             node = new_node_binary(ND_DIV, node, unary());
+        }
+        else if(consume_reserved("%"))
+        {
+            node = new_node_binary(ND_MOD, node, unary());
         }
         else
         {

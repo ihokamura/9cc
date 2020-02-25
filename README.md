@@ -35,7 +35,7 @@ assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
 add ::= mul ("+" mul | "-" mul)*
-mul ::= unary ("*" unary | "/" unary)*
+mul ::= unary ("*" unary | "/" unary | "%" unary)*
 unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary

@@ -120,6 +120,8 @@ int test_multiplicative()
     assert_int(47, 5 + 6 * 7);
     assert_int(15, 5 * (9 - 6));
     assert_int(4, (3 + 5) / 2);
+    assert_int(0, 123 % 3);
+    assert_int(1, ((123 + 1) % 5) % 3);
 
     return 0;
 }

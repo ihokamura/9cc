@@ -24,6 +24,7 @@ typedef enum {
     BINOP_PTR_SUB, // pointer subtraction
     BINOP_MUL,     // multiplication
     BINOP_DIV,     // dividion
+    BINOP_MOD,     // remainder
     BINOP_EQ,      // equality
     BINOP_NEQ,     // inequality
     BINOP_L,       // strict order
@@ -339,6 +340,12 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
     case BINOP_DIV:
         put_instruction("  cqo");
         put_instruction("  idiv rdi");
+        break;
+
+    case BINOP_MOD:
+        put_instruction("  cqo");
+        put_instruction("  idiv rdi");
+        put_instruction("  mov rax, rdx");
         break;
 
     case BINOP_EQ:
@@ -762,6 +769,10 @@ static void generate_node(const Node *node)
 
     case ND_DIV:
         generate_binary(node, BINOP_DIV);
+        return;
+
+    case ND_MOD:
+        generate_binary(node, BINOP_MOD);
         return;
 
     case ND_EQ:

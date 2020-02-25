@@ -61,6 +61,7 @@ typedef enum {
     ND_PTR_SUB,    // pointer subtraction (ptr - num)
     ND_MUL,        // multiplication (*)
     ND_DIV,        // division (/)
+    ND_MOD,        // remainder (%)
     ND_EQ,         // equality comparision (==)
     ND_NEQ,        // inequality comparision (!=)
     ND_L,          // strict order comparision (<)
