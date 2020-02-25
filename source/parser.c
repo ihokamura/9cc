@@ -155,8 +155,11 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
         Token *arg_token;
 
         arg_type = declarator(arg_type, &arg_token);
-        arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
-        arg_cursor = arg_cursor->next;
+        if(arg_type != NULL)
+        {
+            arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
+            arg_cursor = arg_cursor->next;
+        }
 
         while(consume_reserved(","))
         {
@@ -199,7 +202,8 @@ peek a type name
 static bool peek_typename(void)
 {
     return (
-           peek_reserved("char")
+           peek_reserved("void")
+        || peek_reserved("char")
         || peek_reserved("short")
         || peek_reserved("int")
         || peek_reserved("long")
@@ -242,7 +246,11 @@ type-spec ::= "char" | "short" | "int" | "long"
 */
 static Type *type_spec(void)
 {
-    if(consume_reserved("char"))
+    if(consume_reserved("void"))
+    {
+        return new_type(TY_VOID);
+    }
+    else if(consume_reserved("char"))
     {
         return new_type(TY_CHAR);
     }
@@ -436,8 +444,12 @@ static Node *stmt(void)
     else if(consume_reserved("return"))
     {
         node = new_node(ND_RETURN);
-        node->lhs = expr();
-        expect_reserved(";");
+        if(!consume_reserved(";"))
+        {
+            // return statement with an expression
+            node->lhs = expr();
+            expect_reserved(";");
+        }
     }
     else if(consume_reserved("switch"))
     {

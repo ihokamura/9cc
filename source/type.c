@@ -16,6 +16,7 @@
 
 
 // macro
+#define SIZEOF_VOID     (1)
 #define SIZEOF_CHAR     (1)
 #define SIZEOF_SHORT    (2)
 #define SIZEOF_INT      (4)
@@ -24,6 +25,7 @@
 
 
 // global variable
+static Type void_type  = {TY_VOID,  SIZEOF_VOID};
 static Type char_type  = {TY_CHAR,  SIZEOF_CHAR};
 static Type short_type = {TY_SHORT, SIZEOF_SHORT};
 static Type int_type   = {TY_INT,   SIZEOF_INT};
@@ -39,6 +41,10 @@ Type *new_type(TypeKind kind)
 
     switch(kind)
     {
+    case TY_VOID:
+        type = &void_type;
+        break;
+
     case TY_CHAR:
         type = &char_type;
         break;

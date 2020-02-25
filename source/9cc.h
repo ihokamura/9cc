@@ -44,6 +44,7 @@ typedef enum {
 
 // kind of type
 typedef enum {
+    TY_VOID,  // void
     TY_CHAR,  // char
     TY_SHORT, // short
     TY_INT,   // int

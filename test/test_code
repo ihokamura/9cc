@@ -662,6 +662,28 @@ int test_global_variable()
 
 
 /*
+void type
+*/
+int gvar_int;
+void func_def_arg_v(void)
+{
+    gvar_int *= 2;
+
+    return;
+}
+int test_void()
+{
+    put_title("void type");
+
+    gvar_int = 123;
+    func_def_arg_v();
+    assert_int(246, gvar_int);
+
+    return 0;
+}
+
+
+/*
 char type
 */
 int func_def_arg_pc_i(char *c, int i)
@@ -783,6 +805,7 @@ int main()
     test_pointer_addition_subtraction();
     test_array();
     test_global_variable();
+    test_void();
     test_char();
     test_short();
     test_long();

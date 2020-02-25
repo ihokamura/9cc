@@ -270,7 +270,10 @@ static void generate_func(const Function *func)
     }
 
     // epilogue: save return value and release stack
-    put_instruction("  pop rax");
+    if(func->type->kind != TY_VOID)
+    {
+        put_instruction("  pop rax");
+    }
     put_instruction("  mov rsp, rbp");
     put_instruction("  pop rbp");
     put_instruction("  ret");
@@ -507,8 +510,12 @@ static void generate_node(const Node *node)
         return;
 
     case ND_RETURN:
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
+        if(node->lhs != NULL)
+        {
+            // return value
+            generate_node(node->lhs);
+            put_instruction("  pop rax");
+        }
         put_instruction("  mov rsp, rbp");
         put_instruction("  pop rbp");
         put_instruction("  ret");
