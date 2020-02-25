@@ -582,6 +582,11 @@ static void generate_node(const Node *node)
         generate_node(node->lhs);
         return;
 
+    case ND_LABEL:
+        put_instruction(".L%s:", node->ident);
+        generate_node(node->lhs);
+        return;
+
     case ND_WHILE:
     {
         int lab = lab_number;
@@ -663,6 +668,10 @@ static void generate_node(const Node *node)
         cnt_number = cnt;
         return;
     }
+
+    case ND_GOTO:
+        put_instruction("  jmp .L%s", node->ident);
+        return;
 
     case ND_BREAK:
         put_instruction("  jmp .Lbreak%d", brk_number);

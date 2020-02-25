@@ -74,6 +74,7 @@ static const char *keyword_list[] = {
     "do",
     "else",
     "for",
+    "goto",
     "if",
     "int",
     "long",
@@ -92,7 +93,7 @@ static const char *file_name; // name of source file
 
 /*
 peek a reserved string
-* If the next token is a given string, this returns true.
+* If the next token is a given string, this function returns true.
 * Otherwise, it returns false.
 */
 bool peek_reserved(const char *str)
@@ -101,6 +102,26 @@ bool peek_reserved(const char *str)
            (current_token->kind == TK_RESERVED)
         && (current_token->len == strlen(str))
         && (strncmp(current_token->str, str, current_token->len) == 0));
+}
+
+
+/*
+peek a token
+* If the next token is a given kind of token, this function returns the token by argument and true by value.
+* Otherwise, it returns false.
+*/
+bool peek_token(TokenKind kind, Token **token)
+{
+    if(current_token->kind == kind)
+    {
+        *token = current_token;
+        return true;
+    }
+    else
+    {
+        *token = NULL;
+        return false;
+    }
 }
 
 
@@ -129,16 +150,23 @@ consume a token
 */
 bool consume_token(TokenKind kind, Token **token)
 {
-    if(current_token->kind != kind)
+    if(!peek_token(kind, token))
     {
-        *token = NULL;
         return false;
     }
 
-    *token = current_token;
     current_token = current_token->next;
 
     return true;
+}
+
+
+/*
+resume a token
+*/
+void resume_token(void)
+{
+    current_token = current_token->prev;
 }
 
 
@@ -153,6 +181,25 @@ void expect_reserved(const char *str)
     {
         report_error(current_token->str, "expected '%s'.", str);
     }
+}
+
+
+/*
+parse an identifier
+* If the next token is an identifier, this function parses the token and returns the token.
+* Otherwise, it reports an error.
+*/
+Token *expect_ident(void)
+{
+    if(current_token->kind != TK_IDENT)
+    {
+        report_error(current_token->str, "expected an identifier.");
+    }
+
+    Token *token = current_token;
+    current_token = current_token->next;
+
+    return token;
 }
 
 
@@ -512,6 +559,7 @@ static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
     new_tok->kind = kind;
     new_tok->str = str;
     new_tok->len = len;
+    new_tok->prev = cur_tok;
     cur_tok->next = new_tok;
 
     return new_tok;

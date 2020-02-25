@@ -205,6 +205,40 @@ int test_assignment()
 
 
 /*
+goto statement
+*/
+int func_def_goto(int condition)
+{
+    if(condition == 1)
+    {
+        goto label1;
+    }
+
+    if(condition == 2)
+    {
+        goto label2;
+    }
+
+    return 0;
+
+label1:
+    return 1;
+
+label2:
+    return 2;
+}
+int test_goto_statement()
+{
+    put_title("goto statement");
+
+    int condition; int r;
+    condition = 1; r = func_def_goto(condition); assert_int(1, r);
+    condition = 2; r = func_def_goto(condition); assert_int(2, r);
+    condition = 0; r = func_def_goto(condition); assert_int(0, r);
+}
+
+
+/*
 if statement
 */
 int test_if_statement()
@@ -736,6 +770,7 @@ int main()
     test_comparision();
     test_local_variable();
     test_assignment();
+    test_goto_statement();
     test_if_statement();
     test_switch_statement();
     test_while_statement();

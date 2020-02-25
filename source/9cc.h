@@ -73,12 +73,14 @@ typedef enum {
     ND_DIV_EQ,     // compound assignment expression for division (/=)
     ND_POST_INC,   // post increment operator
     ND_POST_DEC,   // post decrement operator
+    ND_GOTO,       // goto statement
     ND_BREAK,      // break statement
     ND_CONTINUE,   // continue statement
     ND_RETURN,     // return statement
     ND_IF,         // if statement
     ND_SWITCH,     // switch statement
     ND_CASE,       // case label of switch statement
+    ND_LABEL,      // labeled statement
     ND_WHILE,      // while statement
     ND_DO,         // do statement
     ND_FOR,        // for statement
@@ -97,7 +99,8 @@ typedef enum {
 // structure for token
 typedef struct Token Token;
 struct Token {
-    Token *next;    // next input token
+    Token *prev;    // previous token
+    Token *next;    // next token
     TokenKind kind; // kind of token
     long val;       // value of token (only for TK_NUM)
     char *str;      // token string
@@ -183,9 +186,12 @@ void construct(Program *program);
 void generate(const Program *program);
 // tokenizer.c
 bool peek_reserved(const char *str);
+bool peek_token(TokenKind kind, Token **token);
 bool consume_reserved(const char *str);
 bool consume_token(TokenKind kind, Token **token);
+void resume_token(void);
 void expect_reserved(const char *str);
+Token *expect_ident(void);
 long expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);

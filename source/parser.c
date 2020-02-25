@@ -290,16 +290,18 @@ static Type *type_suffix(Type *type)
 /*
 make a statement
 ```
-stmt ::= declaration
+stmt ::= ident ":" stmt
+       | "case" num ":" stmt
+       | "default" ":" stmt
+       | declaration
        | "{" stmt* "}"
        | expr? ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "switch" "(" expr ")" stmt
-       | "case" num ":" stmt
-       | "default" ":" stmt
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "goto" ident ";"
        | "continue" ";"
        | "break" ";"
        | "return" expr ";"
@@ -406,6 +408,12 @@ static Node *stmt(void)
         // parse loop body
         node->lhs = stmt();
     }
+    else if(consume_reserved("goto"))
+    {
+        node = new_node(ND_GOTO);
+        node->ident = make_ident(expect_ident());
+        expect_reserved(";");
+    }
     else if(consume_reserved("if"))
     {
         node = new_node(ND_IF);
@@ -462,26 +470,42 @@ static Node *stmt(void)
         // parse loop body
         node->lhs = stmt();
     }
+    else if(peek_typename())
+    {
+        // declaration
+        node = declaration();
+    }
+    else if(consume_reserved(";"))
+    {
+        // null statement
+        node = new_node(ND_NULL);
+    }
     else
     {
-        if(peek_typename())
+        Token *token;
+        if(consume_token(TK_IDENT, &token))
         {
-            // declaration
-            node = declaration();
+            if(consume_reserved(":"))
+            {
+                // labeled statement
+                node = new_node(ND_LABEL);
+                node->lhs = stmt();
+                node->ident = make_ident(token);
+                goto stmt_end;
+            }
+            else
+            {
+                // resume the token since it is not a label
+                resume_token();
+            }
         }
-        else if(consume_reserved(";"))
-        {
-            // null statement
-            node = new_node(ND_NULL);
-        }
-        else
-        {
-            // expression statement
-            node = expr();
-            expect_reserved(";");
-        }
+
+        // expression statement
+        node = expr();
+        expect_reserved(";");
     }
 
+stmt_end:
     return node;
 }
 

@@ -12,16 +12,18 @@
 prg ::= (gvar | func)*
 gvar ::= type-spec declarator ("=" initializer) ";"
 func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
-stmt ::= declaration
+stmt ::= ident ":" stmt
+       | "case" num ":" stmt
+       | "default" ":" stmt
+       | declaration
        | "{" stmt* "}"
        | expr? ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "switch" "(" expr ")" stmt
-       | "case" num ":" stmt
-       | "default" ":" stmt
        | "while" "(" expr ")" stmt
        | "do" stmt "while" "(" expr ")" ";"
        | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+       | "goto" ident ";"
        | "continue" ";"
        | "break" ";"
        | "return" expr ";"
