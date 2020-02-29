@@ -87,6 +87,7 @@ typedef enum {
     ND_AND_EQ,     // compound assignment expression for bitwise AND (&=)
     ND_XOR_EQ,     // compound assignment expression for bitwise exclusive OR (^=)
     ND_OR_EQ,      // compound assignment expression for bitwise inclusive OR (|=)
+    ND_COMMA,      // comma operator (,)
     ND_POST_INC,   // post increment operator
     ND_POST_DEC,   // post decrement operator
     ND_GOTO,       // goto statement

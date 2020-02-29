@@ -659,6 +659,12 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
+    case ND_COMMA:
+        generate_node(node->lhs);
+        put_instruction("  pop rax");
+        generate_node(node->rhs);
+        return;
+
     case ND_RETURN:
         if(node->lhs != NULL)
         {

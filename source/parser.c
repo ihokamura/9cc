@@ -578,12 +578,25 @@ static Node *initializer(void)
 /*
 make an expression
 ```
-expr ::= assign
+expr ::= assign ("," assign)*
 ```
 */
 static Node *expr(void)
 {
-    return assign();
+    Node *node = assign();
+
+    // parse tokens while finding an assignment expression
+    while(true)
+    {
+        if(consume_reserved(","))
+        {
+            node = new_node_binary(ND_COMMA, node, assign());
+        }
+        else
+        {
+            return node;
+        }
+    }
 }
 
 
@@ -1408,6 +1421,9 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_NEQ:
     case ND_L:
     case ND_LEQ:
+    case ND_AND:
+    case ND_XOR:
+    case ND_OR:
         if((lhs->type->kind == TY_LONG) || (rhs->type->kind == TY_LONG))
         {
             node->type = new_type(TY_LONG);
@@ -1431,24 +1447,31 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         }
         else
         {
-            // implicitly convert to smaller type
-            node->type = (lhs->type->size < rhs->type->size ? lhs->type : rhs->type);
+            node->type = lhs->type;
         }
         break;
 
     case ND_ADD_EQ:
+    case ND_PTR_ADD_EQ:
     case ND_SUB_EQ:
+    case ND_PTR_SUB_EQ:
     case ND_MUL_EQ:
     case ND_DIV_EQ:
-        // implicitly convert to smaller type
-        node->type = (lhs->type->size < rhs->type->size ? lhs->type : rhs->type);
+    case ND_MOD_EQ:
+    case ND_LSHIFT_EQ:
+    case ND_RSHIFT_EQ:
+    case ND_AND_EQ:
+    case ND_XOR_EQ:
+    case ND_OR_EQ:
+        node->type = lhs->type;
         break;
 
-    case ND_PTR_ADD_EQ:
-    case ND_PTR_SUB_EQ:
-        node->type = new_type_pointer(lhs->type->base);
+    case ND_COMMA:
+        node->type = rhs->type;
         break;
 
+    case ND_LOG_AND:
+    case ND_LOG_OR:
     default:
         node->type = new_type(TY_INT);
         break;

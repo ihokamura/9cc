@@ -29,7 +29,7 @@ stmt ::= ident ":" stmt
        | "return" expr ";"
 declaration ::= type-spec declarator ("=" initializer)? ";"
 initializer ::= assign
-expr ::= assign
+expr ::= assign ("," assign)*
 assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
 conditional ::= logical-or-expr ("?" expr ":" conditional)?

@@ -332,6 +332,23 @@ int test_assignment()
 
 
 /*
+comma operator
+*/
+int test_comma()
+{
+    put_title("comma");
+
+    int a = 0; int b = 123; int r;
+
+    r = a, b; assert_int(0, r);
+    r = (a++, b++); assert_int(123, r); assert_int(1, a); assert_int(124, b);
+    r = ++a, ++b; assert_int(2, r); assert_int(2, a); assert_int(125, b);
+
+    return 0;
+}
+
+
+/*
 goto statement
 */
 int func_def_goto(int condition)
@@ -926,6 +943,7 @@ int main()
     test_comparision();
     test_local_variable();
     test_assignment();
+    test_comma();
     test_goto_statement();
     test_if_statement();
     test_switch_statement();
