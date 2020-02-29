@@ -212,6 +212,26 @@ int text_logical_and()
 
 
 /*
+logical OR operator
+*/
+int text_logical_or()
+{
+    put_title("logical OR operator");
+
+    assert_int(0, 0 || 0);
+    assert_int(1, 0 || 1);
+    assert_int(1, 1 || 0);
+    assert_int(1, 1 || 1);
+
+    int a = 0; int b = 0;
+    assert_int(1, a++ || ++b); assert_int(1, a); assert_int(1, b);
+    assert_int(1, ++a || ++b); assert_int(2, a); assert_int(1, b);
+
+    return 0;
+}
+
+
+/*
 unary operator
 */
 int test_unary()
@@ -879,6 +899,7 @@ int main()
     text_xor();
     text_or();
     text_logical_and();
+    text_logical_or();
     test_unary();
     test_comparision();
     test_local_variable();

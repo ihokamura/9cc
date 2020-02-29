@@ -72,6 +72,7 @@ typedef enum {
     ND_XOR,        // exclusive OR (^)
     ND_OR,         // inclusive OR (|)
     ND_LOG_AND,    // logical AND (&&)
+    ND_LOG_OR,     // logical OR (||)
     ND_ASSIGN,     // assignment expression (=)
     ND_ADD_EQ,     // compound assignment expression for addition (+=)
     ND_PTR_ADD_EQ, // compound assignment expression for pointer addition (+=)

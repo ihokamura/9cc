@@ -505,6 +505,28 @@ static void generate_node(const Node *node)
         return;
     }
 
+    case ND_LOG_OR:
+    {
+        // note that RHS is not evaluated if LHS is not equal to 0
+        int lab = lab_number;
+        lab_number++;
+
+        generate_node(node->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  jne .Ltrue%d", lab);
+        generate_node(node->rhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  jne .Ltrue%d", lab);
+        put_instruction("  push 0");
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Ltrue%d:", lab);
+        put_instruction("  push 1");
+        put_instruction(".Lend%d:", lab);
+        return;
+    }
+
     case ND_ASSIGN:
         generate_lvalue(node->lhs);
         generate_node(node->rhs);

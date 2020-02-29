@@ -48,6 +48,7 @@ static const char *punctuator_list[] = {
     "<<",
     ">>",
     "&&",
+    "||",
     "[",
     "]",
     "(",
