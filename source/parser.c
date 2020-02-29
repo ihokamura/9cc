@@ -30,6 +30,7 @@ static Node *declaration(void);
 static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
+static Node *xor_expr(void);
 static Node *and_expr(void);
 static Node *equality(void);
 static Node *relational(void);
@@ -585,13 +586,13 @@ static Node *expr(void)
 /*
 make an assignment expression
 ```
-assign ::= and-expr (assign-op assign)?
+assign ::= xor-expr (assign-op assign)?
 assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 ```
 */
 static Node *assign(void)
 {
-    Node *node = and_expr();
+    Node *node = xor_expr();
 
     // parse assignment
     if(consume_reserved("="))
@@ -670,6 +671,31 @@ static Node *assign(void)
     }
 
     return node;
+}
+
+
+/*
+make a bitwise exclusive OR expression
+```
+xor-expr ::= and-expr (^ and-expr)*
+```
+*/
+static Node *xor_expr(void)
+{
+    Node *node = and_expr();
+
+    // parse tokens while finding a bitwise AND expression
+    while(true)
+    {
+        if(consume_reserved("^"))
+        {
+            node = new_node_binary(ND_XOR, node, and_expr());
+        }
+        else
+        {
+            return node;
+        }
+    }
 }
 
 
