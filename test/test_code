@@ -153,6 +153,7 @@ int text_and()
     assert_int(0, 1 & 16);
     assert_int(1, 1 & 15);
     assert_int(0, 3 & 12);
+    assert_int(0, 0 & 12);
 
     return 0;
 }
@@ -168,6 +169,23 @@ int text_xor()
     assert_int(17, 1 ^ 16);
     assert_int(14, 1 ^ 15);
     assert_int(15, 3 ^ 12);
+    assert_int(12, 0 ^ 12);
+
+    return 0;
+}
+
+
+/*
+bitwise inclusive OR operator
+*/
+int text_or()
+{
+    put_title("bitwise OR operator");
+
+    assert_int(17, 1 | 16);
+    assert_int(15, 1 | 15);
+    assert_int(15, 3 | 12);
+    assert_int(12, 0 | 12);
 
     return 0;
 }
@@ -839,6 +857,7 @@ int main()
     test_shift();
     text_and();
     text_xor();
+    text_or();
     test_unary();
     test_comparision();
     test_local_variable();

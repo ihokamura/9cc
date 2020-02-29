@@ -33,6 +33,7 @@ typedef enum {
     BINOP_LEQ,     // order
     BINOP_AND,     // bitwise AND
     BINOP_XOR,     // exclusive OR
+    BINOP_OR,      // inclusive OR
 } BinaryOperationKind;
 
 
@@ -392,6 +393,10 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
 
     case BINOP_XOR:
         put_instruction("  xor rax, rdi");
+        break;
+
+    case BINOP_OR:
+        put_instruction("  or rax, rdi");
         break;
 
     default:
@@ -827,6 +832,10 @@ static void generate_node(const Node *node)
 
     case ND_XOR:
         generate_binary(node, BINOP_XOR);
+        return;
+
+    case ND_OR:
+        generate_binary(node, BINOP_OR);
         return;
 
     default:
