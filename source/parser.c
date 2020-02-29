@@ -1133,7 +1133,7 @@ unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary
         | sizeof unary
-unary-op ::= "&" | "*" | "+" | "-"
+unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 ```
 */
 static Node *unary(void)
@@ -1194,6 +1194,14 @@ static Node *unary(void)
     else if(consume_reserved("-"))
     {
         node = new_node_binary(ND_SUB, new_node_num(0), unary());
+    }
+    else if (consume_reserved("~"))
+    {
+        node = new_node_unary(ND_COMPL, unary());
+    }
+    else if (consume_reserved("!"))
+    {
+        node = new_node_unary(ND_NEG, unary());
     }
     else
     {
@@ -1394,7 +1402,10 @@ static Node *new_node_unary(NodeKind kind, Node *lhs)
         node->type = lhs->type;
         break;
 
+    case ND_COMPL:
+    case ND_NEG:
     default:
+        node->type = new_type(TY_INT);
         break;
     }
 

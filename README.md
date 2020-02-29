@@ -47,7 +47,7 @@ unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary
         | sizeof unary
-unary-op ::= "&" | "*" | "+" | "-"
+unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 postfix ::= primary ("[" expr "]")* ("++" | "--" )?
 primary ::= ident ("(" (assign ("," assign)*)? ")")?
           | num

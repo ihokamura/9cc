@@ -455,6 +455,22 @@ static void generate_node(const Node *node)
         }
         return;
 
+    case ND_COMPL:
+        generate_node(node->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  not rax");
+        put_instruction("  push rax");
+        return;
+
+    case ND_NEG:
+        generate_node(node->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  sete al");
+        put_instruction("  movzb eax, al");
+        put_instruction("  push rax");
+        return;
+
     case ND_POST_INC:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");

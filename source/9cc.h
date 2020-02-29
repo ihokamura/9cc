@@ -55,6 +55,8 @@ typedef enum {
 
 // kind of node in AST(abstract syntax tree)
 typedef enum {
+    ND_COMPL,      // bitwise complement (~)
+    ND_NEG,        // logical negation (!)
     ND_ADD,        // addition (num + num)
     ND_PTR_ADD,    // pointer addition (ptr + num | num + ptr)
     ND_SUB,        // subtraction (num - num)
