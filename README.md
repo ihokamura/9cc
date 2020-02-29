@@ -30,8 +30,9 @@ stmt ::= ident ":" stmt
 declaration ::= type-spec declarator ("=" initializer)? ";"
 initializer ::= assign
 expr ::= assign
-assign ::= equality (assign-op assign)?
+assign ::= and-expr (assign-op assign)?
 assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
+and-expr ::= equality (& equality)*
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 shift ::=  add ("<<" add | ">>" add)*

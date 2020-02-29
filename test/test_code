@@ -144,6 +144,21 @@ int test_shift()
 
 
 /*
+bitwise AND operator
+*/
+int test_AND()
+{
+    put_title("bitwise AND operator");
+
+    assert_int(0, 1 & 16);
+    assert_int(1, 1 & 15);
+    assert_int(0, 3 & 12);
+
+    return 0;
+}
+
+
+/*
 unary operator
 */
 int test_unary()
@@ -807,6 +822,7 @@ int main()
     test_additive();
     test_multiplicative();
     test_shift();
+    test_AND();
     test_unary();
     test_comparision();
     test_local_variable();

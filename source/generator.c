@@ -31,6 +31,7 @@ typedef enum {
     BINOP_NEQ,     // inequality
     BINOP_L,       // strict order
     BINOP_LEQ,     // order
+    BINOP_AND,     // bitwise AND
 } BinaryOperationKind;
 
 
@@ -382,6 +383,10 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         put_instruction("  cmp rax, rdi");
         put_instruction("  setle al");
         put_instruction("  movzb rax, al");
+        break;
+
+    case BINOP_AND:
+        put_instruction("  and rax, rdi");
         break;
 
     default:
@@ -809,6 +814,10 @@ static void generate_node(const Node *node)
 
     case ND_LEQ:
         generate_binary(node, BINOP_LEQ);
+        return;
+
+    case ND_AND:
+        generate_binary(node, BINOP_AND);
         return;
 
     default:

@@ -64,6 +64,7 @@ typedef enum {
     ND_MOD,        // remainder (%)
     ND_LSHIFT,     // left shift (<<)
     ND_RSHIFT,     // right shift (>>)
+    ND_AND,        // bitwise AND (&)
     ND_EQ,         // equality comparision (==)
     ND_NEQ,        // inequality comparision (!=)
     ND_L,          // strict order comparision (<)

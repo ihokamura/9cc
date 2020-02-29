@@ -30,6 +30,7 @@ static Node *declaration(void);
 static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
+static Node *and_expr(void);
 static Node *equality(void);
 static Node *relational(void);
 static Node *shift(void);
@@ -584,13 +585,13 @@ static Node *expr(void)
 /*
 make an assignment expression
 ```
-assign ::= equality (assign-op assign)?
+assign ::= and-expr (assign-op assign)?
 assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 ```
 */
 static Node *assign(void)
 {
-    Node *node = equality();
+    Node *node = and_expr();
 
     // parse assignment
     if(consume_reserved("="))
@@ -669,6 +670,31 @@ static Node *assign(void)
     }
 
     return node;
+}
+
+
+/*
+make a bitwise AND expression
+```
+and-expr ::= equality (& equality)*
+```
+*/
+static Node *and_expr(void)
+{
+    Node *node = equality();
+
+    // parse tokens while finding a equality expression
+    while(true)
+    {
+        if(consume_reserved("&"))
+        {
+            node = new_node_binary(ND_AND, node, equality());
+        }
+        else
+        {
+            return node;
+        }
+    }
 }
 
 
