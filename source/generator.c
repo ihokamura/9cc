@@ -527,6 +527,24 @@ static void generate_node(const Node *node)
         return;
     }
 
+    case ND_COND:
+    {
+        // note that either second operand or third operand is evaluated
+        int lab = lab_number;
+        lab_number++;
+
+        generate_node(node->cond);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  je .Lelse%d", lab);
+        generate_node(node->lhs);
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Lelse%d:", lab);
+        generate_node(node->rhs);
+        put_instruction(".Lend%d:", lab);
+        return;
+    }
+
     case ND_ASSIGN:
         generate_lvalue(node->lhs);
         generate_node(node->rhs);

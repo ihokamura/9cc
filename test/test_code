@@ -146,7 +146,7 @@ int test_shift()
 /*
 bitwise AND operator
 */
-int text_and()
+int test_and()
 {
     put_title("bitwise AND operator");
 
@@ -162,7 +162,7 @@ int text_and()
 /*
 bitwise exclusive OR operator
 */
-int text_xor()
+int test_xor()
 {
     put_title("bitwise XOR operator");
 
@@ -178,7 +178,7 @@ int text_xor()
 /*
 bitwise inclusive OR operator
 */
-int text_or()
+int test_or()
 {
     put_title("bitwise OR operator");
 
@@ -194,7 +194,7 @@ int text_or()
 /*
 logical AND operator
 */
-int text_logical_and()
+int test_logical_and()
 {
     put_title("logical AND operator");
 
@@ -214,7 +214,7 @@ int text_logical_and()
 /*
 logical OR operator
 */
-int text_logical_or()
+int test_logical_or()
 {
     put_title("logical OR operator");
 
@@ -228,6 +228,21 @@ int text_logical_or()
     assert_int(1, ++a || ++b); assert_int(2, a); assert_int(1, b);
 
     return 0;
+}
+
+
+/*
+conditional operator
+*/
+int test_conditional()
+{
+    put_title("conditional operator");
+
+    int a = 1; int b = 0; int r;
+    r = a ? 123 : 456; assert_int(123, r);
+    r = b ? 123 : 456; assert_int(456, r);
+    r = a-- ? b++ : b--; assert_int(0, r); assert_int(0, a); assert_int(1, b);
+    r = a++ ? ++b : --b; assert_int(0, r); assert_int(1, a); assert_int(0, b);
 }
 
 
@@ -895,11 +910,12 @@ int main()
     test_additive();
     test_multiplicative();
     test_shift();
-    text_and();
-    text_xor();
-    text_or();
-    text_logical_and();
-    text_logical_or();
+    test_and();
+    test_xor();
+    test_or();
+    test_logical_and();
+    test_logical_or();
+    test_conditional();
     test_unary();
     test_comparision();
     test_local_variable();

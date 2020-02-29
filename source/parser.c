@@ -30,6 +30,7 @@ static Node *declaration(void);
 static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
+static Node *conditional(void);
 static Node *logical_or_expr(void);
 static Node *logical_and_expr(void);
 static Node *or_expr(void);
@@ -589,13 +590,13 @@ static Node *expr(void)
 /*
 make an assignment expression
 ```
-assign ::= logical-or-expr (assign-op assign)?
+assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
 ```
 */
 static Node *assign(void)
 {
-    Node *node = logical_or_expr();
+    Node *node = conditional();
 
     // parse assignment
     if(consume_reserved("="))
@@ -674,6 +675,35 @@ static Node *assign(void)
     }
 
     return node;
+}
+
+
+/*
+make a conditional expression
+```
+conditional ::= logical-or-expr ("?" expr ":" conditional)?
+```
+*/
+static Node *conditional(void)
+{
+    Node *node = logical_or_expr();
+
+    if(consume_reserved("?"))
+    {
+        Node *ternary = new_node(ND_COND);
+
+        ternary->cond = node;
+        ternary->lhs = expr();
+        expect_reserved(":");
+        ternary->rhs = conditional();
+        ternary->type = node->type;
+
+        return ternary;
+    }
+    else
+    {
+        return node;
+    }
 }
 
 
