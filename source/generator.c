@@ -605,6 +605,60 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
+    case ND_MOD_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_MOD);
+        generate_store(node->type);
+        return;
+
+    case ND_LSHIFT_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_LSHIFT);
+        generate_store(node->type);
+        return;
+
+    case ND_RSHIFT_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_RSHIFT);
+        generate_store(node->type);
+        return;
+
+    case ND_AND_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_AND);
+        generate_store(node->type);
+        return;
+
+    case ND_XOR_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_XOR);
+        generate_store(node->type);
+        return;
+
+    case ND_OR_EQ:
+        generate_lvalue(node->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(node->lhs->type);
+        generate_node(node->rhs);
+        generate_binary(node, BINOP_OR);
+        generate_store(node->type);
+        return;
+
     case ND_RETURN:
         if(node->lhs != NULL)
         {

@@ -81,6 +81,12 @@ typedef enum {
     ND_PTR_SUB_EQ, // compound assignment expression for pointer subtraction (-=)
     ND_MUL_EQ,     // compound assignment expression for multiplication (*=)
     ND_DIV_EQ,     // compound assignment expression for division (/=)
+    ND_MOD_EQ,     // compound assignment expression for remainder (%=)
+    ND_LSHIFT_EQ,  // compound assignment expression for left shift (<<=)
+    ND_RSHIFT_EQ,  // compound assignment expression for right shift (>>=)
+    ND_AND_EQ,     // compound assignment expression for bitwise AND (&=)
+    ND_XOR_EQ,     // compound assignment expression for bitwise exclusive OR (^=)
+    ND_OR_EQ,      // compound assignment expression for bitwise inclusive OR (|=)
     ND_POST_INC,   // post increment operator
     ND_POST_DEC,   // post decrement operator
     ND_GOTO,       // goto statement

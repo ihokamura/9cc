@@ -316,6 +316,12 @@ int test_assignment()
     int c; c = 123; assert_int(246, c -= -123);
     int d; d = 123; assert_int(369, d *= 3);
     int e; e = 123; assert_int(41, e /= 3);
+    int f; f = 123; assert_int(0, f %= 3);
+    int g; g = 4; assert_int(16, g <<= 2);
+    int h; h = 4; assert_int(1, h >>= 2);
+    int i; i = 8; assert_int(8, i &= 12);
+    int j; j = 8; assert_int(4, j ^= 12);
+    int k; k = 8; assert_int(12, k |= 12);
 
     int *p; alloc4(&p, 1, 2, 4, 8);
     p += 2; assert_int(*p, 4);

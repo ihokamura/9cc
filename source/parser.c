@@ -591,7 +591,7 @@ static Node *expr(void)
 make an assignment expression
 ```
 assign ::= conditional (assign-op assign)?
-assign-op ::= "=" | "+=" | "-=" | "*=" | "/="
+assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
 ```
 */
 static Node *assign(void)
@@ -602,6 +602,42 @@ static Node *assign(void)
     if(consume_reserved("="))
     {
         node = new_node_binary(ND_ASSIGN, node, assign());
+    }
+    else if(consume_reserved("*="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment *=");
+        }
+
+        node = new_node_binary(ND_MUL_EQ, lhs, rhs);
+    }
+    else if(consume_reserved("/="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment /=");
+        }
+
+        node = new_node_binary(ND_DIV_EQ, lhs, rhs);
+    }
+    else if(consume_reserved("%="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment %=");
+        }
+
+        node = new_node_binary(ND_MOD_EQ, lhs, rhs);
     }
     else if(consume_reserved("+="))
     {
@@ -649,29 +685,65 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment -=");
         }
     }
-    else if(consume_reserved("*="))
+    else if(consume_reserved("<<="))
     {
         Node *lhs = node;
         Node *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
-            report_error(NULL, "bad operand for compound assignment *=");
+            report_error(NULL, "bad operand for compound assignment <<=");
         }
 
-        node = new_node_binary(ND_MUL_EQ, lhs, rhs);
+        node = new_node_binary(ND_LSHIFT_EQ, lhs, rhs);
     }
-    else if(consume_reserved("/="))
+    else if(consume_reserved(">>="))
     {
         Node *lhs = node;
         Node *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
-            report_error(NULL, "bad operand for compound assignment /=");
+            report_error(NULL, "bad operand for compound assignment >>=");
         }
 
-        node = new_node_binary(ND_DIV_EQ, lhs, rhs);
+        node = new_node_binary(ND_RSHIFT_EQ, lhs, rhs);
+    }
+    else if(consume_reserved("&="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment &=");
+        }
+
+        node = new_node_binary(ND_AND_EQ, lhs, rhs);
+    }
+    else if(consume_reserved("^="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment ^=");
+        }
+
+        node = new_node_binary(ND_XOR_EQ, lhs, rhs);
+    }
+    else if(consume_reserved("|="))
+    {
+        Node *lhs = node;
+        Node *rhs = assign();
+
+        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        {
+            report_error(NULL, "bad operand for compound assignment |=");
+        }
+
+        node = new_node_binary(ND_OR_EQ, lhs, rhs);
     }
 
     return node;
