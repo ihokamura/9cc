@@ -25,6 +25,8 @@ typedef enum {
     BINOP_MUL,     // multiplication
     BINOP_DIV,     // dividion
     BINOP_MOD,     // remainder
+    BINOP_LSHIFT,  // left shift
+    BINOP_RSHIFT,  // right shift
     BINOP_EQ,      // equality
     BINOP_NEQ,     // inequality
     BINOP_L,       // strict order
@@ -346,6 +348,16 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         put_instruction("  cqo");
         put_instruction("  idiv rdi");
         put_instruction("  mov rax, rdx");
+        break;
+
+    case BINOP_LSHIFT:
+        put_instruction("  mov rcx, rdi");
+        put_instruction("  shl rax, cl");
+        break;
+
+    case BINOP_RSHIFT:
+        put_instruction("  mov rcx, rdi");
+        put_instruction("  sar rax, cl");
         break;
 
     case BINOP_EQ:
@@ -773,6 +785,14 @@ static void generate_node(const Node *node)
 
     case ND_MOD:
         generate_binary(node, BINOP_MOD);
+        return;
+
+    case ND_LSHIFT:
+        generate_binary(node, BINOP_LSHIFT);
+        return;
+
+    case ND_RSHIFT:
+        generate_binary(node, BINOP_RSHIFT);
         return;
 
     case ND_EQ:

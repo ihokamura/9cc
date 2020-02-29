@@ -62,6 +62,8 @@ typedef enum {
     ND_MUL,        // multiplication (*)
     ND_DIV,        // division (/)
     ND_MOD,        // remainder (%)
+    ND_LSHIFT,     // left shift (<<)
+    ND_RSHIFT,     // right shift (>>)
     ND_EQ,         // equality comparision (==)
     ND_NEQ,        // inequality comparision (!=)
     ND_L,          // strict order comparision (<)

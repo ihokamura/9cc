@@ -32,6 +32,7 @@ static Node *expr(void);
 static Node *assign(void);
 static Node *equality(void);
 static Node *relational(void);
+static Node *shift(void);
 static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
@@ -672,7 +673,7 @@ static Node *assign(void)
 
 
 /*
-make an equality
+make an equality expression
 ```
 equality ::= relational ("==" relational | "!=" relational)*
 ```
@@ -703,31 +704,31 @@ static Node *equality(void)
 /*
 make a relational expression
 ```
-relational ::= add ("<" add | "<=" add | ">" add | ">=" add)*
+relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 ```
 */
 static Node *relational(void)
 {
-    Node *node = add();
+    Node *node = shift();
 
-    // parse tokens while finding an addition term
+    // parse tokens while finding a shift expression
     while(true)
     {
         if(consume_reserved("<"))
         {
-            node = new_node_binary(ND_L, node, add());
+            node = new_node_binary(ND_L, node, shift());
         }
         else if(consume_reserved("<="))
         {
-            node = new_node_binary(ND_LEQ, node, add());
+            node = new_node_binary(ND_LEQ, node, shift());
         }
         else if(consume_reserved(">"))
         {
-            node = new_node_binary(ND_L, add(), node);
+            node = new_node_binary(ND_L, shift(), node);
         }
         else if(consume_reserved(">="))
         {
-            node = new_node_binary(ND_LEQ, add(), node);
+            node = new_node_binary(ND_LEQ, shift(), node);
         }
         else
         {
@@ -738,7 +739,56 @@ static Node *relational(void)
 
 
 /*
-make an addition term
+make a shift expression
+```
+shift ::=  add ("<<" add | ">>" add)*
+```
+*/
+static Node *shift(void)
+{
+    Node *node = add();
+
+    // parse tokens while finding an additive expression
+    while(true)
+    {
+        if(consume_reserved("<<"))
+        {
+            Node *lhs = node;
+            Node *rhs = add();
+
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                node = new_node_binary(ND_LSHIFT, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "bad operand for binary operator <<");
+            }
+        }
+        else if(consume_reserved(">>"))
+        {
+            Node *lhs = node;
+            Node *rhs = mul();
+
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                node = new_node_binary(ND_RSHIFT, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "bad operand for binary operator >>");
+            }
+        }
+        else
+        {
+            return node;
+        }
+    }
+}
+
+
+/*
+make an additive expression
 ```
 add ::= mul ("+" mul | "-" mul)*
 ```
@@ -747,7 +797,7 @@ static Node *add(void)
 {
     Node *node = mul();
 
-    // parse tokens while finding a term
+    // parse tokens while finding a multiplicative expression
     while(true)
     {
         if(consume_reserved("+"))
@@ -799,7 +849,7 @@ static Node *add(void)
 
 
 /*
-make a multiplication term
+make a multiplicative expression
 ```
 mul ::= unary ("*" unary | "/" unary | "%" unary)*
 ```
@@ -808,7 +858,7 @@ static Node *mul(void)
 {
     Node *node = unary();
 
-    // parse tokens while finding an unary
+    // parse tokens while finding an unary expression
     while(true)
     {
         if(consume_reserved("*"))
@@ -832,7 +882,7 @@ static Node *mul(void)
 
 
 /*
-make an unary
+make an unary expression
 ```
 unary ::= postfix
         | ("++" | "--") unary
@@ -910,7 +960,7 @@ static Node *unary(void)
 
 
 /*
-make a postfix
+make a postfix expression
 ```
 postfix ::= primary ("[" expr "]")* ("++" | "--" )?
 ```
@@ -966,7 +1016,7 @@ static Node *postfix(void)
 
 
 /*
-make a primary
+make a primary expression
 ```
 primary ::= ident ("(" (assign ("," assign)*)? ")")?
           | num
