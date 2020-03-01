@@ -49,7 +49,6 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static Node *new_node_func(const Token *token);
 static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type);
 static GVar *new_str(const Token *token);
 static GVar *get_gvar(const Token *token);
@@ -160,6 +159,8 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
     {
         LVar arg_head = {};
         LVar *arg_cursor = &arg_head;
+        Type arg_types_head = {};
+        Type *arg_types_cursor = &arg_types_head;
         Token *arg_token;
 
         arg_type = declarator(arg_type, &arg_token);
@@ -167,6 +168,8 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
         {
             arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
             arg_cursor = arg_cursor->next;
+            arg_types_cursor->next = arg_type;
+            arg_types_cursor = arg_types_cursor->next;
         }
 
         while(consume_reserved(","))
@@ -180,8 +183,11 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
             arg_type = declarator(arg_type, &arg_token);
             arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
             arg_cursor = arg_cursor->next;
+            arg_types_cursor->next = arg_type;
+            arg_types_cursor = arg_types_cursor->next;
         }
         current_function->args = arg_head.next;
+        current_function->type->args = arg_types_head.next;
     }
     expect_reserved(")");
 
@@ -1251,11 +1257,20 @@ static Node *postfix(void)
         else if(consume_reserved("("))
         {
             // function call
+            if((node->type->base == NULL) || (node->type->base->kind != TY_FUNC))
+            {
+                report_error(NULL, "expected function");
+            }
+
+            Node *func_node = new_node(ND_FUNC);
             if(!consume_reserved(")"))
             {
-                node->args = arg_expr_list();
+                func_node->args = arg_expr_list();
                 expect_reserved(")");
             }
+            func_node->type = node->type->base->base; // dereference pointer and get type of return value
+            func_node->ident = node->ident;
+            node = func_node;
         }
         else if(consume_reserved("++"))
         {
@@ -1336,33 +1351,48 @@ static Node *primary(void)
     Token *token;
     if(consume_token(TK_IDENT, &token))
     {
+        // search function
+        Function *func = get_function(token);
+        if(func != NULL)
+        {
+            Node *node = new_node(ND_FUNC);
+            node->type = new_type_pointer(func->type);
+            node->ident = make_ident(token);
+        }
+
+        // search global variable
+        GVar *gvar = get_gvar(token);
+        if(gvar != NULL)
+        {
+            Node *node = new_node(ND_GVAR);
+            node->type = gvar->type;
+            node->gvar = gvar;
+            return node;
+        }
+
+        // search local variable
+        LVar *lvar = get_lvar(token);
+        if(lvar != NULL)
+        {
+            Node *node = new_node(ND_LVAR);
+            node->type = lvar->type;
+            node->lvar = lvar;
+            return node;
+        }
+
         if(peek_reserved("("))
         {
-            // function call
-            Node *node = new_node_func(token);
+            // implicitly assume that the token denotes a function which returns int
+            Node *node = new_node(ND_FUNC);
+            node->type = new_type_pointer(new_type_function(new_type(TY_INT), NULL));
+            node->ident = make_ident(token);
+#if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
+            report_warning(token->str, "implicit declaration of function '%s'\n", make_ident(token));
+#endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
             return node;
         }
         else
         {
-            // variable
-            GVar *gvar = get_gvar(token);
-            if(gvar != NULL)
-            {
-                Node *node = new_node(ND_GVAR);
-                node->type = gvar->type;
-                node->gvar = gvar;
-                return node;
-            }
-
-            LVar *lvar = get_lvar(token);
-            if(lvar != NULL)
-            {
-                Node *node = new_node(ND_LVAR);
-                node->type = lvar->type;
-                node->lvar = lvar;
-                return node;
-            }
-
             report_error(token->str, "undefined variable '%s'", make_ident(token));
         }
     }
@@ -1533,34 +1563,6 @@ static Node *new_node_num(int val)
 
 
 /*
-make a new node for function call
-*/
-static Node *new_node_func(const Token *token)
-{
-    Type *type;
-    Function *func = get_function(token);
-    if(func == NULL)
-    {
-        // implicitly assume that the function returns int
-        type = new_type(TY_INT);
-#if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
-        report_warning(token->str, "implicit declaration of function '%s'\n", make_ident(token));
-#endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
-    }
-    else
-    {
-        type = func->type;
-    }
-
-    Node *node = new_node(ND_FUNC);
-    node->type = type;
-    node->ident = make_ident(token);
-
-    return node;
-}
-
-
-/*
 make a new global variable
 */
 static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
@@ -1680,8 +1682,8 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
     // initialize arguments
     new_func->args = NULL;
 
-    // initialize type of return value
-    new_func->type = base;
+    // initialize type
+    new_func->type = new_type_function(base, new_type(TY_VOID));
 
     // initialize function body
     new_func->body = NULL;

@@ -67,6 +67,8 @@ Type *new_type(TypeKind kind)
         type->kind = kind;
         type->base = NULL;
         type->len = 0;
+        type->args = NULL;
+        type->next = NULL;
         break;
     }
 
@@ -137,6 +139,19 @@ Type *new_type_array(Type *base, size_t len)
     type->size = base->size * len;
     type->base = base;
     type->len = len;
+
+    return type;
+}
+
+
+/*
+make a function type
+*/
+Type *new_type_function(Type *base, Type *args)
+{
+    Type *type = new_type(TY_FUNC);
+    type->base = base;
+    type->args = args;
 
     return type;
 }

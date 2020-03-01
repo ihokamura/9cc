@@ -51,6 +51,7 @@ typedef enum {
     TY_LONG,  // long
     TY_PTR,   // pointer
     TY_ARRAY, // array
+    TY_FUNC,  // function
 } TypeKind;
 
 // kind of node in AST(abstract syntax tree)
@@ -129,10 +130,12 @@ struct Token {
 // structure for type
 typedef struct Type Type;
 struct Type {
-    TypeKind kind;       // kind of type
-    size_t size;         // size of type
-    struct Type *base;   // base type (only for TY_PTR and TY_ARRAY)
-    size_t len;          // length of array (only for TY_ARRAY)
+    TypeKind kind; // kind of type
+    size_t size;   // size of type
+    Type *base;    // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;    // length of array (only for TY_ARRAY)
+    Type *args;    // type of arguments (only for TY_FUNC)
+    Type *next;    // next element (only for TY_FUNC)
 };
 
 // structure for node in AST (forward declaration)
@@ -185,7 +188,7 @@ typedef struct Function Function;
 struct Function {
     Function *next;    // next element
     char *name;        // name of function
-    Type *type;        // type of return value
+    Type *type;        // type of function
     LVar *args;        // arguments
     Node *body;        // body of function definition
     LVar *locals;      // list of local variables (including arguments)
@@ -227,3 +230,4 @@ bool is_array(const Type *type);
 bool is_pointer_or_array(const Type *type);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
+Type *new_type_function(Type *base, Type *args);
