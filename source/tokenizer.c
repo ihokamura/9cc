@@ -136,7 +136,6 @@ bool peek_token(TokenKind kind, Token **token)
     }
     else
     {
-        *token = NULL;
         return false;
     }
 }

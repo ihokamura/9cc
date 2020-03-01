@@ -26,7 +26,7 @@ static Type *declarator(Type *type, Token **token);
 static Type *type_name(void);
 static Type *type_spec(void);
 static Type *pointer(Type *base);
-static Type *type_suffix(Type *type);
+static Type *direct_declarator(Type *type, Token **token);
 static Node *stmt(void);
 static Node *declaration(void);
 static Node *initializer(void);
@@ -230,22 +230,17 @@ static bool peek_typename(void)
 /*
 make a declarator
 ```
-declarator ::= pointer? ident type-suffix
+declarator ::= pointer? direct-declarator
 ```
 */
 static Type *declarator(Type *type, Token **token)
 {
-    // consume pointers
-    type = pointer(type);
-
-    // consume identifier
-    if(!consume_token(TK_IDENT, token))
+    if(peek_reserved("*"))
     {
-        return NULL;
+        type = pointer(type);
     }
 
-    // consume type-suffix
-    type = type_suffix(type);
+    type = direct_declarator(type, token);
 
     return type;
 }
@@ -260,7 +255,11 @@ type-name ::= type-spec pointer?
 static Type *type_name(void)
 {
     Type *type = type_spec();
-    type = pointer(type);
+
+    if(peek_reserved("*"))
+    {
+        type = pointer(type);
+    }
 
     return type;
 }
@@ -304,12 +303,15 @@ static Type *type_spec(void)
 /*
 make a pointer
 ```
-pointer ::= "*"*
+pointer ::= "*" "*"*
 ```
 */
 static Type *pointer(Type *base)
 {
     Type *type = base;
+
+    expect_reserved("*");
+    type = new_type_pointer(type);
 
     while(consume_reserved("*"))
     {
@@ -321,22 +323,27 @@ static Type *pointer(Type *base)
 
 
 /*
-make a type-suffix
+make a direct declarator
 ```
-type-suffix ::= ("[" num "]" | type-suffix)?
+direct-declarator ::= ident | direct-declarator "[" num "]"
 ```
 */
-static Type *type_suffix(Type *type)
+static Type *direct_declarator(Type *type, Token **token)
 {
-    if(!consume_reserved("["))
+    if(consume_token(TK_IDENT, token))
     {
-        return type;
+        type = direct_declarator(type, token);
     }
-
-    size_t size = expect_number();
-    expect_reserved("]");
-    type = type_suffix(type);
-    type = new_type_array(type, size);
+    else
+    {
+        if(consume_reserved("["))
+        {
+            size_t size = expect_number();
+            expect_reserved("]");
+            type = direct_declarator(type, token);
+            type = new_type_array(type, size);
+        }
+    }
 
     return type;
 }

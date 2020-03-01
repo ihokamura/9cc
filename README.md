@@ -55,11 +55,11 @@ primary ::= ident
           | "(" expr ")"
 declaration ::= type-spec declarator ("=" initializer)? ";"
 type-spec ::= "void" | "char" | "short" | "int" | "long"
-declarator ::= pointer? ident type-suffix
-type-suffix ::= ("[" num "]" | type-suffix)?
+declarator ::= pointer? direct-declarator
+direct-declarator ::= ident | direct-declarator "[" num "]"
 initializer ::= assign
 type-name ::= type-spec pointer?
-pointer ::= "*"*
+pointer ::= "*" "*"*
 ```
 
 
