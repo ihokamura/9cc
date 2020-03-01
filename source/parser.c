@@ -43,6 +43,7 @@ static Node *add(void);
 static Node *mul(void);
 static Node *unary(void);
 static Node *postfix(void);
+static Node *arg_expr_list(void);
 static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
@@ -1215,63 +1216,105 @@ static Node *unary(void)
 /*
 make a postfix expression
 ```
-postfix ::= primary ("[" expr "]")* ("++" | "--" )?
+postfix ::= primary ("[" expr "]" | "(" arg-expr-list? ")" | "++" | "--" )*
 ```
 */
 static Node *postfix(void)
 {
     Node *node = primary();
 
-    // parse array subscripting
-    while(consume_reserved("["))
+    // parse tokens while finding a postfix operator
+    while(true)
     {
-        Node *lhs;
-        Node *index = expr();
+        if(consume_reserved("["))
+        {
+            // array subscripting
+            Node *lhs;
+            Node *index = expr();
 
-        if(is_pointer_or_array(node->type) && is_integer(index->type))
-        {
-            lhs = new_node_binary(ND_PTR_ADD, node, index);
+            if(is_pointer_or_array(node->type) && is_integer(index->type))
+            {
+                lhs = new_node_binary(ND_PTR_ADD, node, index);
+            }
+            else if(is_integer(node->type) && is_pointer_or_array(index->type))
+            {
+                lhs = new_node_binary(ND_PTR_ADD, index, node);
+            }
+            else
+            {
+                report_error(NULL, "bad operand for [] operator\n");
+            }
+
+            node = new_node_unary(ND_DEREF, lhs);
+            expect_reserved("]");
         }
-        else if(is_integer(node->type) && is_pointer_or_array(index->type))
+        else if(consume_reserved("("))
         {
-            lhs = new_node_binary(ND_PTR_ADD, index, node);
+            // function call
+            if(!consume_reserved(")"))
+            {
+                node->args = arg_expr_list();
+                expect_reserved(")");
+            }
+        }
+        else if(consume_reserved("++"))
+        {
+            // postfix increment
+            if(!(is_integer(node->type) || is_pointer(node->type)))
+            {
+                report_error(NULL, "bad operand for postfix increment operator ++\n");
+            }
+            node = new_node_unary(ND_POST_INC, node);
+        }
+        else if(consume_reserved("--"))
+        {
+            // postfix decrement
+            if(!(is_integer(node->type) || is_pointer(node->type)))
+            {
+                report_error(NULL, "bad operand for postfix decrement operator --\n");
+            }
+            node = new_node_unary(ND_POST_DEC, node);
         }
         else
         {
-            report_error(NULL, "bad operand for [] operator\n");
+            return node;
         }
-
-        node = new_node_unary(ND_DEREF, lhs);
-        expect_reserved("]");
     }
+}
 
-    // parse postfix increment and decrement operators
-    if(consume_reserved("++"))
+
+/*
+make an argument expression list
+```
+arg-expr-list ::= assign ("," assign)*
+```
+*/
+static Node *arg_expr_list(void)
+{
+    Node *arg;
+    Node *cursor = NULL;
+
+    arg = assign();
+    arg->next = cursor;
+    cursor = arg;
+
+    // parse arguments
+    while(consume_reserved(","))
     {
-        if(!(is_integer(node->type) || is_pointer(node->type)))
-        {
-            report_error(NULL, "bad operand for postfix increment operator ++\n");
-        }
-
-        node = new_node_unary(ND_POST_INC, node);
-    }
-    else if(consume_reserved("--"))
-    {
-        if(!(is_integer(node->type) || is_pointer(node->type)))
-        {
-            report_error(NULL, "bad operand for postfix decrement operator --\n");
-        }
-        node = new_node_unary(ND_POST_DEC, node);
+        // append the argument at the head in order to push arguments in reverse order when generating assembler code
+        arg = assign();
+        arg->next = cursor;
+        cursor = arg;
     }
 
-    return node;
+    return cursor;
 }
 
 
 /*
 make a primary expression
 ```
-primary ::= ident ("(" (assign ("," assign)*)? ")")?
+primary ::= ident
           | num
           | str
           | "(" expr ")"
@@ -1293,26 +1336,10 @@ static Node *primary(void)
     Token *token;
     if(consume_token(TK_IDENT, &token))
     {
-        if(consume_reserved("("))
+        if(peek_reserved("("))
         {
             // function call
             Node *node = new_node_func(token);
-
-            // parse arguments
-            while(!consume_reserved(")"))
-            {
-                Node *arg = assign();
-
-                // append the argument at the head in order to push arguments in reverse order when generating assembler code
-                arg->next = node->args;
-                node->args = arg;
-                if(!consume_reserved(","))
-                {
-                    expect_reserved(")");
-                    break;
-                }
-            }
-
             return node;
         }
         else

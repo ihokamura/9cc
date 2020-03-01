@@ -48,8 +48,9 @@ unary ::= postfix
         | unary-op unary
         | sizeof unary
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
-postfix ::= primary ("[" expr "]")* ("++" | "--" )?
-primary ::= ident ("(" (assign ("," assign)*)? ")")?
+postfix ::= primary ("[" expr "]" | "(" arg-expr-list? ")" | "++" | "--" )*
+arg-expr-list ::= assign ("," assign)*
+primary ::= ident
           | num
           | str
           | "(" expr ")"
