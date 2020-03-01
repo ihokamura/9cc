@@ -58,6 +58,7 @@ typedef enum {
 typedef enum {
     ND_COMPL,      // bitwise complement (~)
     ND_NEG,        // logical negation (!)
+    ND_CAST,       // cast operator
     ND_ADD,        // addition (num + num)
     ND_PTR_ADD,    // pointer addition (ptr + num | num + ptr)
     ND_SUB,        // subtraction (num - num)

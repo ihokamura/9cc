@@ -38,9 +38,10 @@ xor-expr ::= and-expr (^ and-expr)*
 and-expr ::= equality (& equality)*
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
-shift ::=  add ("<<" add | ">>" add)*
-add ::= mul ("+" mul | "-" mul)*
-mul ::= unary ("*" unary | "/" unary | "%" unary)*
+shift ::=  additive ("<<" additive | ">>" additive)*
+additive ::= multiplicative ("+" multiplicative | "-" multiplicative)*
+multiplicative ::= cast ("*" cast | "/" cast | "%" cast)*
+cast ::= ("(" type-name ")")? unary
 unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary

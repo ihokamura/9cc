@@ -41,8 +41,9 @@ static Node *and_expr(void);
 static Node *equality(void);
 static Node *relational(void);
 static Node *shift(void);
-static Node *add(void);
-static Node *mul(void);
+static Node *additive(void);
+static Node *multiplicative(void);
+static Node *cast(void);
 static Node *unary(void);
 static Node *postfix(void);
 static Node *arg_expr_list(void);
@@ -1033,12 +1034,12 @@ static Node *relational(void)
 /*
 make a shift expression
 ```
-shift ::=  add ("<<" add | ">>" add)*
+shift ::=  additive ("<<" additive | ">>" additive)*
 ```
 */
 static Node *shift(void)
 {
-    Node *node = add();
+    Node *node = additive();
 
     // parse tokens while finding an additive expression
     while(true)
@@ -1046,7 +1047,7 @@ static Node *shift(void)
         if(consume_reserved("<<"))
         {
             Node *lhs = node;
-            Node *rhs = add();
+            Node *rhs = additive();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -1060,7 +1061,7 @@ static Node *shift(void)
         else if(consume_reserved(">>"))
         {
             Node *lhs = node;
-            Node *rhs = mul();
+            Node *rhs = additive();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -1082,12 +1083,12 @@ static Node *shift(void)
 /*
 make an additive expression
 ```
-add ::= mul ("+" mul | "-" mul)*
+additive ::= multiplicative ("+" multiplicative | "-" multiplicative)*
 ```
 */
-static Node *add(void)
+static Node *additive(void)
 {
-    Node *node = mul();
+    Node *node = multiplicative();
 
     // parse tokens while finding a multiplicative expression
     while(true)
@@ -1095,7 +1096,7 @@ static Node *add(void)
         if(consume_reserved("+"))
         {
             Node *lhs = node;
-            Node *rhs = mul();
+            Node *rhs = multiplicative();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -1117,7 +1118,7 @@ static Node *add(void)
         else if(consume_reserved("-"))
         {
             Node *lhs = node;
-            Node *rhs = mul();
+            Node *rhs = multiplicative();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -1143,33 +1144,67 @@ static Node *add(void)
 /*
 make a multiplicative expression
 ```
-mul ::= unary ("*" unary | "/" unary | "%" unary)*
+multiplicative ::= cast ("*" cast | "/" cast | "%" cast)*
 ```
 */
-static Node *mul(void)
+static Node *multiplicative(void)
 {
-    Node *node = unary();
+    Node *node = cast();
 
-    // parse tokens while finding an unary expression
+    // parse tokens while finding a cast expression
     while(true)
     {
         if(consume_reserved("*"))
         {
-            node = new_node_binary(ND_MUL, node, unary());
+            node = new_node_binary(ND_MUL, node, cast());
         }
         else if(consume_reserved("/"))
         {
-            node = new_node_binary(ND_DIV, node, unary());
+            node = new_node_binary(ND_DIV, node, cast());
         }
         else if(consume_reserved("%"))
         {
-            node = new_node_binary(ND_MOD, node, unary());
+            node = new_node_binary(ND_MOD, node, cast());
         }
         else
         {
             return node;
         }
     }
+}
+
+
+/*
+make a cast expression
+```
+cast ::= ("(" type-name ")")? unary
+```
+*/
+static Node *cast(void)
+{
+    Node *node;
+
+    if(consume_reserved("("))
+    {
+        Type *type = type_name();
+        if(type != NULL)
+        {
+            expect_reserved(")");
+            node = new_node(ND_CAST);
+            node->lhs = unary();
+            node->type = type;
+            goto cast_end;
+        }
+        else
+        {
+            resume_token();
+        }
+    }
+
+    node = unary();
+
+cast_end:
+    return node;
 }
 
 

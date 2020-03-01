@@ -499,6 +499,24 @@ static void generate_node(const Node *node)
         put_instruction("  push rbx");
         return;
 
+    case ND_CAST:
+        generate_node(node->lhs);
+        put_instruction("  pop rax");
+        if(node->type->size == 1)
+        {
+            put_instruction("  movsxb rax, al");
+        }
+        else if(node->type->size == 2)
+        {
+            put_instruction("  movsxw rax, ax");
+        }
+        else if(node->type->size == 4)
+        {
+            put_instruction("  movsxd rax, eax");
+        }
+        put_instruction("  push rax");
+        return;
+
     case ND_LOG_AND:
     {
         // note that RHS is not evaluated if LHS is equal to 0

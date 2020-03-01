@@ -274,6 +274,29 @@ int test_unary()
 
 
 /*
+cast operator
+*/
+int test_cast()
+{
+    put_title("cast operator");
+
+    long l;
+
+    char c;
+    l = 255; c = (char)l; assert_char(255, c);
+    l = 256; c = (char)l; assert_char(0, c);
+
+    short s;
+    l = 65535; s = (short)l; assert_short(65535, s);
+    l = 65536; s = (short)l; assert_short(0, s);
+
+    int i;
+    l = 4294967295; i = (int)l; assert_int(4294967295, i);
+    l = 4294967296; i = (int)l; assert_int(0, i);
+}
+
+
+/*
 comparision operator
 */
 int test_comparision()
@@ -954,6 +977,7 @@ int main()
     test_logical_or();
     test_conditional();
     test_unary();
+    test_cast();
     test_comparision();
     test_local_variable();
     test_assignment();
