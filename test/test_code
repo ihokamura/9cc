@@ -702,6 +702,9 @@ int test_sizeof()
     assert_int(4, sizeof sizeof(1));
 
     char c; char *pc;
+    assert_int(1, sizeof(char));
+    assert_int(8, sizeof(char *));
+    assert_int(8, sizeof(char **));
     assert_int(1, sizeof(c));
     assert_int(8, sizeof(pc));
     assert_int(8, sizeof(&c));
@@ -710,6 +713,9 @@ int test_sizeof()
     assert_int(8, sizeof(pc + 1));
 
     short s; short *ps;
+    assert_int(2, sizeof(short));
+    assert_int(8, sizeof(short *));
+    assert_int(8, sizeof(short **));
     assert_int(2, sizeof(s));
     assert_int(8, sizeof(ps));
     assert_int(8, sizeof(&s));
@@ -718,6 +724,9 @@ int test_sizeof()
     assert_int(8, sizeof(ps + 1));
 
     int i; int *pi;
+    assert_int(4, sizeof(int));
+    assert_int(8, sizeof(int *));
+    assert_int(8, sizeof(int **));
     assert_int(4, sizeof(i));
     assert_int(8, sizeof(pi));
     assert_int(8, sizeof(&i));
@@ -726,6 +735,9 @@ int test_sizeof()
     assert_int(8, sizeof(pi + 1));
 
     long l; long *pl;
+    assert_int(8, sizeof(long));
+    assert_int(8, sizeof(long *));
+    assert_int(8, sizeof(long **));
     assert_int(8, sizeof(l));
     assert_int(8, sizeof(pl));
     assert_int(8, sizeof(&l));

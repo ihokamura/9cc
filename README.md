@@ -27,8 +27,6 @@ stmt ::= ident ":" stmt
        | "continue" ";"
        | "break" ";"
        | "return" expr ";"
-declaration ::= type-spec declarator ("=" initializer)? ";"
-initializer ::= assign
 expr ::= assign ("," assign)*
 assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
@@ -46,7 +44,8 @@ mul ::= unary ("*" unary | "/" unary | "%" unary)*
 unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary
-        | sizeof unary
+        | "sizeof" unary
+        | "sizeof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 postfix ::= primary ("[" expr "]" | "(" arg-expr-list? ")" | "++" | "--" )*
 arg-expr-list ::= assign ("," assign)*
@@ -54,9 +53,13 @@ primary ::= ident
           | num
           | str
           | "(" expr ")"
-type-spec ::= "char" | "short" | "int" | "long"
-declarator ::= "*"* ident type-suffix
+declaration ::= type-spec declarator ("=" initializer)? ";"
+type-spec ::= "void" | "char" | "short" | "int" | "long"
+declarator ::= pointer? ident type-suffix
 type-suffix ::= ("[" num "]" | type-suffix)?
+initializer ::= assign
+type-name ::= type-spec pointer?
+pointer ::= "*"*
 ```
 
 

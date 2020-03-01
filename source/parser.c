@@ -23,7 +23,9 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base);
 static Function *func(const Token *token, Function *cur_func, Type *base);
 static bool peek_typename(void);
 static Type *declarator(Type *type, Token **token);
+static Type *type_name(void);
 static Type *type_spec(void);
+static Type *pointer(Type *base);
 static Type *type_suffix(Type *type);
 static Node *stmt(void);
 static Node *declaration(void);
@@ -228,16 +230,13 @@ static bool peek_typename(void)
 /*
 make a declarator
 ```
-declarator ::= "*"* ident type-suffix
+declarator ::= pointer? ident type-suffix
 ```
 */
 static Type *declarator(Type *type, Token **token)
 {
     // consume pointers
-    while(consume_reserved("*"))
-    {
-        type = new_type_pointer(type);
-    }
+    type = pointer(type);
 
     // consume identifier
     if(!consume_token(TK_IDENT, token))
@@ -253,9 +252,24 @@ static Type *declarator(Type *type, Token **token)
 
 
 /*
-make a type-spec
+make a type name
 ```
-type-spec ::= "char" | "short" | "int" | "long"
+type-name ::= type-spec pointer?
+```
+*/
+static Type *type_name(void)
+{
+    Type *type = type_spec();
+    type = pointer(type);
+
+    return type;
+}
+
+
+/*
+make a type specifier
+```
+type-spec ::= "void" | "char" | "short" | "int" | "long"
 ```
 */
 static Type *type_spec(void)
@@ -284,6 +298,25 @@ static Type *type_spec(void)
     {
         return NULL;
     }
+}
+
+
+/*
+make a pointer
+```
+pointer ::= "*"*
+```
+*/
+static Type *pointer(Type *base)
+{
+    Type *type = base;
+
+    while(consume_reserved("*"))
+    {
+        type = new_type_pointer(type);
+    }
+
+    return type;
 }
 
 
@@ -1139,7 +1172,8 @@ make an unary expression
 unary ::= postfix
         | ("++" | "--") unary
         | unary-op unary
-        | sizeof unary
+        | "sizeof" unary
+        | "sizeof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 ```
 */
@@ -1149,6 +1183,21 @@ static Node *unary(void)
 
     if(consume_reserved("sizeof"))
     {
+        if(consume_reserved("("))
+        {
+            if(peek_typename())
+            {
+                Type *type = type_name();
+                node = new_node_num(type->size);
+                expect_reserved(")");
+                goto unary_end;
+            }
+            else
+            {
+                resume_token();
+            }
+        }
+
         Node *operand = unary();
         node = new_node_num(operand->type->size);
     }
@@ -1215,6 +1264,7 @@ static Node *unary(void)
         node = postfix();
     }
 
+unary_end:
     return node;
 }
 
