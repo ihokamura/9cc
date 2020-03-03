@@ -54,8 +54,10 @@ primary ::= ident
           | num
           | str
           | "(" expr ")"
-declaration ::= type-spec declarator ("=" initializer)? ";"
+declaration ::= type-spec init-declarator-list ";"
 type-spec ::= "void" | "char" | "short" | "int" | "long"
+init-declarator-list ::= init-declarator ("," init-declarator)*
+init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
 direct-declarator ::= ident | direct-declarator "[" num "]"
 initializer ::= assign

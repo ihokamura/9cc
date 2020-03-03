@@ -426,11 +426,14 @@ static void generate_node(const Node *node)
         return;
 
     case ND_DECL:
-        if(node->lvar->init != NULL)
+        for(const Node *n = node->body; n != NULL; n = n->next)
         {
-            generate_lvalue(node);
-            generate_node(node->lvar->init);
-            generate_store(node->type);
+            if(n->lvar->init != NULL)
+            {
+                generate_lvalue(n);
+                generate_node(n->lvar->init);
+                generate_store(n->type);
+            }
         }
         return;
 

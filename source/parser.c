@@ -29,6 +29,8 @@ static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *stmt(void);
 static Node *declaration(void);
+static Node *init_declarator_list(Type *type);
+static Node *init_declarator(Type *type);
 static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
@@ -580,7 +582,7 @@ stmt_end:
 /*
 make a declaration
 ```
-declaration ::= type-spec declarator ("=" initializer)? ";"
+declaration ::= type-spec init-declarator-list ";"
 ```
 */
 static Node *declaration(void)
@@ -588,6 +590,45 @@ static Node *declaration(void)
     // parse type-specifier
     Type *type = type_spec();
 
+    // parse init-declarator-list
+    Node *node = new_node(ND_DECL);
+    node->body = init_declarator_list(type);
+
+    expect_reserved(";");
+
+    return node;
+}
+
+
+/*
+make a init-declarator-list
+```
+init-declarator-list ::= init-declarator ("," init-declarator)*
+```
+*/
+static Node *init_declarator_list(Type *type)
+{
+    Node *node = init_declarator(type);
+    Node *cursor = node;
+
+    while(consume_reserved(","))
+    {
+        cursor->next = init_declarator(type);
+        cursor = cursor->next;
+    }
+
+    return node;
+}
+
+
+/*
+make a init-declarator-list
+```
+init-declarator ::= declarator ("=" initializer)?
+```
+*/
+static Node *init_declarator(Type *type)
+{
     // parse declarator
     Token *token;
     type = declarator(type, &token);
@@ -596,7 +637,7 @@ static Node *declaration(void)
         report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
     }
 
-    Node *node = new_node(ND_DECL);
+    Node *node = new_node(ND_LVAR);
     node->type = type;
     node->lvar = current_function->locals = new_lvar(token, current_function->locals, type);
 
@@ -605,7 +646,6 @@ static Node *declaration(void)
     {
         node->lvar->init = initializer();
     }
-    expect_reserved(";");
 
     return node;
 }

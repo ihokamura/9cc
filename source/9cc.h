@@ -179,7 +179,7 @@ struct Node {
     int case_label;     // sequential number of case label (only for ND_CASE)
     Node *next_case;    // next case (only for ND_SWITCH, ND_CASE)
     Node *default_case; // default case (only for ND_SWITCH)
-    Node *body;         // body of compound statements (only for ND_BLOCK)
+    Node *body;         // body of compound statements (only for ND_BLOCK, ND_DECL)
     char *ident;        // identifier (only for ND_FUNC)
     Node *args;         // arguments (only for ND_FUNC)
 };

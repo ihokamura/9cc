@@ -952,6 +952,8 @@ int test_initializer()
     int *p; alloc4(&p, 1, 2, 4, 8); int *q = &p[1]; assert_int(4, q[1]);
     char *ps = "foo"; assert_char(111, ps[1]);
 
+    int i1 = 1, i2 = 2, *p1 = &p[1]; assert_int(1, i1); assert_int(i2, 2); assert_int(4, p1[1]);
+
     assert_int(1, gvar_char_init);
     assert_int(2, gvar_short_init);
     assert_int(3, gvar_int_init);
