@@ -22,7 +22,10 @@ static void prg(void);
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base);
 static Function *func(const Token *token, Function *cur_func, Type *base);
 static bool peek_typename(void);
+static Type *declaration_spec(void);
 static Type *declarator(Type *type, Token **token);
+static Type *parameter_list(LVar **arg_vars);
+static Type *parameter_declaration(LVar **arg_var);
 static Type *type_name(void);
 static Type *type_spec(void);
 static Type *pointer(Type *base);
@@ -149,7 +152,7 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 /*
 make a function
 ```
-func ::= type-spec declarator "(" (type-spec declarator ("," type-spec declarator)*)? ")" "{" stmt* "}"
+func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" "{" stmt* "}"
 ```
 */
 static Function *func(const Token *token, Function *cur_func, Type *base)
@@ -159,42 +162,14 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
 
     // parse arguments
     expect_reserved("(");
-    Type *arg_type = type_spec();
-    if(arg_type != NULL)
+    if(!consume_reserved(")"))
     {
-        LVar arg_head = {};
-        LVar *arg_cursor = &arg_head;
-        Type arg_types_head = {};
-        Type *arg_types_cursor = &arg_types_head;
-        Token *arg_token;
-
-        arg_type = declarator(arg_type, &arg_token);
-        if(arg_type != NULL)
+        if(!consume_reserved("void"))
         {
-            arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
-            arg_cursor = arg_cursor->next;
-            arg_types_cursor->next = arg_type;
-            arg_types_cursor = arg_types_cursor->next;
+            current_function->type->args = parameter_list(&current_function->args);
         }
-
-        while(consume_reserved(","))
-        {
-            arg_type = type_spec();
-            if(arg_type == NULL)
-            {
-                report_error(NULL, "expected type specifier\n");
-            }
-
-            arg_type = declarator(arg_type, &arg_token);
-            arg_cursor->next = new_lvar(arg_token, NULL, arg_type);
-            arg_cursor = arg_cursor->next;
-            arg_types_cursor->next = arg_type;
-            arg_types_cursor = arg_types_cursor->next;
-        }
-        current_function->args = arg_head.next;
-        current_function->type->args = arg_types_head.next;
+        expect_reserved(")");
     }
-    expect_reserved(")");
 
     // parse body
     Node body_head = {};
@@ -231,6 +206,21 @@ static bool peek_typename(void)
 
 
 /*
+make a declaration specifier
+```
+declaration-spec ::= type-spec
+```
+*/
+static Type *declaration_spec(void)
+{
+    Type *type = type_spec();
+
+    return type;
+}
+
+
+
+/*
 make a declarator
 ```
 declarator ::= pointer? direct-declarator
@@ -246,6 +236,56 @@ static Type *declarator(Type *type, Token **token)
     type = direct_declarator(type, token);
 
     return type;
+}
+
+
+/*
+make a parameterlist
+```
+parameter-list ::= parameter-declaration ("," parameter-declaration)*
+```
+*/
+static Type *parameter_list(LVar **arg_vars)
+{
+    Type *arg_types;
+    Type arg_types_head = {};
+    Type *arg_types_cursor = &arg_types_head;
+    LVar arg_vars_head = {};
+    LVar *arg_vars_cursor = &arg_vars_head;
+
+    arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
+    arg_types_cursor = arg_types_cursor->next;
+    arg_vars_cursor = arg_vars_cursor->next;
+
+    while(consume_reserved(","))
+    {
+        arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
+        arg_types_cursor = arg_types_cursor->next;
+        arg_vars_cursor = arg_vars_cursor->next;
+    }
+
+    arg_types = arg_types_head.next;
+    *arg_vars = arg_vars_head.next;
+
+    return arg_types;
+}
+
+
+/*
+make a parameter declaration
+```
+parameter-declaration ::= declaration-spec declarator
+```
+*/
+static Type *parameter_declaration(LVar **arg_var)
+{
+    Type *arg_type = declaration_spec();
+    Token *arg_token;
+
+    arg_type = declarator(arg_type, &arg_token);
+    *arg_var = new_lvar(arg_token, NULL, arg_type);
+
+    return arg_type;
 }
 
 
@@ -582,13 +622,13 @@ stmt_end:
 /*
 make a declaration
 ```
-declaration ::= type-spec init-declarator-list ";"
+declaration ::= declaration-spec init-declarator-list ";"
 ```
 */
 static Node *declaration(void)
 {
-    // parse type-specifier
-    Type *type = type_spec();
+    // parse declaration specifier
+    Type *type = declaration_spec();
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
