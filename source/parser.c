@@ -31,6 +31,7 @@ static Type *type_spec(void);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *stmt(void);
+static Node *compound_stmt(void);
 static Node *declaration(void);
 static Node *init_declarator_list(Type *type);
 static Node *init_declarator(Type *type);
@@ -152,7 +153,7 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 /*
 make a function
 ```
-func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" "{" stmt* "}"
+func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" compound-stmt
 ```
 */
 static Function *func(const Token *token, Function *cur_func, Type *base)
@@ -172,16 +173,7 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
     }
 
     // parse body
-    Node body_head = {};
-    Node *body_cursor = &body_head;
-
-    expect_reserved("{");
-    while(!consume_reserved("}"))
-    {
-        body_cursor->next = stmt();
-        body_cursor = body_cursor->next;
-    }
-    current_function->body = body_head.next;
+    current_function->body = compound_stmt();
 
     // align stack size
     current_function->stack_size = (current_function->stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
@@ -416,19 +408,10 @@ static Node *stmt(void)
 {
     Node *node;
 
-    if(consume_reserved("{"))
+    if(peek_reserved("{"))
     {
-        // parse statements until reaching '}'
-        Node head = {};
-        Node *cursor = &head;
-        while(!consume_reserved("}"))
-        {
-            cursor->next = stmt();
-            cursor = cursor->next;
-        }
-
         node = new_node(ND_BLOCK);
-        node->body = head.next;
+        node->body = compound_stmt();
     }
     else if(consume_reserved("break"))
     {
@@ -579,11 +562,6 @@ static Node *stmt(void)
         // parse loop body
         node->lhs = stmt();
     }
-    else if(peek_typename())
-    {
-        // declaration
-        node = declaration();
-    }
     else if(consume_reserved(";"))
     {
         // null statement
@@ -616,6 +594,38 @@ static Node *stmt(void)
 
 stmt_end:
     return node;
+}
+
+
+/*
+make a compound statement
+```
+compound-stmt ::= "{" (declaration | stmt)* "}"
+```
+*/
+static Node *compound_stmt(void)
+{
+    expect_reserved("{");
+
+    // parse declaration and/or statement until reaching '}'
+    Node head = {};
+    Node *cursor = &head;
+    while(!consume_reserved("}"))
+    {
+        if(peek_typename())
+        {
+            // declaration
+            cursor->next = declaration();
+        }
+        else
+        {
+            // statement
+            cursor->next = stmt();
+        }
+        cursor = cursor->next;
+    }
+
+    return head.next;
 }
 
 

@@ -11,12 +11,11 @@
 ```
 prg ::= (gvar | func)*
 gvar ::= type-spec declarator ("=" initializer) ";"
-func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" "{" stmt* "}"
+func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" compound-stmt
 stmt ::= ident ":" stmt
        | "case" num ":" stmt
        | "default" ":" stmt
-       | declaration
-       | "{" stmt* "}"
+       | compound-stmt
        | expr? ";"
        | "if" "(" expr ")" stmt ("else" stmt)?
        | "switch" "(" expr ")" stmt
@@ -27,6 +26,7 @@ stmt ::= ident ":" stmt
        | "continue" ";"
        | "break" ";"
        | "return" expr ";"
+compound-stmt ::= "{" (declaration | stmt)* "}"
 expr ::= assign ("," assign)*
 assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
