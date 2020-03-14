@@ -63,7 +63,7 @@ static GVar *new_str(const Token *token);
 static GVar *get_gvar(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
-static Function *new_function(const Token *token, Function *cur_func, Type *base, Type *arg_types, LVar *arg_vars, size_t stack_size);
+static Function *new_function(const Token *token, Function *cur_func, Type *type, LVar *args, size_t stack_size);
 static Function *get_function(const Token *token);
 static LVar *new_param(const Token *token, Type *type);
 static char *new_strlabel(void);
@@ -77,7 +77,8 @@ static GVar *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
-static size_t stack_alignment_size = 8; // alignment size of function stack
+static LVar *current_arg_vars = NULL; // arguments of currently constructing function
+static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
 
 
@@ -110,12 +111,12 @@ static void prg(void)
 
     while(!at_eof())
     {
-        // parse identifier and base type
+        // parse declaration specifier and declarator
         Type *base = declaration_spec();
-        Token *token;
 
+        Token *token;
         base = declarator(base, &token);
-        if(peek_reserved("("))
+        if(peek_reserved("{"))
         {
             // parse function
             func_cursor = func(token, func_cursor, base);
@@ -156,39 +157,28 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
 /*
 make a function
 ```
-func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" compound-stmt
+func ::= declaration-spec declarator compound-stmt
 ```
 */
-static Function *func(const Token *token, Function *cur_func, Type *base)
+static Function *func(const Token *token, Function *cur_func, Type *type)
 {
-    // parse arguments
+    // accumulate stack size and set offset of arguments
     size_t stack_size = 0;
-    Type *arg_types = new_type(TY_VOID);
-    LVar *arg_vars = NULL;
- 
-    expect_reserved("(");
-    if(!consume_reserved(")"))
+    if(type->args->kind != TY_VOID)
     {
-        if(!consume_reserved("void"))
+        Type *type_cursor = type->args;
+        LVar *var_cursor = current_arg_vars;
+        while((type_cursor != NULL) && (var_cursor != NULL))
         {
-            arg_types = parameter_list(&arg_vars);
-
-            // accumulate stack size and set offset of arguments
-            Type *type_cursor = arg_types;
-            LVar *var_cursor = arg_vars;
-            while((type_cursor != NULL) && (var_cursor != NULL))
-            {
-                stack_size += type_cursor->size;
-                var_cursor->offset = stack_size;
-                type_cursor = type_cursor->next;
-                var_cursor = var_cursor->next;
-            }
+            stack_size += type_cursor->size;
+            var_cursor->offset = stack_size;
+            type_cursor = type_cursor->next;
+            var_cursor = var_cursor->next;
         }
-        expect_reserved(")");
     }
 
     // make a new function
-    current_function = new_function(token, cur_func, base, arg_types, arg_vars, stack_size);
+    current_function = new_function(token, cur_func, type, current_arg_vars, stack_size);
 
     // parse body
     current_function->body = compound_stmt();
@@ -375,7 +365,9 @@ static Type *pointer(Type *base)
 /*
 make a direct declarator
 ```
-direct-declarator ::= ident | direct-declarator "[" const-expr "]"
+direct-declarator ::= ident
+                    | direct-declarator "[" const-expr "]"
+                    | direct-declarator "(" ("void" | parameter-list)? ")"
 ```
 */
 static Type *direct_declarator(Type *type, Token **token)
@@ -392,6 +384,24 @@ static Type *direct_declarator(Type *type, Token **token)
             expect_reserved("]");
             type = direct_declarator(type, token);
             type = new_type_array(type, size);
+        }
+        else if(consume_reserved("("))
+        {
+            // parse arguments
+            Type *arg_types = new_type(TY_VOID);
+            LVar *arg_vars = NULL;
+            if(!consume_reserved(")"))
+            {
+                if(!consume_reserved("void"))
+                {
+                    arg_types = parameter_list(&arg_vars);
+                }
+                expect_reserved(")");
+            }
+
+            type = direct_declarator(type, token);
+            type = new_type_function(type, arg_types);
+            current_arg_vars = arg_vars;
         }
     }
 
@@ -1555,6 +1565,7 @@ static Node *primary(void)
             Node *node = new_node(ND_FUNC);
             node->type = new_type_pointer(func->type);
             node->ident = make_ident(token);
+            return node;
         }
 
         // search global variable
@@ -1869,7 +1880,7 @@ static LVar *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Function *cur_func, Type *base, Type *arg_types, LVar *arg_vars, size_t stack_size)
+static Function *new_function(const Token *token, Function *cur_func, Type *type, LVar *args, size_t stack_size)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
@@ -1877,10 +1888,10 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
     new_func->name = make_ident(token);
 
     // initialize arguments
-    new_func->args = arg_vars;
+    new_func->args = args;
 
     // initialize type
-    new_func->type = new_type_function(base, arg_types);
+    new_func->type = new_type_function(type->base, type->args);
 
     // initialize function body
     new_func->body = NULL;

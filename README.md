@@ -11,7 +11,7 @@
 ```
 prg ::= (gvar | func)*
 gvar ::= declaration-spec declarator ("=" initializer) ";"
-func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" compound-stmt
+func ::= declaration-spec declarator compound-stmt
 stmt ::= ident ":" stmt
        | "case" num ":" stmt
        | "default" ":" stmt
@@ -60,7 +60,9 @@ type-spec ::= "void" | "char" | "short" | "int" | "long"
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
-direct-declarator ::= ident | direct-declarator "[" const-expr "]"
+direct-declarator ::= ident
+                    | direct-declarator "[" const-expr "]"
+                    | direct-declarator "(" ("void" | parameter-list)? ")"
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-spec declarator
 initializer ::= assign
