@@ -793,7 +793,7 @@ int test_array()
 {
     put_title("array");
 
-    int a1[1]; int a2[2]; int a3[3]; int a4[4]; int a32[3][2]; int *p; int i; int j;
+    int a1[1]; int a2[2]; int a3[1 + 2]; int a4[2 << 1]; int a32[3][2]; int *p; int i; int j;
     *a1 = 2; assert_int(2, *a1);
     *(a2 + 1) = 2; assert_int(2, 2 * *(a2 + 1) - 2);
     *a2 = 1; *(a2 + 1) = 2; p = a2; assert_int(3, *p + *(p + 1));

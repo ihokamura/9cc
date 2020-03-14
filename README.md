@@ -60,7 +60,7 @@ type-spec ::= "void" | "char" | "short" | "int" | "long"
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
-direct-declarator ::= ident | direct-declarator "[" num "]"
+direct-declarator ::= ident | direct-declarator "[" const-expr "]"
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-spec declarator
 initializer ::= assign

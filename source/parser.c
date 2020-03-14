@@ -67,6 +67,8 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
 static Function *get_function(const Token *token);
 static LVar *new_param(const Token *token, Type *type);
 static char *new_strlabel(void);
+static long const_expr(void);
+static long evaluate(const Node *node);
 
 
 // global variable
@@ -174,7 +176,7 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
             // accumulate stack size and set offset of arguments
             Type *type_cursor = arg_types;
             LVar *var_cursor = arg_vars;
-            while((cur_func != NULL) && (var_cursor != NULL))
+            while((type_cursor != NULL) && (var_cursor != NULL))
             {
                 stack_size += type_cursor->size;
                 var_cursor->offset = stack_size;
@@ -185,12 +187,10 @@ static Function *func(const Token *token, Function *cur_func, Type *base)
         expect_reserved(")");
     }
 
-
     // make a new function
-    cur_func = new_function(token, cur_func, base, arg_types, arg_vars, stack_size);
+    current_function = new_function(token, cur_func, base, arg_types, arg_vars, stack_size);
 
     // parse body
-    current_function = cur_func;
     current_function->body = compound_stmt();
 
     return current_function;
@@ -375,7 +375,7 @@ static Type *pointer(Type *base)
 /*
 make a direct declarator
 ```
-direct-declarator ::= ident | direct-declarator "[" num "]"
+direct-declarator ::= ident | direct-declarator "[" const-expr "]"
 ```
 */
 static Type *direct_declarator(Type *type, Token **token)
@@ -388,7 +388,7 @@ static Type *direct_declarator(Type *type, Token **token)
     {
         if(consume_reserved("["))
         {
-            size_t size = expect_number();
+            size_t size = const_expr();
             expect_reserved("]");
             type = direct_declarator(type, token);
             type = new_type_array(type, size);
@@ -1945,4 +1945,78 @@ static char *new_strlabel(void)
     str_label++;
 
     return label;
+}
+
+
+/*
+make a constant expression
+*/
+static long const_expr(void)
+{
+    return evaluate(conditional());
+}
+
+
+/*
+evaluate a node
+*/
+static long evaluate(const Node *node)
+{
+    switch(node->kind)
+    {
+    case ND_ADD:
+        return evaluate(node->lhs) + evaluate(node->rhs);
+
+    case ND_SUB:
+        return evaluate(node->lhs) - evaluate(node->rhs);
+
+    case ND_MUL:
+        return evaluate(node->lhs) * evaluate(node->rhs);
+
+    case ND_DIV:
+        return evaluate(node->lhs) / evaluate(node->rhs);
+
+    case ND_MOD:
+        return evaluate(node->lhs) % evaluate(node->rhs);
+
+    case ND_LSHIFT:
+        return evaluate(node->lhs) << evaluate(node->rhs);;
+
+    case ND_RSHIFT:
+        return evaluate(node->lhs) >> evaluate(node->rhs);
+
+    case ND_EQ:
+        return evaluate(node->lhs) == evaluate(node->rhs);
+
+    case ND_NEQ:
+        return evaluate(node->lhs) != evaluate(node->rhs);
+
+    case ND_L:
+        return evaluate(node->lhs) < evaluate(node->rhs);
+
+    case ND_LEQ:
+        return evaluate(node->lhs) <= evaluate(node->rhs);;
+
+    case ND_AND:
+        return evaluate(node->lhs) & evaluate(node->rhs);
+
+    case ND_XOR:
+        return evaluate(node->lhs) ^ evaluate(node->rhs);
+
+    case ND_OR:
+        return evaluate(node->lhs) | evaluate(node->rhs);;
+
+    case ND_LOG_AND:
+        return evaluate(node->lhs) && evaluate(node->rhs);
+
+    case ND_LOG_OR:
+        return evaluate(node->lhs) || evaluate(node->rhs);
+
+    case ND_NUM:
+        return node->val;
+
+    default:
+        report_error(NULL, "cannot evaluate");
+        return 0;
+    }
 }
