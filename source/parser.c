@@ -63,8 +63,9 @@ static GVar *new_str(const Token *token);
 static GVar *get_gvar(const Token *token);
 static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
 static LVar *get_lvar(const Token *token);
-static Function *new_function(const Token *token, Function *cur_func, Type *base);
+static Function *new_function(const Token *token, Function *cur_func, Type *base, Type *arg_types, LVar *arg_vars, size_t stack_size);
 static Function *get_function(const Token *token);
+static LVar *new_param(const Token *token, Type *type);
 static char *new_strlabel(void);
 
 
@@ -108,7 +109,7 @@ static void prg(void)
     while(!at_eof())
     {
         // parse identifier and base type
-        Type *base = type_spec();
+        Type *base = declaration_spec();
         Token *token;
 
         base = declarator(base, &token);
@@ -132,7 +133,7 @@ static void prg(void)
 /*
 make a global variable
 ```
-gvar ::= type-spec declarator ("=" initializer) ";"
+gvar ::= declaration-spec declarator ("=" initializer) ";"
 ```
 */
 static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
@@ -158,25 +159,39 @@ func ::= declaration-spec declarator "(" ("void" | parameter-list)? ")" compound
 */
 static Function *func(const Token *token, Function *cur_func, Type *base)
 {
-    // make a new function
-    current_function = new_function(token, cur_func, base);
-
     // parse arguments
+    size_t stack_size = 0;
+    Type *arg_types = new_type(TY_VOID);
+    LVar *arg_vars = NULL;
+ 
     expect_reserved("(");
     if(!consume_reserved(")"))
     {
         if(!consume_reserved("void"))
         {
-            current_function->type->args = parameter_list(&current_function->args);
+            arg_types = parameter_list(&arg_vars);
+
+            // accumulate stack size and set offset of arguments
+            Type *type_cursor = arg_types;
+            LVar *var_cursor = arg_vars;
+            while((cur_func != NULL) && (var_cursor != NULL))
+            {
+                stack_size += type_cursor->size;
+                var_cursor->offset = stack_size;
+                type_cursor = type_cursor->next;
+                var_cursor = var_cursor->next;
+            }
         }
         expect_reserved(")");
     }
 
-    // parse body
-    current_function->body = compound_stmt();
 
-    // align stack size
-    current_function->stack_size = (current_function->stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
+    // make a new function
+    cur_func = new_function(token, cur_func, base, arg_types, arg_vars, stack_size);
+
+    // parse body
+    current_function = cur_func;
+    current_function->body = compound_stmt();
 
     return current_function;
 }
@@ -275,7 +290,7 @@ static Type *parameter_declaration(LVar **arg_var)
     Token *arg_token;
 
     arg_type = declarator(arg_type, &arg_token);
-    *arg_var = new_lvar(arg_token, NULL, arg_type);
+    *arg_var = new_param(arg_token, arg_type);
 
     return arg_type;
 }
@@ -1854,7 +1869,7 @@ static LVar *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Function *cur_func, Type *base)
+static Function *new_function(const Token *token, Function *cur_func, Type *base, Type *arg_types, LVar *arg_vars, size_t stack_size)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
@@ -1862,10 +1877,10 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
     new_func->name = make_ident(token);
 
     // initialize arguments
-    new_func->args = NULL;
+    new_func->args = arg_vars;
 
     // initialize type
-    new_func->type = new_type_function(base, new_type(TY_VOID));
+    new_func->type = new_type_function(base, arg_types);
 
     // initialize function body
     new_func->body = NULL;
@@ -1874,7 +1889,7 @@ static Function *new_function(const Token *token, Function *cur_func, Type *base
     new_func->locals = NULL;
 
     // initialize stack size
-    new_func->stack_size = 0;
+    new_func->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1); // align stack size
 
     // update list of functions
     cur_func->next = new_func;
@@ -1900,6 +1915,21 @@ static Function *get_function(const Token *token)
     }
 
     return NULL;
+}
+
+
+/*
+make a new parameter
+*/
+static LVar *new_param(const Token *token, Type *type)
+{
+    LVar *lvar = calloc(1, sizeof(LVar));
+    lvar->str = token->str;
+    lvar->len = token->len;
+    lvar->type = type;
+    lvar->init = NULL;
+
+    return lvar;
 }
 
 
