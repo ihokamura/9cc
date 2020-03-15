@@ -178,11 +178,20 @@ bool consume_token(TokenKind kind, Token **token)
 
 
 /*
-resume a token
+get the currently parsing token
 */
-void resume_token(void)
+Token *get_token(void)
 {
-    current_token = current_token->prev;
+    return current_token;
+}
+
+
+/*
+set the currently parsing token
+*/
+void set_token(Token *token)
+{
+    current_token = token;
 }
 
 
@@ -575,7 +584,6 @@ static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
     new_tok->kind = kind;
     new_tok->str = str;
     new_tok->len = len;
-    new_tok->prev = cur_tok;
     cur_tok->next = new_tok;
 
     return new_tok;

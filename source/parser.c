@@ -19,8 +19,8 @@
 
 // function prototype
 static void prg(void);
-static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base);
-static Function *func(const Token *token, Function *cur_func, Type *base);
+static void gvar(void);
+static void func(void);
 static bool peek_typename(void);
 static Type *declaration_spec(void);
 static Type *declarator(Type *type, Token **token);
@@ -66,6 +66,7 @@ static LVar *get_lvar(const Token *token);
 static Function *new_function(const Token *token, Function *cur_func, Type *type, LVar *args, size_t stack_size);
 static Function *get_function(const Token *token);
 static LVar *new_param(const Token *token, Type *type);
+static bool peek_func(void);
 static char *new_strlabel(void);
 static long const_expr(void);
 static long evaluate(const Node *node);
@@ -77,7 +78,7 @@ static GVar *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
-static LVar *current_arg_vars = NULL; // arguments of currently constructing function
+static LVar *current_args = NULL; // arguments of currently constructing function
 static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
 
@@ -106,25 +107,20 @@ static void prg(void)
     gvar_list = &gvar_head;
 
     Function func_head = {};
-    Function *func_cursor = &func_head;
+    current_function = &func_head;
     function_list = &func_head;
 
     while(!at_eof())
     {
-        // parse declaration specifier and declarator
-        Type *base = declaration_spec();
-
-        Token *token;
-        base = declarator(base, &token);
-        if(peek_reserved("{"))
+        if(peek_func())
         {
             // parse function
-            func_cursor = func(token, func_cursor, base);
+            func();
         }
         else
         {
             // parse global variable
-            current_gvar = gvar(token, current_gvar, base);
+            gvar();
         }
     }
 
@@ -139,9 +135,14 @@ make a global variable
 gvar ::= declaration-spec declarator ("=" initializer) ";"
 ```
 */
-static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
+static void gvar(void)
 {
-    current_gvar = new_gvar(token, cur_gvar, base);
+    // parse declaration specifier and declarator
+    Type *base = declaration_spec();
+    Token *token;
+    base = declarator(base, &token);
+
+    current_gvar = new_gvar(token, current_gvar, base);
 
     // parse initializer
     if(consume_reserved("="))
@@ -149,8 +150,6 @@ static GVar *gvar(const Token *token, GVar *cur_gvar, Type *base)
         current_gvar->init = initializer();
     }
     expect_reserved(";");
-
-    return current_gvar;
 }
 
 
@@ -160,30 +159,29 @@ make a function
 func ::= declaration-spec declarator compound-stmt
 ```
 */
-static Function *func(const Token *token, Function *cur_func, Type *type)
+static void func(void)
 {
+    // parse declaration specifier and declarator
+    Type *type = declaration_spec();
+    Token *token;
+    type = declarator(type, &token);
+
     // accumulate stack size and set offset of arguments
     size_t stack_size = 0;
     if(type->args->kind != TY_VOID)
     {
-        Type *type_cursor = type->args;
-        LVar *var_cursor = current_arg_vars;
-        while((type_cursor != NULL) && (var_cursor != NULL))
+        for(LVar *arg = current_args; arg != NULL; arg = arg->next)
         {
-            stack_size += type_cursor->size;
-            var_cursor->offset = stack_size;
-            type_cursor = type_cursor->next;
-            var_cursor = var_cursor->next;
+            stack_size += arg->type->size;
+            arg->offset = stack_size;
         }
     }
 
     // make a new function
-    current_function = new_function(token, cur_func, type, current_arg_vars, stack_size);
+    current_function = new_function(token, current_function, type, current_args, stack_size);
 
     // parse body
     current_function->body = compound_stmt();
-
-    return current_function;
 }
 
 
@@ -380,10 +378,10 @@ static Type *direct_declarator(Type *type, Token **token)
     {
         if(consume_reserved("["))
         {
-            size_t size = const_expr();
+            size_t len = const_expr();
             expect_reserved("]");
             type = direct_declarator(type, token);
-            type = new_type_array(type, size);
+            type = new_type_array(type, len);
         }
         else if(consume_reserved("("))
         {
@@ -401,7 +399,7 @@ static Type *direct_declarator(Type *type, Token **token)
 
             type = direct_declarator(type, token);
             type = new_type_function(type, arg_types);
-            current_arg_vars = arg_vars;
+            current_args = arg_vars;
         }
     }
 
@@ -594,6 +592,7 @@ static Node *stmt(void)
     }
     else
     {
+        Token *saved_token = get_token();
         Token *token;
         if(consume_token(TK_IDENT, &token))
         {
@@ -608,7 +607,7 @@ static Node *stmt(void)
             else
             {
                 // resume the token since it is not a label
-                resume_token();
+                set_token(saved_token);
             }
         }
 
@@ -1299,11 +1298,12 @@ static Node *cast(void)
 {
     Node *node;
 
+    Token *saved_token = get_token();
     if(consume_reserved("("))
     {
-        Type *type = type_name();
-        if(type != NULL)
+        if(peek_typename())
         {
+            Type *type = type_name();
             expect_reserved(")");
             node = new_node(ND_CAST);
             node->lhs = unary();
@@ -1312,7 +1312,7 @@ static Node *cast(void)
         }
         else
         {
-            resume_token();
+            set_token(saved_token);
         }
     }
 
@@ -1340,6 +1340,7 @@ static Node *unary(void)
 
     if(consume_reserved("sizeof"))
     {
+        Token *saved_token = get_token();
         if(consume_reserved("("))
         {
             if(peek_typename())
@@ -1351,7 +1352,7 @@ static Node *unary(void)
             }
             else
             {
-                resume_token();
+                set_token(saved_token);
             }
         }
 
@@ -1856,11 +1857,11 @@ get a function argument or an existing local variable
 static LVar *get_lvar(const Token *token)
 {
     // search list of function arguments
-    for(LVar *lvar = current_function->args; lvar != NULL; lvar = lvar->next)
+    for(LVar *arg = current_args; arg != NULL; arg = arg->next)
     {
-        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, token->len) == 0))
+        if((arg->len == token->len) && (strncmp(token->str, arg->str, token->len) == 0))
         {
-            return lvar;
+            return arg;
         }
     }
 
@@ -1956,6 +1957,29 @@ static char *new_strlabel(void)
     str_label++;
 
     return label;
+}
+
+
+/*
+peek a function
+*/
+static bool peek_func(void)
+{
+    // save the currently parsing token
+    Token *saved_token = get_token();
+
+    // parse declaration specifier and declarator
+    Type *base = declaration_spec();
+    Token *token;
+    base = declarator(base, &token);
+
+    // check if a compound statement follows
+    bool is_func = consume_reserved("{");
+
+    // resume the saved token
+    set_token(saved_token);
+
+    return is_func;
 }
 
 

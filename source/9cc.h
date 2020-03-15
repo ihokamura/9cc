@@ -120,7 +120,6 @@ typedef enum {
 // structure for token
 typedef struct Token Token;
 struct Token {
-    Token *prev;    // previous token
     Token *next;    // next token
     TokenKind kind; // kind of token
     long val;       // value of token (only for TK_NUM)
@@ -212,7 +211,8 @@ bool peek_reserved(const char *str);
 bool peek_token(TokenKind kind, Token **token);
 bool consume_reserved(const char *str);
 bool consume_token(TokenKind kind, Token **token);
-void resume_token(void);
+Token *get_token(void);
+void set_token(Token *token);
 void expect_reserved(const char *str);
 Token *expect_ident(void);
 long expect_number(void);
