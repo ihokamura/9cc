@@ -10,7 +10,7 @@
 ## Syntax
 ```
 prg ::= (gvar | func)*
-gvar ::= declaration-spec declarator ("=" initializer) ";"
+gvar ::= declaration
 func ::= declaration-spec declarator compound-stmt
 stmt ::= ident ":" stmt
        | "case" num ":" stmt

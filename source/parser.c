@@ -32,9 +32,9 @@ static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *stmt(void);
 static Node *compound_stmt(void);
-static Node *declaration(void);
-static Node *init_declarator_list(Type *type);
-static Node *init_declarator(Type *type);
+static Node *declaration(bool is_local);
+static Node *init_declarator_list(Type *type, bool is_local);
+static Node *init_declarator(Type *type, bool is_local);
 static Node *initializer(void);
 static Node *expr(void);
 static Node *assign(void);
@@ -132,24 +132,12 @@ static void prg(void)
 /*
 make a global variable
 ```
-gvar ::= declaration-spec declarator ("=" initializer) ";"
+gvar ::= declaration
 ```
 */
 static void gvar(void)
 {
-    // parse declaration specifier and declarator
-    Type *base = declaration_spec();
-    Token *token;
-    base = declarator(base, &token);
-
-    current_gvar = new_gvar(token, current_gvar, base);
-
-    // parse initializer
-    if(consume_reserved("="))
-    {
-        current_gvar->init = initializer();
-    }
-    expect_reserved(";");
+    declaration(false);
 }
 
 
@@ -639,7 +627,7 @@ static Node *compound_stmt(void)
         if(peek_typename())
         {
             // declaration
-            cursor->next = declaration();
+            cursor->next = declaration(true);
         }
         else
         {
@@ -659,14 +647,14 @@ make a declaration
 declaration ::= declaration-spec init-declarator-list ";"
 ```
 */
-static Node *declaration(void)
+static Node *declaration(bool is_local)
 {
     // parse declaration specifier
     Type *type = declaration_spec();
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
-    node->body = init_declarator_list(type);
+    node->body = init_declarator_list(type, is_local);
 
     expect_reserved(";");
 
@@ -680,14 +668,14 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static Node *init_declarator_list(Type *type)
+static Node *init_declarator_list(Type *type, bool is_local)
 {
-    Node *node = init_declarator(type);
+    Node *node = init_declarator(type, is_local);
     Node *cursor = node;
 
     while(consume_reserved(","))
     {
-        cursor->next = init_declarator(type);
+        cursor->next = init_declarator(type, is_local);
         cursor = cursor->next;
     }
 
@@ -701,24 +689,48 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Node *init_declarator(Type *type)
+static Node *init_declarator(Type *type, bool is_local)
 {
     // parse declarator
     Token *token;
     type = declarator(type, &token);
-    if(get_lvar(token) != NULL)
+
+    Node *node;
+    if(is_local)
     {
-        report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
+        // local variable
+        if(get_lvar(token) != NULL)
+        {
+            report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
+        }
+
+        node = new_node(ND_LVAR);
+        node->type = type;
+        node->lvar = current_function->locals = new_lvar(token, current_function->locals, type);
+
+        // parse initializer
+        if(consume_reserved("="))
+        {
+            node->lvar->init = initializer();
+        }
     }
-
-    Node *node = new_node(ND_LVAR);
-    node->type = type;
-    node->lvar = current_function->locals = new_lvar(token, current_function->locals, type);
-
-    // parse initializer
-    if(consume_reserved("="))
+    else
     {
-        node->lvar->init = initializer();
+        // global variable
+        if(get_gvar(token) != NULL)
+        {
+            report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
+        }
+
+        node = new_node(ND_GVAR);
+        node->type = type;
+        current_gvar = new_gvar(token, current_gvar, type);
+
+        // parse initializer
+        if(consume_reserved("="))
+        {
+            current_gvar->init = initializer();
+        }
     }
 
     return node;

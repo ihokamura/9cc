@@ -940,6 +940,7 @@ char gvar_char_init = 1;
 short gvar_short_init = 2;
 int gvar_int_init = 3;
 long gvar_long_init = 4;
+int gvar_int_uninit1, gvar_int_init1 = 11, gvar_int_init2 = 12, gvar_int_uninit2;
 int test_initializer()
 {
     put_title("initializer");
@@ -958,6 +959,12 @@ int test_initializer()
     assert_int(2, gvar_short_init);
     assert_int(3, gvar_int_init);
     assert_int(4, gvar_long_init);
+
+    gvar_int_uninit1 = 1, gvar_int_uninit2 = 2;
+    assert_int(1, gvar_int_uninit1);
+    assert_int(2, gvar_int_uninit2);
+    assert_int(11, gvar_int_init1);
+    assert_int(12, gvar_int_init2);
 
     return 0;
 }
