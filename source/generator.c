@@ -41,7 +41,7 @@ typedef enum {
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
 static void generate_lvalue(const Node *node);
-static void generate_gvar(const GVar *gvar);
+static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
 static void generate_args(const Node *args);
 static void generate_binary(const Node *node, BinaryOperationKind kind);
@@ -70,7 +70,7 @@ void generate(const Program *program)
 
     // generate global variables
     put_instruction(".data");
-    for(GVar *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
+    for(Variable *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
     {
         generate_gvar(gvar);
     }
@@ -145,14 +145,14 @@ static void generate_lvalue(const Node *node)
     switch(node->kind)
     {
     case ND_GVAR:
-        put_instruction("  lea rax, %s[rip]", node->gvar->name);
+        put_instruction("  lea rax, %s[rip]", node->var->name);
         put_instruction("  push rax");
         break;
 
     case ND_DECL:
     case ND_LVAR:
         put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %d", node->lvar->offset);
+        put_instruction("  sub rax, %d", node->var->offset);
         put_instruction("  push rax");
         break;
 
@@ -170,7 +170,7 @@ static void generate_lvalue(const Node *node)
 /*
 generate assembler code of a global variable
 */
-static void generate_gvar(const GVar *gvar)
+static void generate_gvar(const Variable *gvar)
 {
     // put label
     put_instruction(".global %s", gvar->name);
@@ -228,7 +228,7 @@ static void generate_func(const Function *func)
 
     // arguments
     size_t argc = 0;
-    for(LVar *arg = func->args; arg != NULL; arg = arg->next)
+    for(Variable *arg = func->args; arg != NULL; arg = arg->next)
     {
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %d", arg->offset);
@@ -428,10 +428,10 @@ static void generate_node(const Node *node)
     case ND_DECL:
         for(const Node *n = node->body; n != NULL; n = n->next)
         {
-            if(n->lvar->init != NULL)
+            if(n->var->init != NULL)
             {
                 generate_lvalue(n);
-                generate_node(n->lvar->init);
+                generate_node(n->var->init);
                 generate_store(n->type);
             }
         }

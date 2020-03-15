@@ -24,8 +24,8 @@ static void func(void);
 static bool peek_typename(void);
 static Type *declaration_spec(void);
 static Type *declarator(Type *type, Token **token);
-static Type *parameter_list(LVar **arg_vars);
-static Type *parameter_declaration(LVar **arg_var);
+static Type *parameter_list(Variable **arg_vars);
+static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
 static Type *type_spec(void);
 static Type *pointer(Type *base);
@@ -58,14 +58,14 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type);
-static GVar *new_str(const Token *token);
-static GVar *get_gvar(const Token *token);
-static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type);
-static LVar *get_lvar(const Token *token);
-static Function *new_function(const Token *token, Function *cur_func, Type *type, LVar *args, size_t stack_size);
+static Variable *new_gvar(const Token *token, Variable *cur_gvar, Type *type);
+static Variable *new_str(const Token *token);
+static Variable *get_gvar(const Token *token);
+static Variable *new_lvar(const Token *token, Variable *cur_lvar, Type *type);
+static Variable *get_lvar(const Token *token);
+static Function *new_function(const Token *token, Function *cur_func, Type *type, Variable *args, size_t stack_size);
 static Function *get_function(const Token *token);
-static LVar *new_param(const Token *token, Type *type);
+static Variable *new_param(const Token *token, Type *type);
 static bool peek_func(void);
 static char *new_strlabel(void);
 static long const_expr(void);
@@ -73,12 +73,12 @@ static long evaluate(const Node *node);
 
 
 // global variable
-static GVar *gvar_list; // list of global variables
-static GVar *current_gvar; // currently parsing global variable
+static Variable *gvar_list; // list of global variables
+static Variable *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
-static LVar *current_args = NULL; // arguments of currently constructing function
+static Variable *current_args = NULL; // arguments of currently constructing function
 static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
 
@@ -102,7 +102,7 @@ prg ::= (gvar | func)*
 */
 static void prg(void)
 {
-    GVar gvar_head = {};
+    Variable gvar_head = {};
     current_gvar = &gvar_head;
     gvar_list = &gvar_head;
 
@@ -158,7 +158,7 @@ static void func(void)
     size_t stack_size = 0;
     if(type->args->kind != TY_VOID)
     {
-        for(LVar *arg = current_args; arg != NULL; arg = arg->next)
+        for(Variable *arg = current_args; arg != NULL; arg = arg->next)
         {
             stack_size += arg->type->size;
             arg->offset = stack_size;
@@ -228,13 +228,13 @@ make a parameterlist
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
 */
-static Type *parameter_list(LVar **arg_vars)
+static Type *parameter_list(Variable **arg_vars)
 {
     Type *arg_types;
     Type arg_types_head = {};
     Type *arg_types_cursor = &arg_types_head;
-    LVar arg_vars_head = {};
-    LVar *arg_vars_cursor = &arg_vars_head;
+    Variable arg_vars_head = {};
+    Variable *arg_vars_cursor = &arg_vars_head;
 
     arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
     arg_types_cursor = arg_types_cursor->next;
@@ -260,7 +260,7 @@ make a parameter declaration
 parameter-declaration ::= declaration-spec declarator
 ```
 */
-static Type *parameter_declaration(LVar **arg_var)
+static Type *parameter_declaration(Variable **arg_var)
 {
     Type *arg_type = declaration_spec();
     Token *arg_token;
@@ -375,7 +375,7 @@ static Type *direct_declarator(Type *type, Token **token)
         {
             // parse arguments
             Type *arg_types = new_type(TY_VOID);
-            LVar *arg_vars = NULL;
+            Variable *arg_vars = NULL;
             if(!consume_reserved(")"))
             {
                 if(!consume_reserved("void"))
@@ -706,12 +706,12 @@ static Node *init_declarator(Type *type, bool is_local)
 
         node = new_node(ND_LVAR);
         node->type = type;
-        node->lvar = current_function->locals = new_lvar(token, current_function->locals, type);
+        node->var = current_function->locals = new_lvar(token, current_function->locals, type);
 
         // parse initializer
         if(consume_reserved("="))
         {
-            node->lvar->init = initializer();
+            node->var->init = initializer();
         }
     }
     else
@@ -1582,22 +1582,22 @@ static Node *primary(void)
         }
 
         // search global variable
-        GVar *gvar = get_gvar(token);
+        Variable *gvar = get_gvar(token);
         if(gvar != NULL)
         {
             Node *node = new_node(ND_GVAR);
             node->type = gvar->type;
-            node->gvar = gvar;
+            node->var = gvar;
             return node;
         }
 
         // search local variable
-        LVar *lvar = get_lvar(token);
+        Variable *lvar = get_lvar(token);
         if(lvar != NULL)
         {
             Node *node = new_node(ND_LVAR);
             node->type = lvar->type;
-            node->lvar = lvar;
+            node->var = lvar;
             return node;
         }
 
@@ -1622,8 +1622,8 @@ static Node *primary(void)
     if(consume_token(TK_STR, &token))
     {
         Node *node = new_node(ND_GVAR);
-        node->gvar = new_str(token);
-        node->type = node->gvar->type;
+        node->var = new_str(token);
+        node->type = node->var->type;
         return node;
     }
 
@@ -1644,8 +1644,7 @@ static Node *new_node(NodeKind kind)
     node->rhs = NULL;
     node->type = NULL;
     node->val = 0;
-    node->gvar = NULL;
-    node->lvar = NULL;
+    node->var = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
     node->postexpr = NULL;
@@ -1786,14 +1785,15 @@ static Node *new_node_num(int val)
 /*
 make a new global variable
 */
-static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
+static Variable *new_gvar(const Token *token, Variable *cur_gvar, Type *type)
 {
-    GVar *gvar = calloc(1, sizeof(GVar));
+    Variable *gvar = calloc(1, sizeof(Variable));
     gvar->next = NULL;
     gvar->name = make_ident(token);
     gvar->type = type;
-    gvar->content = NULL;
     gvar->init = NULL;
+    gvar->offset = 0;
+    gvar->content = NULL;
     cur_gvar->next = gvar;
 
     return gvar;
@@ -1804,13 +1804,14 @@ static GVar *new_gvar(const Token *token, GVar *cur_gvar, Type *type)
 make a new string-literal
 * String-literal is regarded as a global variable.
 */
-static GVar *new_str(const Token *token)
+static Variable *new_str(const Token *token)
 {
-    GVar *str = calloc(1, sizeof(GVar));
+    Variable *str = calloc(1, sizeof(Variable));
     str->next = NULL;
     str->name = new_strlabel();
     str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
     str->init = NULL;
+    str->offset = 0;
 
     str->content = calloc(token->len + 1, sizeof(char));
     strncpy(str->content, token->str, token->len);
@@ -1827,10 +1828,10 @@ get an existing global variable
 * If there exists a global variable with a given token, this function returns the variable.
 * Otherwise, it returns NULL.
 */
-static GVar *get_gvar(const Token *token)
+static Variable *get_gvar(const Token *token)
 {
     // search list of gocal variables
-    for(GVar *gvar = gvar_list->next; gvar != NULL; gvar = gvar->next)
+    for(Variable *gvar = gvar_list->next; gvar != NULL; gvar = gvar->next)
     {
         if((strlen(gvar->name) == token->len) && (strncmp(token->str, gvar->name, token->len) == 0))
         {
@@ -1845,17 +1846,17 @@ static GVar *get_gvar(const Token *token)
 /*
 make a new local variable
 */
-static LVar *new_lvar(const Token *token, LVar *cur_lvar, Type *type)
+static Variable *new_lvar(const Token *token, Variable *cur_lvar, Type *type)
 {
     current_function->stack_size += type->size;
 
-    LVar *lvar = calloc(1, sizeof(LVar));
+    Variable *lvar = calloc(1, sizeof(Variable));
     lvar->next = cur_lvar;
-    lvar->str = token->str;
-    lvar->len = token->len;
-    lvar->offset = current_function->stack_size;
+    lvar->name = make_ident(token);
     lvar->type = type;
     lvar->init = NULL;
+    lvar->offset = current_function->stack_size;
+    lvar->content = NULL;
 
     return lvar;
 }
@@ -1866,21 +1867,21 @@ get a function argument or an existing local variable
 * If there exists a function argument or a local variable with a given token, this function returns the variable.
 * Otherwise, it returns NULL.
 */
-static LVar *get_lvar(const Token *token)
+static Variable *get_lvar(const Token *token)
 {
     // search list of function arguments
-    for(LVar *arg = current_args; arg != NULL; arg = arg->next)
+    for(Variable *arg = current_args; arg != NULL; arg = arg->next)
     {
-        if((arg->len == token->len) && (strncmp(token->str, arg->str, token->len) == 0))
+        if((strlen(arg->name) == token->len) && (strncmp(token->str, arg->name, token->len) == 0))
         {
             return arg;
         }
     }
 
     // search list of local variables
-    for(LVar *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
+    for(Variable *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
     {
-        if((lvar->len == token->len) && (strncmp(token->str, lvar->str, token->len) == 0))
+        if((strlen(lvar->name) == token->len) && (strncmp(token->str, lvar->name, token->len) == 0))
         {
             return lvar;
         }
@@ -1893,7 +1894,7 @@ static LVar *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Function *cur_func, Type *type, LVar *args, size_t stack_size)
+static Function *new_function(const Token *token, Function *cur_func, Type *type, Variable *args, size_t stack_size)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
@@ -1945,15 +1946,14 @@ static Function *get_function(const Token *token)
 /*
 make a new parameter
 */
-static LVar *new_param(const Token *token, Type *type)
+static Variable *new_param(const Token *token, Type *type)
 {
-    LVar *lvar = calloc(1, sizeof(LVar));
-    lvar->str = token->str;
-    lvar->len = token->len;
-    lvar->type = type;
-    lvar->init = NULL;
+    Variable *param = calloc(1, sizeof(Variable));
+    param->name = make_ident(token);
+    param->type = type;
+    param->init = NULL;
 
-    return lvar;
+    return param;
 }
 
 

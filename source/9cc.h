@@ -141,26 +141,17 @@ struct Type {
 // structure for node in AST (forward declaration)
 typedef struct Node Node;
 
-// structure for global variable
-typedef struct GVar GVar;
-struct GVar {
-    GVar *next; // next element
-    char *name; // name of global variable
-    Type *type; // type of variable
-    char *content; // content of string-literal including '\0' (only for string-literal)
-    Node *init; // initializer
+// structure for variable
+typedef struct Variable Variable;
+struct Variable {
+    Variable *next; // next element
+    char *name;     // name of variable
+    Type *type;     // type of variable
+    Node *init;     // initializer
+    int offset;     // offset from base pointer (rbp) (only for local variable)
+    char *content;  // content of string-literal including '\0' (only for string-literal)
 };
 
-// structure for local variable
-typedef struct LVar LVar;
-struct LVar {
-    LVar *next; // next element
-    char *str;  // token string
-    int len;    // length of token string
-    int offset; // offset from base pointer (rbp)
-    Type *type; // type of variable
-    Node *init; // initializer
-};
 
 // structure for node in AST
 struct Node {
@@ -170,8 +161,7 @@ struct Node {
     Node *rhs;          // right hand side
     Type *type;         // type of node
     long val;           // value of node (only for ND_NUM, ND_CASE)
-    GVar *gvar;         // information of global variable (only for ND_GVAR)
-    LVar *lvar;         // information of local variable (only for ND_LVAR)
+    Variable *var;      // information of variable (only for ND_GVAR, ND_LVAR)
     Node *cond;         // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;      // pre-expression (only for ND_FOR)
     Node *postexpr;     // post-expression (only for ND_FOR)
@@ -189,15 +179,15 @@ struct Function {
     Function *next;    // next element
     char *name;        // name of function
     Type *type;        // type of function
-    LVar *args;        // arguments
+    Variable *args;    // arguments
     Node *body;        // body of function definition
-    LVar *locals;      // list of local variables (including arguments)
+    Variable *locals;  // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
 };
 
 // structure for program
 typedef struct Program {
-    GVar *gvars;     // list of global variables
+    Variable *gvars; // list of global variables
     Function *funcs; // list of functions
 } Program;
 
