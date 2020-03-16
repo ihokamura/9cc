@@ -58,7 +58,7 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static Variable *new_gvar(const Token *token, Variable *cur_gvar, Type *type);
+static Variable *new_gvar(const Token *token, Type *type);
 static Variable *new_str(const Token *token);
 static Variable *get_gvar(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
@@ -73,11 +73,10 @@ static long evaluate(const Node *node);
 
 
 // global variable
-static Variable *gvar_list; // list of global variables
-static Variable *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
+static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static const size_t stack_alignment_size = 8; // alignment size of function stack
@@ -103,13 +102,10 @@ prg ::= (gvar | func)*
 */
 static void prg(void)
 {
-    Variable gvar_head = {};
-    current_gvar = &gvar_head;
-    gvar_list = &gvar_head;
-
     Function func_head = {};
     current_function = &func_head;
     function_list = &func_head;
+    gvar_list = NULL;
 
     while(!at_eof())
     {
@@ -125,7 +121,6 @@ static void prg(void)
         }
     }
 
-    gvar_list = gvar_head.next;
     function_list = func_head.next;
 }
 
@@ -740,12 +735,12 @@ static Node *init_declarator(Type *type, bool is_local)
 
         node = new_node(ND_GVAR);
         node->type = type;
-        current_gvar = new_gvar(token, current_gvar, type);
+        Variable *gvar = new_gvar(token, type);
 
         // parse initializer
         if(consume_reserved("="))
         {
-            current_gvar->init = initializer();
+            gvar->init = initializer();
         }
     }
 
@@ -1801,16 +1796,16 @@ static Node *new_node_num(int val)
 /*
 make a new global variable
 */
-static Variable *new_gvar(const Token *token, Variable *cur_gvar, Type *type)
+static Variable *new_gvar(const Token *token, Type *type)
 {
     Variable *gvar = calloc(1, sizeof(Variable));
-    gvar->next = NULL;
+    gvar->next = gvar_list;
     gvar->name = make_ident(token);
     gvar->type = type;
     gvar->init = NULL;
     gvar->offset = 0;
     gvar->content = NULL;
-    cur_gvar->next = gvar;
+    gvar_list = gvar;
 
     return gvar;
 }
@@ -1823,7 +1818,7 @@ make a new string-literal
 static Variable *new_str(const Token *token)
 {
     Variable *str = calloc(1, sizeof(Variable));
-    str->next = NULL;
+    str->next = gvar_list;
     str->name = new_strlabel();
     str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
     str->init = NULL;
@@ -1831,9 +1826,7 @@ static Variable *new_str(const Token *token)
 
     str->content = calloc(token->len + 1, sizeof(char));
     strncpy(str->content, token->str, token->len);
-
-    current_gvar->next = str;
-    current_gvar = current_gvar->next;
+    gvar_list = str;
 
     return str;
 }
@@ -1847,7 +1840,7 @@ get an existing global variable
 static Variable *get_gvar(const Token *token)
 {
     // search list of gocal variables
-    for(Variable *gvar = gvar_list->next; gvar != NULL; gvar = gvar->next)
+    for(Variable *gvar = gvar_list; gvar != NULL; gvar = gvar->next)
     {
         if((strlen(gvar->name) == token->len) && (strncmp(token->str, gvar->name, token->len) == 0))
         {
