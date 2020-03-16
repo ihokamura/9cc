@@ -61,9 +61,9 @@ static Node *new_node_num(int val);
 static Variable *new_gvar(const Token *token, Variable *cur_gvar, Type *type);
 static Variable *new_str(const Token *token);
 static Variable *get_gvar(const Token *token);
-static Variable *new_lvar(const Token *token, Variable *cur_lvar, Type *type);
+static Variable *new_lvar(const Token *token, Type *type);
 static Variable *get_lvar(const Token *token);
-static Function *new_function(const Token *token, Function *cur_func, Type *type, Variable *args, size_t stack_size);
+static Function *new_function(const Token *token, Function *cur_func, Type *type);
 static Function *get_function(const Token *token);
 static Variable *new_param(const Token *token, Type *type);
 static bool peek_func(void);
@@ -78,7 +78,8 @@ static Variable *current_gvar; // currently parsing global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Function *current_function; // currently constructing function
-static Variable *current_args = NULL; // arguments of currently constructing function
+static Variable *args_list = NULL; // list of arguments of currently constructing function
+static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
 
@@ -149,27 +150,42 @@ func ::= declaration-spec declarator compound-stmt
 */
 static void func(void)
 {
+    // clear list of local variables
+    lvar_list = NULL;
+
     // parse declaration specifier and declarator
     Type *type = declaration_spec();
     Token *token;
     type = declarator(type, &token);
 
-    // accumulate stack size and set offset of arguments
+    // make a new function
+    current_function = new_function(token, current_function, type);
+
+    // parse body
+    current_function->body = compound_stmt();
+
+    // accumulate stack size and set offset of arguments and local variables
     size_t stack_size = 0;
     if(type->args->kind != TY_VOID)
     {
-        for(Variable *arg = current_args; arg != NULL; arg = arg->next)
+        for(Variable *arg = args_list; arg != NULL; arg = arg->next)
         {
             stack_size += arg->type->size;
             arg->offset = stack_size;
         }
     }
+    for(Variable *arg = lvar_list; arg != NULL; arg = arg->next)
+    {
+        stack_size += arg->type->size;
+        arg->offset = stack_size;
+    }
 
-    // make a new function
-    current_function = new_function(token, current_function, type, current_args, stack_size);
+    // align stack size
+    current_function->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
 
-    // parse body
-    current_function->body = compound_stmt();
+    // save list of arguments and list of local variables
+    current_function->args = args_list;
+    current_function->locals = lvar_list;
 }
 
 
@@ -387,7 +403,7 @@ static Type *direct_declarator(Type *type, Token **token)
 
             type = direct_declarator(type, token);
             type = new_type_function(type, arg_types);
-            current_args = arg_vars;
+            args_list = arg_vars;
         }
     }
 
@@ -706,7 +722,7 @@ static Node *init_declarator(Type *type, bool is_local)
 
         node = new_node(ND_LVAR);
         node->type = type;
-        node->var = current_function->locals = new_lvar(token, current_function->locals, type);
+        node->var = new_lvar(token, type);
 
         // parse initializer
         if(consume_reserved("="))
@@ -1846,31 +1862,29 @@ static Variable *get_gvar(const Token *token)
 /*
 make a new local variable
 */
-static Variable *new_lvar(const Token *token, Variable *cur_lvar, Type *type)
+static Variable *new_lvar(const Token *token, Type *type)
 {
-    current_function->stack_size += type->size;
-
     Variable *lvar = calloc(1, sizeof(Variable));
-    lvar->next = cur_lvar;
+    lvar->next = lvar_list;
     lvar->name = make_ident(token);
     lvar->type = type;
     lvar->init = NULL;
-    lvar->offset = current_function->stack_size;
     lvar->content = NULL;
+    lvar_list = lvar;
 
     return lvar;
 }
 
 
 /*
-get a function argument or an existing local variable
+get a function argument or a local variable
 * If there exists a function argument or a local variable with a given token, this function returns the variable.
 * Otherwise, it returns NULL.
 */
 static Variable *get_lvar(const Token *token)
 {
-    // search list of function arguments
-    for(Variable *arg = current_args; arg != NULL; arg = arg->next)
+    // search list of arguments
+    for(Variable *arg = args_list; arg != NULL; arg = arg->next)
     {
         if((strlen(arg->name) == token->len) && (strncmp(token->str, arg->name, token->len) == 0))
         {
@@ -1879,7 +1893,7 @@ static Variable *get_lvar(const Token *token)
     }
 
     // search list of local variables
-    for(Variable *lvar = current_function->locals; lvar != NULL; lvar = lvar->next)
+    for(Variable *lvar = lvar_list; lvar != NULL; lvar = lvar->next)
     {
         if((strlen(lvar->name) == token->len) && (strncmp(token->str, lvar->name, token->len) == 0))
         {
@@ -1894,7 +1908,7 @@ static Variable *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Function *cur_func, Type *type, Variable *args, size_t stack_size)
+static Function *new_function(const Token *token, Function *cur_func, Type *type)
 {
     Function *new_func = calloc(1, sizeof(Function));
 
@@ -1902,7 +1916,7 @@ static Function *new_function(const Token *token, Function *cur_func, Type *type
     new_func->name = make_ident(token);
 
     // initialize arguments
-    new_func->args = args;
+    new_func->args = NULL;
 
     // initialize type
     new_func->type = new_type_function(type->base, type->args);
@@ -1914,7 +1928,7 @@ static Function *new_function(const Token *token, Function *cur_func, Type *type
     new_func->locals = NULL;
 
     // initialize stack size
-    new_func->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1); // align stack size
+    new_func->stack_size = 0;
 
     // update list of functions
     cur_func->next = new_func;
