@@ -24,7 +24,7 @@
 
 
 // features
-#define WARN_IMPLICIT_DECLARATION_OF_FUNCTION    (DISABLED) // warn implicit declaration of function
+#define WARN_IMPLICIT_DECLARATION_OF_FUNCTION    (ENABLED) // warn implicit declaration of function
 
 
 // type of source code
@@ -150,6 +150,7 @@ struct Variable {
     Node *init;     // initializer
     int offset;     // offset from base pointer (rbp) (only for local variable)
     char *content;  // content of string-literal including '\0' (only for string-literal)
+    bool entity;    // flag indicating that the variable has an entity in the current translation unit (only for global variable)
 };
 
 
@@ -169,7 +170,7 @@ struct Node {
     Node *next_case;    // next case (only for ND_SWITCH, ND_CASE)
     Node *default_case; // default case (only for ND_SWITCH)
     Node *body;         // body of compound statements (only for ND_BLOCK, ND_DECL)
-    char *ident;        // identifier (only for ND_FUNC)
+    char *ident;        // identifier (only for ND_FUNC, ND_GOTO, ND_LABEL)
     Node *args;         // arguments (only for ND_FUNC)
 };
 

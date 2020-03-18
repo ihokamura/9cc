@@ -72,7 +72,10 @@ void generate(const Program *program)
     put_instruction(".data");
     for(Variable *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
     {
-        generate_gvar(gvar);
+        if(gvar->entity)
+        {
+            generate_gvar(gvar);
+        }
     }
 
     // generate functions

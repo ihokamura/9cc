@@ -21,7 +21,6 @@
 static void prg(void);
 static void gvar(void);
 static void func(void);
-static bool peek_typename(void);
 static Type *declaration_spec(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
@@ -58,14 +57,14 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
-static Variable *new_gvar(const Token *token, Type *type);
+static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_str(const Token *token);
 static Variable *get_gvar(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
 static Variable *get_lvar(const Token *token);
-static Function *new_function(const Token *token, Function *cur_func, Type *type);
-static Function *get_function(const Token *token);
+static Function *new_function(const Token *token, Type *type, Node *body);
 static Variable *new_param(const Token *token, Type *type);
+static bool peek_typename(void);
 static bool peek_func(void);
 static char *new_strlabel(void);
 static long const_expr(void);
@@ -75,7 +74,6 @@ static long evaluate(const Node *node);
 // global variable
 static int str_label = 0; // label number of string-literal
 static Function *function_list; // list of functions
-static Function *current_function; // currently constructing function
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
@@ -103,7 +101,6 @@ prg ::= (gvar | func)*
 static void prg(void)
 {
     Function func_head = {};
-    current_function = &func_head;
     function_list = &func_head;
     gvar_list = NULL;
 
@@ -153,49 +150,14 @@ static void func(void)
     Token *token;
     type = declarator(type, &token);
 
-    // make a new function
-    current_function = new_function(token, current_function, type);
+    // make a function declarator
+    new_gvar(token, new_type_function(type->base, type->args), false);
 
     // parse body
-    current_function->body = compound_stmt();
+    Node *body = compound_stmt();
 
-    // accumulate stack size and set offset of arguments and local variables
-    size_t stack_size = 0;
-    if(type->args->kind != TY_VOID)
-    {
-        for(Variable *arg = args_list; arg != NULL; arg = arg->next)
-        {
-            stack_size += arg->type->size;
-            arg->offset = stack_size;
-        }
-    }
-    for(Variable *arg = lvar_list; arg != NULL; arg = arg->next)
-    {
-        stack_size += arg->type->size;
-        arg->offset = stack_size;
-    }
-
-    // align stack size
-    current_function->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
-
-    // save list of arguments and list of local variables
-    current_function->args = args_list;
-    current_function->locals = lvar_list;
-}
-
-
-/*
-peek a type name
-*/
-static bool peek_typename(void)
-{
-    return (
-           peek_reserved("void")
-        || peek_reserved("char")
-        || peek_reserved("short")
-        || peek_reserved("int")
-        || peek_reserved("long")
-    );
+    // make a new function
+    new_function(token, type, body);
 }
 
 
@@ -735,7 +697,8 @@ static Node *init_declarator(Type *type, bool is_local)
 
         node = new_node(ND_GVAR);
         node->type = type;
-        Variable *gvar = new_gvar(token, type);
+        bool emit = (type->kind != TY_FUNC);
+        Variable *gvar = new_gvar(token, type, emit);
 
         // parse initializer
         if(consume_reserved("="))
@@ -1582,24 +1545,24 @@ static Node *primary(void)
     Token *token;
     if(consume_token(TK_IDENT, &token))
     {
-        // search function
-        Function *func = get_function(token);
-        if(func != NULL)
-        {
-            Node *node = new_node(ND_FUNC);
-            node->type = new_type_pointer(func->type);
-            node->ident = make_ident(token);
-            return node;
-        }
-
         // search global variable
         Variable *gvar = get_gvar(token);
         if(gvar != NULL)
         {
-            Node *node = new_node(ND_GVAR);
-            node->type = gvar->type;
-            node->var = gvar;
-            return node;
+            if(gvar->type->kind == TY_FUNC)
+            {
+                Node *node = new_node(ND_FUNC);
+                node->type = new_type_pointer(gvar->type);
+                node->ident = make_ident(token);
+                return node;
+            }
+            else
+            {
+                Node *node = new_node(ND_GVAR);
+                node->type = gvar->type;
+                node->var = gvar;
+                return node;
+            }
         }
 
         // search local variable
@@ -1796,7 +1759,7 @@ static Node *new_node_num(int val)
 /*
 make a new global variable
 */
-static Variable *new_gvar(const Token *token, Type *type)
+static Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
     Variable *gvar = calloc(1, sizeof(Variable));
     gvar->next = gvar_list;
@@ -1805,6 +1768,7 @@ static Variable *new_gvar(const Token *token, Type *type)
     gvar->init = NULL;
     gvar->offset = 0;
     gvar->content = NULL;
+    gvar->entity = entity;
     gvar_list = gvar;
 
     return gvar;
@@ -1823,9 +1787,9 @@ static Variable *new_str(const Token *token)
     str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
     str->init = NULL;
     str->offset = 0;
-
     str->content = calloc(token->len + 1, sizeof(char));
     strncpy(str->content, token->str, token->len);
+    str->entity = true;
     gvar_list = str;
 
     return str;
@@ -1863,6 +1827,7 @@ static Variable *new_lvar(const Token *token, Type *type)
     lvar->type = type;
     lvar->init = NULL;
     lvar->content = NULL;
+    lvar->entity = true;
     lvar_list = lvar;
 
     return lvar;
@@ -1901,52 +1866,41 @@ static Variable *get_lvar(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Function *cur_func, Type *type)
+static Function *new_function(const Token *token, Type *type, Node *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
-
-    // initialize the name
     new_func->name = make_ident(token);
-
-    // initialize arguments
-    new_func->args = NULL;
-
-    // initialize type
     new_func->type = new_type_function(type->base, type->args);
+    new_func->body = body;
 
-    // initialize function body
-    new_func->body = NULL;
-
-    // initialize list of local variables
-    new_func->locals = NULL;
-
-    // initialize stack size
-    new_func->stack_size = 0;
-
-    // update list of functions
-    cur_func->next = new_func;
-
-    return new_func;
-}
-
-
-/*
-get an existing function
-* If there exists a function with a given token, this function returns the function.
-* Otherwise, it returns NULL.
-*/
-static Function *get_function(const Token *token)
-{
-    // search list of function
-    for(Function *func = function_list->next; func != NULL; func = func->next)
+    // accumulate stack size and set offset of arguments and local variables
+    size_t stack_size = 0;
+    if(type->args->kind != TY_VOID)
     {
-        if((strlen(func->name) == token->len) && (strncmp(token->str, func->name, token->len) == 0))
+        for(Variable *arg = args_list; arg != NULL; arg = arg->next)
         {
-            return func;
+            stack_size += arg->type->size;
+            arg->offset = stack_size;
         }
     }
+    for(Variable *arg = lvar_list; arg != NULL; arg = arg->next)
+    {
+        stack_size += arg->type->size;
+        arg->offset = stack_size;
+    }
 
-    return NULL;
+    // align stack size
+    new_func->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
+
+    // save list of arguments and list of local variables
+    new_func->args = args_list;
+    new_func->locals = lvar_list;
+
+    // update list of functions
+    function_list->next = new_func;
+    function_list = new_func;
+
+    return new_func;
 }
 
 
@@ -1976,6 +1930,21 @@ static char *new_strlabel(void)
     str_label++;
 
     return label;
+}
+
+
+/*
+peek a type name
+*/
+static bool peek_typename(void)
+{
+    return (
+           peek_reserved("void")
+        || peek_reserved("char")
+        || peek_reserved("short")
+        || peek_reserved("int")
+        || peek_reserved("long")
+    );
 }
 
 
