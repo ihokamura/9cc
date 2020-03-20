@@ -985,6 +985,30 @@ int test_initializer()
 
 
 /*
+scope of variables
+*/
+int test_scope_var = 1;
+int test_scope(void)
+{
+    put_title("scope");
+
+    assert_int(1, test_scope_var);
+
+    int test_scope_var = 2;
+    assert_int(2, test_scope_var);
+
+    {
+        int test_scope_var = 3;
+        assert_int(3, test_scope_var);
+    }
+
+    assert_int(2, test_scope_var);
+
+    return 0;
+}
+
+
+/*
 main function of test code
 */
 int main()

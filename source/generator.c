@@ -147,16 +147,19 @@ static void generate_lvalue(const Node *node)
 {
     switch(node->kind)
     {
-    case ND_GVAR:
-        put_instruction("  lea rax, %s[rip]", node->var->name);
-        put_instruction("  push rax");
-        break;
-
     case ND_DECL:
-    case ND_LVAR:
-        put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %d", node->var->offset);
-        put_instruction("  push rax");
+    case ND_VAR:
+        if(node->var->local)
+        {
+            put_instruction("  mov rax, rbp");
+            put_instruction("  sub rax, %d", node->var->offset);
+            put_instruction("  push rax");
+        }
+        else
+        {
+            put_instruction("  lea rax, %s[rip]", node->var->name);
+            put_instruction("  push rax");
+        }
         break;
 
     case ND_DEREF:
@@ -440,8 +443,7 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_GVAR:
-    case ND_LVAR:
+    case ND_VAR:
         generate_lvalue(node);
         if(node->type->kind != TY_ARRAY)
         {

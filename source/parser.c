@@ -17,6 +17,15 @@
 #include "9cc.h"
 
 
+// type definition
+typedef struct VarScope VarScope;
+struct VarScope {
+    VarScope *next; // next element
+    Variable *var;  // visible variable
+    int depth;      // depth of scope
+};
+
+
 // function prototype
 static void prg(void);
 static void gvar(void);
@@ -57,13 +66,15 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_num(int val);
+static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_str(const Token *token);
-static Variable *get_gvar(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
-static Variable *get_lvar(const Token *token);
 static Function *new_function(const Token *token, Type *type, Node *body);
-static Variable *new_param(const Token *token, Type *type);
+static VarScope *enter_scope(void);
+static void leave_scope(VarScope *scope);
+static void push_scope(Variable *var);
+static VarScope *find_scope(const Token *token);
 static bool peek_typename(void);
 static bool peek_func(void);
 static char *new_strlabel(void);
@@ -79,6 +90,8 @@ static Variable *args_list = NULL; // list of arguments of currently constructin
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
+static VarScope *var_scope = NULL; // list of variables visible in the current scope
+static int scope_depth = 0; // depth of the current scope
 
 
 /*
@@ -102,7 +115,8 @@ static void prg(void)
 {
     Function func_head = {};
     function_list = &func_head;
-    gvar_list = NULL;
+    Variable gvar_head = {};
+    gvar_list = &gvar_head;
 
     while(!at_eof())
     {
@@ -119,6 +133,7 @@ static void prg(void)
     }
 
     function_list = func_head.next;
+    gvar_list = gvar_head.next;
 }
 
 
@@ -239,7 +254,7 @@ static Type *parameter_declaration(Variable **arg_var)
     Token *arg_token;
 
     arg_type = declarator(arg_type, &arg_token);
-    *arg_var = new_param(arg_token, arg_type);
+    *arg_var = new_var(make_ident(arg_token), arg_type, true);
 
     return arg_type;
 }
@@ -592,6 +607,9 @@ static Node *compound_stmt(void)
 {
     expect_reserved("{");
 
+    // save the current scope
+    VarScope *scope = enter_scope();
+
     // parse declaration and/or statement until reaching '}'
     Node head = {};
     Node *cursor = &head;
@@ -609,6 +627,9 @@ static Node *compound_stmt(void)
         }
         cursor = cursor->next;
     }
+
+    // restore the scope
+    leave_scope(scope);
 
     return head.next;
 }
@@ -668,17 +689,18 @@ static Node *init_declarator(Type *type, bool is_local)
     Token *token;
     type = declarator(type, &token);
 
-    Node *node;
+    // check duplicated declaration
+    VarScope *scope = find_scope(token);
+    if((scope != NULL) && (scope->depth == scope_depth))
+    {
+        report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
+    }
+
+    // make a new node for variable
+    Node *node = new_node(ND_VAR);
+    node->type = type;
     if(is_local)
     {
-        // local variable
-        if(get_lvar(token) != NULL)
-        {
-            report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
-        }
-
-        node = new_node(ND_LVAR);
-        node->type = type;
         node->var = new_lvar(token, type);
 
         // parse initializer
@@ -689,21 +711,13 @@ static Node *init_declarator(Type *type, bool is_local)
     }
     else
     {
-        // global variable
-        if(get_gvar(token) != NULL)
-        {
-            report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
-        }
-
-        node = new_node(ND_GVAR);
-        node->type = type;
         bool emit = (type->kind != TY_FUNC);
-        Variable *gvar = new_gvar(token, type, emit);
+        node->var = new_gvar(token, type, emit);
 
         // parse initializer
         if(consume_reserved("="))
         {
-            gvar->init = initializer();
+            node->var->init = initializer();
         }
     }
 
@@ -1545,34 +1559,25 @@ static Node *primary(void)
     Token *token;
     if(consume_token(TK_IDENT, &token))
     {
-        // search global variable
-        Variable *gvar = get_gvar(token);
-        if(gvar != NULL)
+        // search variable
+        VarScope *scope = find_scope(token);
+        if(scope != NULL)
         {
-            if(gvar->type->kind == TY_FUNC)
+            Variable *var = scope->var;
+            if(var->type->kind == TY_FUNC)
             {
                 Node *node = new_node(ND_FUNC);
-                node->type = new_type_pointer(gvar->type);
+                node->type = new_type_pointer(var->type);
                 node->ident = make_ident(token);
                 return node;
             }
             else
             {
-                Node *node = new_node(ND_GVAR);
-                node->type = gvar->type;
-                node->var = gvar;
+                Node *node = new_node(ND_VAR);
+                node->type = var->type;
+                node->var = var;
                 return node;
             }
-        }
-
-        // search local variable
-        Variable *lvar = get_lvar(token);
-        if(lvar != NULL)
-        {
-            Node *node = new_node(ND_LVAR);
-            node->type = lvar->type;
-            node->var = lvar;
-            return node;
         }
 
         if(peek_reserved("("))
@@ -1586,16 +1591,14 @@ static Node *primary(void)
 #endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
             return node;
         }
-        else
-        {
-            report_error(token->str, "undefined variable '%s'", make_ident(token));
-        }
+
+        report_error(token->str, "undefined variable '%s'", make_ident(token));
     }
 
     // string-literal
     if(consume_token(TK_STR, &token))
     {
-        Node *node = new_node(ND_GVAR);
+        Node *node = new_node(ND_VAR);
         node->var = new_str(token);
         node->type = node->var->type;
         return node;
@@ -1757,18 +1760,34 @@ static Node *new_node_num(int val)
 
 
 /*
+make a new variable
+*/
+static Variable *new_var(char *name, Type *type, bool local)
+{
+    Variable *var = calloc(1, sizeof(Variable));
+    var->next = NULL;
+    var->name = name;
+    var->type = type;
+    var->init = NULL;
+    var->local = local;
+    var->offset = 0;
+    var->content = NULL;
+    var->entity = false;
+
+    push_scope(var);
+
+    return var;
+}
+
+
+/*
 make a new global variable
 */
 static Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
-    Variable *gvar = calloc(1, sizeof(Variable));
-    gvar->next = gvar_list;
-    gvar->name = make_ident(token);
-    gvar->type = type;
-    gvar->init = NULL;
-    gvar->offset = 0;
-    gvar->content = NULL;
+    Variable *gvar = new_var(make_ident(token), type, false);
     gvar->entity = entity;
+    gvar_list->next = gvar;
     gvar_list = gvar;
 
     return gvar;
@@ -1781,38 +1800,14 @@ make a new string-literal
 */
 static Variable *new_str(const Token *token)
 {
-    Variable *str = calloc(1, sizeof(Variable));
-    str->next = gvar_list;
-    str->name = new_strlabel();
-    str->type = new_type_array(new_type(TY_CHAR), token->len + 1);
-    str->init = NULL;
-    str->offset = 0;
-    str->content = calloc(token->len + 1, sizeof(char));
-    strncpy(str->content, token->str, token->len);
-    str->entity = true;
-    gvar_list = str;
+    Variable *gvar = new_var(new_strlabel(), new_type_array(new_type(TY_CHAR), token->len + 1), false);
+    gvar->content = calloc(token->len + 1, sizeof(char));
+    strncpy(gvar->content, token->str, token->len);
+    gvar->entity = true;
+    gvar_list->next = gvar;
+    gvar_list = gvar;
 
-    return str;
-}
-
-
-/*
-get an existing global variable
-* If there exists a global variable with a given token, this function returns the variable.
-* Otherwise, it returns NULL.
-*/
-static Variable *get_gvar(const Token *token)
-{
-    // search list of gocal variables
-    for(Variable *gvar = gvar_list; gvar != NULL; gvar = gvar->next)
-    {
-        if((strlen(gvar->name) == token->len) && (strncmp(token->str, gvar->name, token->len) == 0))
-        {
-            return gvar;
-        }
-    }
-
-    return NULL;
+    return gvar;
 }
 
 
@@ -1821,45 +1816,11 @@ make a new local variable
 */
 static Variable *new_lvar(const Token *token, Type *type)
 {
-    Variable *lvar = calloc(1, sizeof(Variable));
+    Variable *lvar = new_var(make_ident(token), type, true);
     lvar->next = lvar_list;
-    lvar->name = make_ident(token);
-    lvar->type = type;
-    lvar->init = NULL;
-    lvar->content = NULL;
-    lvar->entity = true;
     lvar_list = lvar;
 
     return lvar;
-}
-
-
-/*
-get a function argument or a local variable
-* If there exists a function argument or a local variable with a given token, this function returns the variable.
-* Otherwise, it returns NULL.
-*/
-static Variable *get_lvar(const Token *token)
-{
-    // search list of arguments
-    for(Variable *arg = args_list; arg != NULL; arg = arg->next)
-    {
-        if((strlen(arg->name) == token->len) && (strncmp(token->str, arg->name, token->len) == 0))
-        {
-            return arg;
-        }
-    }
-
-    // search list of local variables
-    for(Variable *lvar = lvar_list; lvar != NULL; lvar = lvar->next)
-    {
-        if((strlen(lvar->name) == token->len) && (strncmp(token->str, lvar->name, token->len) == 0))
-        {
-            return lvar;
-        }
-    }
-
-    return NULL;
 }
 
 
@@ -1905,20 +1866,6 @@ static Function *new_function(const Token *token, Type *type, Node *body)
 
 
 /*
-make a new parameter
-*/
-static Variable *new_param(const Token *token, Type *type)
-{
-    Variable *param = calloc(1, sizeof(Variable));
-    param->name = make_ident(token);
-    param->type = type;
-    param->init = NULL;
-
-    return param;
-}
-
-
-/*
 make a new label for string-literal
 */
 static char *new_strlabel(void)
@@ -1930,6 +1877,59 @@ static char *new_strlabel(void)
     str_label++;
 
     return label;
+}
+
+
+/*
+push a variable to the current scope
+*/
+static void push_scope(Variable *var)
+{
+    VarScope *scope = calloc(1, sizeof(VarScope));
+    scope->next = var_scope;
+    scope->var = var;
+    scope->depth = scope_depth;
+    var_scope = scope;
+}
+
+
+/*
+enter a new scope
+*/
+static VarScope *enter_scope(void)
+{
+    scope_depth++;
+    return var_scope;
+}
+
+
+/*
+leave the current scope
+*/
+static void leave_scope(VarScope *scope)
+{
+    scope_depth--;
+    var_scope = scope;
+}
+
+
+/*
+find a variable in the current scope
+* If there exists a visible variable with a given token, this function returns the scope.
+* Otherwise, it returns NULL.
+*/
+static VarScope *find_scope(const Token *token)
+{
+    // search list of variables visible in the current scope
+    for(VarScope *scope = var_scope; scope != NULL; scope = scope->next)
+    {
+        if((strlen(scope->var->name) == token->len) && (strncmp(token->str, scope->var->name, token->len) == 0))
+        {
+            return scope;
+        }
+    }
+
+    return NULL;
 }
 
 

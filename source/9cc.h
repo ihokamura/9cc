@@ -107,10 +107,9 @@ typedef enum {
     ND_FOR,        // for statement
     ND_BLOCK,      // block (compound statement)
     ND_NULL,       // null statement
-    ND_GVAR,       // global variable
     ND_FUNC,       // function call
     ND_DECL,       // declaration
-    ND_LVAR,       // local variable
+    ND_VAR,        // variable
     ND_ADDR,       // address (&)
     ND_DEREF,      // dereference (*)
     ND_NUM,        // integer
@@ -148,6 +147,7 @@ struct Variable {
     char *name;     // name of variable
     Type *type;     // type of variable
     Node *init;     // initializer
+    bool local;     // flag indicating that the variable is local or global
     int offset;     // offset from base pointer (rbp) (only for local variable)
     char *content;  // content of string-literal including '\0' (only for string-literal)
     bool entity;    // flag indicating that the variable has an entity in the current translation unit (only for global variable)
