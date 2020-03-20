@@ -25,8 +25,8 @@
 static int is_space(const char *str);
 static int is_comment(const char *str);
 static int is_reserved(const char *str);
-static int is_ident(const char *str);
-static int is_str(const char *str);
+static int is_identifier(const char *str);
+static int is_string(const char *str);
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 static void report_position(const char *loc);
 
@@ -214,7 +214,7 @@ parse an identifier
 * If the next token is an identifier, this function parses the token and returns the token.
 * Otherwise, it reports an error.
 */
-Token *expect_ident(void)
+Token *expect_identifier(void)
 {
     if(current_token->kind != TK_IDENT)
     {
@@ -289,7 +289,7 @@ void tokenize(char *str)
         }
 
         // parse an identifer
-        len = is_ident(str);
+        len = is_identifier(str);
         if(len > 0)
         {
             cursor = new_token(TK_IDENT, cursor, str, len);
@@ -298,7 +298,7 @@ void tokenize(char *str)
         }
 
         // parse a string-literal
-        len = is_str(str);
+        len = is_string(str);
         if(len > 0)
         {
             cursor = new_token(TK_STR, cursor, str + 1, len - 2);
@@ -336,7 +336,7 @@ bool at_eof(void)
 /*
 make string of an identifier
 */
-char *make_ident(const Token *token)
+char *make_identifier(const Token *token)
 {
     char *ident = calloc(token->len + 1, sizeof(char));
 
@@ -524,7 +524,7 @@ static int is_reserved(const char *str)
 /*
 check if the following string is an identifier
 */
-static int is_ident(const char *str)
+static int is_identifier(const char *str)
 {
     int len = 0;
 
@@ -548,7 +548,7 @@ static int is_ident(const char *str)
 /*
 check if the following string is a string-literal
 */
-static int is_str(const char *str)
+static int is_string(const char *str)
 {
     int len = 0;
 

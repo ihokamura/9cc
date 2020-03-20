@@ -160,7 +160,7 @@ int test_shift()
 /*
 bitwise AND operator
 */
-int test_and()
+int test_bitwise_and()
 {
     put_title("bitwise AND operator");
 
@@ -176,7 +176,7 @@ int test_and()
 /*
 bitwise exclusive OR operator
 */
-int test_xor()
+int test_bitwise_xor()
 {
     put_title("bitwise XOR operator");
 
@@ -192,7 +192,7 @@ int test_xor()
 /*
 bitwise inclusive OR operator
 */
-int test_or()
+int test_bitwise_or()
 {
     put_title("bitwise OR operator");
 
@@ -1017,9 +1017,9 @@ int main()
     test_additive();
     test_multiplicative();
     test_shift();
-    test_and();
-    test_xor();
-    test_or();
+    test_bitwise_and();
+    test_bitwise_xor();
+    test_bitwise_or();
     test_logical_and();
     test_logical_or();
     test_conditional();

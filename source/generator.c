@@ -990,15 +990,15 @@ static void generate_node(const Node *node)
         generate_binary(node, BINOP_LEQ);
         return;
 
-    case ND_AND:
+    case ND_BIT_AND:
         generate_binary(node, BINOP_AND);
         return;
 
-    case ND_XOR:
+    case ND_BIT_XOR:
         generate_binary(node, BINOP_XOR);
         return;
 
-    case ND_OR:
+    case ND_BIT_OR:
         generate_binary(node, BINOP_OR);
         return;
 

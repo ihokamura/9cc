@@ -72,9 +72,9 @@ typedef enum {
     ND_NEQ,        // inequality comparision (!=)
     ND_L,          // strict order comparision (<)
     ND_LEQ,        // order comparision (<=)
-    ND_AND,        // bitwise AND (&)
-    ND_XOR,        // exclusive OR (^)
-    ND_OR,         // inclusive OR (|)
+    ND_BIT_AND,    // bitwise AND (&)
+    ND_BIT_XOR,    // exclusive OR (^)
+    ND_BIT_OR,     // inclusive OR (|)
     ND_LOG_AND,    // logical AND (&&)
     ND_LOG_OR,     // logical OR (||)
     ND_COND,       // conditional expression
@@ -194,7 +194,7 @@ typedef struct Program {
 
 // function prototype
 // parser.c
-void construct(Program *program);
+void construct(Program *prog);
 // generator.c
 void generate(const Program *program);
 // tokenizer.c
@@ -205,11 +205,11 @@ bool consume_token(TokenKind kind, Token **token);
 Token *get_token(void);
 void set_token(Token *token);
 void expect_reserved(const char *str);
-Token *expect_ident(void);
+Token *expect_identifier(void);
 long expect_number(void);
 void tokenize(char *str);
 bool at_eof(void);
-char *make_ident(const Token *token);
+char *make_identifier(const Token *token);
 void set_source(SourceType type);
 char *read_file(const char *path);
 void report_warning(const char *loc, const char *fmt, ...);

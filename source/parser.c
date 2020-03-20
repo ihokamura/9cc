@@ -27,31 +27,30 @@ struct VarScope {
 
 
 // function prototype
-static void prg(void);
-static void gvar(void);
-static void func(void);
-static Type *declaration_spec(void);
+static void program(void);
+static void function_def(void);
+static Type *declaration_specifier(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
-static Type *type_spec(void);
+static Type *type_specifier(void);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
-static Node *stmt(void);
-static Node *compound_stmt(void);
+static Node *statement(void);
+static Node *compound_statement(void);
 static Node *declaration(bool is_local);
 static Node *init_declarator_list(Type *type, bool is_local);
 static Node *init_declarator(Type *type, bool is_local);
 static Node *initializer(void);
-static Node *expr(void);
+static Node *expression(void);
 static Node *assign(void);
 static Node *conditional(void);
-static Node *logical_or_expr(void);
-static Node *logical_and_expr(void);
-static Node *or_expr(void);
-static Node *xor_expr(void);
-static Node *and_expr(void);
+static Node *logical_or(void);
+static Node *logical_and(void);
+static Node *bitwise_or(void);
+static Node *bitwise_xor(void);
+static Node *bitwise_and(void);
 static Node *equality(void);
 static Node *relational(void);
 static Node *shift(void);
@@ -65,10 +64,10 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
-static Node *new_node_num(int val);
+static Node *new_node_number(int val);
 static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
-static Variable *new_str(const Token *token);
+static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
 static Function *new_function(const Token *token, Type *type, Node *body);
 static VarScope *enter_scope(void);
@@ -77,13 +76,13 @@ static void push_scope(Variable *var);
 static VarScope *find_scope(const Token *token);
 static bool peek_typename(void);
 static bool peek_func(void);
-static char *new_strlabel(void);
-static long const_expr(void);
+static char *new_string_label(void);
+static long const_expression(void);
 static long evaluate(const Node *node);
 
 
 // global variable
-static int str_label = 0; // label number of string-literal
+static int str_number = 0; // label number of string-literal
 static Function *function_list; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
@@ -97,21 +96,21 @@ static int scope_depth = 0; // depth of the current scope
 /*
 construct syntax tree
 */
-void construct(Program *program)
+void construct(Program *prog)
 {
-    prg();
-    program->gvars = gvar_list;
-    program->funcs = function_list;
+    program();
+    prog->gvars = gvar_list;
+    prog->funcs = function_list;
 }
 
 
 /*
 make a program
 ```
-prg ::= (gvar | func)*
+program ::= (declaration | function-def)*
 ```
 */
-static void prg(void)
+static void program(void)
 {
     Function func_head = {};
     function_list = &func_head;
@@ -123,12 +122,12 @@ static void prg(void)
         if(peek_func())
         {
             // parse function
-            func();
+            function_def();
         }
         else
         {
             // parse global variable
-            gvar();
+            declaration(false);
         }
     }
 
@@ -138,30 +137,18 @@ static void prg(void)
 
 
 /*
-make a global variable
+make a function definition
 ```
-gvar ::= declaration
-```
-*/
-static void gvar(void)
-{
-    declaration(false);
-}
-
-
-/*
-make a function
-```
-func ::= declaration-spec declarator compound-stmt
+function-def ::= declaration-specifier declarator compound-statement
 ```
 */
-static void func(void)
+static void function_def(void)
 {
     // clear list of local variables
     lvar_list = NULL;
 
     // parse declaration specifier and declarator
-    Type *type = declaration_spec();
+    Type *type = declaration_specifier();
     Token *token;
     type = declarator(type, &token);
 
@@ -169,7 +156,7 @@ static void func(void)
     new_gvar(token, new_type_function(type->base, type->args), false);
 
     // parse body
-    Node *body = compound_stmt();
+    Node *body = compound_statement();
 
     // make a new function
     new_function(token, type, body);
@@ -179,12 +166,12 @@ static void func(void)
 /*
 make a declaration specifier
 ```
-declaration-spec ::= type-spec
+declaration-specifier ::= type-specifier
 ```
 */
-static Type *declaration_spec(void)
+static Type *declaration_specifier(void)
 {
-    Type *type = type_spec();
+    Type *type = type_specifier();
 
     return type;
 }
@@ -245,16 +232,16 @@ static Type *parameter_list(Variable **arg_vars)
 /*
 make a parameter declaration
 ```
-parameter-declaration ::= declaration-spec declarator
+parameter-declaration ::= declaration-specifier declarator
 ```
 */
 static Type *parameter_declaration(Variable **arg_var)
 {
-    Type *arg_type = declaration_spec();
+    Type *arg_type = declaration_specifier();
     Token *arg_token;
 
     arg_type = declarator(arg_type, &arg_token);
-    *arg_var = new_var(make_ident(arg_token), arg_type, true);
+    *arg_var = new_var(make_identifier(arg_token), arg_type, true);
 
     return arg_type;
 }
@@ -263,12 +250,12 @@ static Type *parameter_declaration(Variable **arg_var)
 /*
 make a type name
 ```
-type-name ::= type-spec pointer?
+type-name ::= type-specifier pointer?
 ```
 */
 static Type *type_name(void)
 {
-    Type *type = type_spec();
+    Type *type = type_specifier();
 
     if(peek_reserved("*"))
     {
@@ -282,10 +269,10 @@ static Type *type_name(void)
 /*
 make a type specifier
 ```
-type-spec ::= "void" | "char" | "short" | "int" | "long"
+type-specifier ::= "void" | "char" | "short" | "int" | "long"
 ```
 */
-static Type *type_spec(void)
+static Type *type_specifier(void)
 {
     if(consume_reserved("void"))
     {
@@ -339,8 +326,8 @@ static Type *pointer(Type *base)
 /*
 make a direct declarator
 ```
-direct-declarator ::= ident
-                    | direct-declarator "[" const-expr "]"
+direct-declarator ::= identifier
+                    | direct-declarator "[" const-expression "]"
                     | direct-declarator "(" ("void" | parameter-list)? ")"
 ```
 */
@@ -354,7 +341,7 @@ static Type *direct_declarator(Type *type, Token **token)
     {
         if(consume_reserved("["))
         {
-            size_t len = const_expr();
+            size_t len = const_expression();
             expect_reserved("]");
             type = direct_declarator(type, token);
             type = new_type_array(type, len);
@@ -386,31 +373,30 @@ static Type *direct_declarator(Type *type, Token **token)
 /*
 make a statement
 ```
-stmt ::= ident ":" stmt
-       | "case" num ":" stmt
-       | "default" ":" stmt
-       | declaration
-       | "{" stmt* "}"
-       | expr? ";"
-       | "if" "(" expr ")" stmt ("else" stmt)?
-       | "switch" "(" expr ")" stmt
-       | "while" "(" expr ")" stmt
-       | "do" stmt "while" "(" expr ")" ";"
-       | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-       | "goto" ident ";"
-       | "continue" ";"
-       | "break" ";"
-       | "return" expr ";"
+statement ::= identifier ":" statement
+            | "case" number ":" statement
+            | "default" ":" statement
+            | compound-statement
+            | expr? ";"
+            | "if" "(" expression ")" statement ("else" statement)?
+            | "switch" "(" expression ")" statement
+            | "while" "(" expression ")" statement
+            | "do" statement "while" "(" expression ")" ";"
+            | "for" "(" expression? ";" expression? ";" expression? ")" statement
+            | "goto" identifier ";"
+            | "continue" ";"
+            | "break" ";"
+            | "return" expression ";"
 ```
 */
-static Node *stmt(void)
+static Node *statement(void)
 {
     Node *node;
 
     if(peek_reserved("{"))
     {
         node = new_node(ND_BLOCK);
-        node->body = compound_stmt();
+        node->body = compound_statement();
     }
     else if(consume_reserved("break"))
     {
@@ -425,7 +411,7 @@ static Node *stmt(void)
 
         // parse statement for the case label
         node = new_node(ND_CASE);
-        node->lhs = stmt();
+        node->lhs = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
         node->val = val;
@@ -443,7 +429,7 @@ static Node *stmt(void)
 
         // parse statement for the default label
         node = new_node(ND_CASE);
-        node->lhs = stmt();
+        node->lhs = statement();
 
         // update node of currently parsing switch statement
         current_switch->default_case = node;
@@ -453,13 +439,13 @@ static Node *stmt(void)
         node = new_node(ND_DO);
 
         // parse loop body
-        node->lhs = stmt();
+        node->lhs = statement();
 
         expect_reserved("while");
         expect_reserved("(");
 
         // parse loop condition
-        node->cond = expr();
+        node->cond = expression();
 
         expect_reserved(")");
         expect_reserved(";");
@@ -474,31 +460,31 @@ static Node *stmt(void)
         // parse clause-1
         if(!consume_reserved(";"))
         {
-            node->preexpr = expr();
+            node->preexpr = expression();
             expect_reserved(";");
         }
 
         // parse expression-2
         if(!consume_reserved(";"))
         {
-            node->cond = expr();
+            node->cond = expression();
             expect_reserved(";");
         }
 
         // parse expression-3
         if(!consume_reserved(")"))
         {
-            node->postexpr = expr();
+            node->postexpr = expression();
             expect_reserved(")");
         }
 
         // parse loop body
-        node->lhs = stmt();
+        node->lhs = statement();
     }
     else if(consume_reserved("goto"))
     {
         node = new_node(ND_GOTO);
-        node->ident = make_ident(expect_ident());
+        node->ident = make_identifier(expect_identifier());
         expect_reserved(";");
     }
     else if(consume_reserved("if"))
@@ -507,17 +493,17 @@ static Node *stmt(void)
         expect_reserved("(");
 
         // parse condition
-        node->cond = expr();
+        node->cond = expression();
 
         expect_reserved(")");
 
         // parse statement in case of condition being true
-        node->lhs = stmt();
+        node->lhs = statement();
 
         // parse statement in case of condition being false
         if(consume_reserved("else"))
         {
-            node->rhs = stmt();
+            node->rhs = statement();
         }
     }
     else if(consume_reserved("return"))
@@ -526,7 +512,7 @@ static Node *stmt(void)
         if(!consume_reserved(";"))
         {
             // return statement with an expression
-            node->lhs = expr();
+            node->lhs = expression();
             expect_reserved(";");
         }
     }
@@ -538,12 +524,12 @@ static Node *stmt(void)
         // parse controlling expression
         node = new_node(ND_SWITCH);
         expect_reserved("(");
-        node->cond = expr();
+        node->cond = expression();
         expect_reserved(")");
 
         // update node of currently parsing switch statement and parse body
         current_switch = node;
-        node->lhs = stmt();
+        node->lhs = statement();
 
         // restore node of previous switch statement
         current_switch = prev_switch;
@@ -554,12 +540,12 @@ static Node *stmt(void)
         expect_reserved("(");
 
         // parse loop condition
-        node->cond = expr();
+        node->cond = expression();
 
         expect_reserved(")");
 
         // parse loop body
-        node->lhs = stmt();
+        node->lhs = statement();
     }
     else if(consume_reserved(";"))
     {
@@ -576,9 +562,9 @@ static Node *stmt(void)
             {
                 // labeled statement
                 node = new_node(ND_LABEL);
-                node->lhs = stmt();
-                node->ident = make_ident(token);
-                goto stmt_end;
+                node->lhs = statement();
+                node->ident = make_identifier(token);
+                goto statement_end;
             }
             else
             {
@@ -588,11 +574,11 @@ static Node *stmt(void)
         }
 
         // expression statement
-        node = expr();
+        node = expression();
         expect_reserved(";");
     }
 
-stmt_end:
+statement_end:
     return node;
 }
 
@@ -600,10 +586,10 @@ stmt_end:
 /*
 make a compound statement
 ```
-compound-stmt ::= "{" (declaration | stmt)* "}"
+compound-statement ::= "{" (declaration | statement)* "}"
 ```
 */
-static Node *compound_stmt(void)
+static Node *compound_statement(void)
 {
     expect_reserved("{");
 
@@ -623,7 +609,7 @@ static Node *compound_stmt(void)
         else
         {
             // statement
-            cursor->next = stmt();
+            cursor->next = statement();
         }
         cursor = cursor->next;
     }
@@ -638,13 +624,13 @@ static Node *compound_stmt(void)
 /*
 make a declaration
 ```
-declaration ::= declaration-spec init-declarator-list ";"
+declaration ::= declaration-specifier init-declarator-list ";"
 ```
 */
 static Node *declaration(bool is_local)
 {
     // parse declaration specifier
-    Type *type = declaration_spec();
+    Type *type = declaration_specifier();
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
@@ -693,7 +679,7 @@ static Node *init_declarator(Type *type, bool is_local)
     VarScope *scope = find_scope(token);
     if((scope != NULL) && (scope->depth == scope_depth))
     {
-        report_error(token->str, "duplicated declaration of '%s'\n", make_ident(token));
+        report_error(token->str, "duplicated declaration of '%s'\n", make_identifier(token));
     }
 
     // make a new node for variable
@@ -740,10 +726,10 @@ static Node *initializer(void)
 /*
 make an expression
 ```
-expr ::= assign ("," assign)*
+expression ::= assign ("," assign)*
 ```
 */
-static Node *expr(void)
+static Node *expression(void)
 {
     Node *node = assign();
 
@@ -928,19 +914,19 @@ static Node *assign(void)
 /*
 make a conditional expression
 ```
-conditional ::= logical-or-expr ("?" expr ":" conditional)?
+conditional ::= logical-or ("?" expression ":" conditional)?
 ```
 */
 static Node *conditional(void)
 {
-    Node *node = logical_or_expr();
+    Node *node = logical_or();
 
     if(consume_reserved("?"))
     {
         Node *ternary = new_node(ND_COND);
 
         ternary->cond = node;
-        ternary->lhs = expr();
+        ternary->lhs = expression();
         expect_reserved(":");
         ternary->rhs = conditional();
         ternary->type = node->type;
@@ -957,19 +943,19 @@ static Node *conditional(void)
 /*
 make a logical OR expression
 ```
-logical-or-expr ::= logical-and-expr (|| logical-and-expr)*
+logical-or ::= logical-and (|| logical-and)*
 ```
 */
-static Node *logical_or_expr(void)
+static Node *logical_or(void)
 {
-    Node *node = logical_and_expr();
+    Node *node = logical_and();
 
     // parse tokens while finding a bitwise logical AND expression
     while(true)
     {
         if(consume_reserved("||"))
         {
-            node = new_node_binary(ND_LOG_OR, node, logical_and_expr());
+            node = new_node_binary(ND_LOG_OR, node, logical_and());
         }
         else
         {
@@ -982,19 +968,19 @@ static Node *logical_or_expr(void)
 /*
 make a logical AND expression
 ```
-logical-and-expr ::= or-expr (&& or-expr)*
+logical-and ::= bitwise-or (&& bitwise-or)*
 ```
 */
-static Node *logical_and_expr(void)
+static Node *logical_and(void)
 {
-    Node *node = or_expr();
+    Node *node = bitwise_or();
 
     // parse tokens while finding a bitwise inclusive OR expression
     while(true)
     {
         if(consume_reserved("&&"))
         {
-            node = new_node_binary(ND_LOG_AND, node, or_expr());
+            node = new_node_binary(ND_LOG_AND, node, bitwise_or());
         }
         else
         {
@@ -1007,19 +993,19 @@ static Node *logical_and_expr(void)
 /*
 make a bitwise inclusive OR expression
 ```
-or-expr ::= xor-expr (| xor-expr)*
+bitwise-or ::= bitwise-xor (| bitwise-xor)*
 ```
 */
-static Node *or_expr(void)
+static Node *bitwise_or(void)
 {
-    Node *node = xor_expr();
+    Node *node = bitwise_xor();
 
     // parse tokens while finding a bitwise exclusive OR expression
     while(true)
     {
         if(consume_reserved("|"))
         {
-            node = new_node_binary(ND_OR, node, xor_expr());
+            node = new_node_binary(ND_BIT_OR, node, bitwise_xor());
         }
         else
         {
@@ -1032,19 +1018,19 @@ static Node *or_expr(void)
 /*
 make a bitwise exclusive OR expression
 ```
-xor-expr ::= and-expr (^ and-expr)*
+bitwise-xor ::= bitwise-and (^ bitwise-and)*
 ```
 */
-static Node *xor_expr(void)
+static Node *bitwise_xor(void)
 {
-    Node *node = and_expr();
+    Node *node = bitwise_and();
 
     // parse tokens while finding a bitwise AND expression
     while(true)
     {
         if(consume_reserved("^"))
         {
-            node = new_node_binary(ND_XOR, node, and_expr());
+            node = new_node_binary(ND_BIT_XOR, node, bitwise_and());
         }
         else
         {
@@ -1057,10 +1043,10 @@ static Node *xor_expr(void)
 /*
 make a bitwise AND expression
 ```
-and-expr ::= equality (& equality)*
+bitwise-and ::= equality (& equality)*
 ```
 */
-static Node *and_expr(void)
+static Node *bitwise_and(void)
 {
     Node *node = equality();
 
@@ -1069,7 +1055,7 @@ static Node *and_expr(void)
     {
         if(consume_reserved("&"))
         {
-            node = new_node_binary(ND_AND, node, equality());
+            node = new_node_binary(ND_BIT_AND, node, equality());
         }
         else
         {
@@ -1346,7 +1332,7 @@ static Node *unary(void)
             if(peek_typename())
             {
                 Type *type = type_name();
-                node = new_node_num(type->size);
+                node = new_node_number(type->size);
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -1357,7 +1343,7 @@ static Node *unary(void)
         }
 
         Node *operand = unary();
-        node = new_node_num(operand->type->size);
+        node = new_node_number(operand->type->size);
     }
     else if(consume_reserved("++"))
     {
@@ -1365,11 +1351,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_num(1));
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_number(1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_num(1));
+            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_number(1));
         }
         else
         {
@@ -1382,11 +1368,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_num(1));
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_number(1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_num(1));
+            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_number(1));
         }
         else
         {
@@ -1407,7 +1393,7 @@ static Node *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_num(0), unary());
+        node = new_node_binary(ND_SUB, new_node_number(0), unary());
     }
     else if (consume_reserved("~"))
     {
@@ -1430,7 +1416,7 @@ unary_end:
 /*
 make a postfix expression
 ```
-postfix ::= primary ("[" expr "]" | "(" arg-expr-list? ")" | "++" | "--" )*
+postfix ::= primary ("[" expression "]" | "(" arg-expr-list? ")" | "++" | "--" )*
 ```
 */
 static Node *postfix(void)
@@ -1444,7 +1430,7 @@ static Node *postfix(void)
         {
             // array subscripting
             Node *lhs;
-            Node *index = expr();
+            Node *index = expression();
 
             if(is_pointer_or_array(node->type) && is_integer(index->type))
             {
@@ -1537,10 +1523,10 @@ static Node *arg_expr_list(void)
 /*
 make a primary expression
 ```
-primary ::= ident
-          | num
-          | str
-          | "(" expr ")"
+primary ::= identifier
+          | number
+          | string
+          | "(" expression ")"
 ```
 */
 static Node *primary(void)
@@ -1548,7 +1534,7 @@ static Node *primary(void)
     // expression in brackets
     if(consume_reserved("("))
     {
-        Node *node = expr();
+        Node *node = expression();
  
         expect_reserved(")");
  
@@ -1568,7 +1554,7 @@ static Node *primary(void)
             {
                 Node *node = new_node(ND_FUNC);
                 node->type = new_type_pointer(var->type);
-                node->ident = make_ident(token);
+                node->ident = make_identifier(token);
                 return node;
             }
             else
@@ -1585,27 +1571,27 @@ static Node *primary(void)
             // implicitly assume that the token denotes a function which returns int
             Node *node = new_node(ND_FUNC);
             node->type = new_type_pointer(new_type_function(new_type(TY_INT), NULL));
-            node->ident = make_ident(token);
+            node->ident = make_identifier(token);
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
-            report_warning(token->str, "implicit declaration of function '%s'\n", make_ident(token));
+            report_warning(token->str, "implicit declaration of function '%s'\n", make_identifier(token));
 #endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
             return node;
         }
 
-        report_error(token->str, "undefined variable '%s'", make_ident(token));
+        report_error(token->str, "undefined variable '%s'", make_identifier(token));
     }
 
     // string-literal
     if(consume_token(TK_STR, &token))
     {
         Node *node = new_node(ND_VAR);
-        node->var = new_str(token);
+        node->var = new_string(token);
         node->type = node->var->type;
         return node;
     }
 
     // number
-    return new_node_num(expect_number());
+    return new_node_number(expect_number());
 }
 
 
@@ -1686,9 +1672,9 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_NEQ:
     case ND_L:
     case ND_LEQ:
-    case ND_AND:
-    case ND_XOR:
-    case ND_OR:
+    case ND_BIT_AND:
+    case ND_BIT_XOR:
+    case ND_BIT_OR:
         if((lhs->type->kind == TY_LONG) || (rhs->type->kind == TY_LONG))
         {
             node->type = new_type(TY_LONG);
@@ -1749,7 +1735,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 /*
 make a new node for number
 */
-static Node *new_node_num(int val)
+static Node *new_node_number(int val)
 {
     Node *node = new_node(ND_NUM);
     node->type = new_type(TY_INT);
@@ -1785,7 +1771,7 @@ make a new global variable
 */
 static Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
-    Variable *gvar = new_var(make_ident(token), type, false);
+    Variable *gvar = new_var(make_identifier(token), type, false);
     gvar->entity = entity;
     gvar_list->next = gvar;
     gvar_list = gvar;
@@ -1798,9 +1784,9 @@ static Variable *new_gvar(const Token *token, Type *type, bool entity)
 make a new string-literal
 * String-literal is regarded as a global variable.
 */
-static Variable *new_str(const Token *token)
+static Variable *new_string(const Token *token)
 {
-    Variable *gvar = new_var(new_strlabel(), new_type_array(new_type(TY_CHAR), token->len + 1), false);
+    Variable *gvar = new_var(new_string_label(), new_type_array(new_type(TY_CHAR), token->len + 1), false);
     gvar->content = calloc(token->len + 1, sizeof(char));
     strncpy(gvar->content, token->str, token->len);
     gvar->entity = true;
@@ -1816,7 +1802,7 @@ make a new local variable
 */
 static Variable *new_lvar(const Token *token, Type *type)
 {
-    Variable *lvar = new_var(make_ident(token), type, true);
+    Variable *lvar = new_var(make_identifier(token), type, true);
     lvar->next = lvar_list;
     lvar_list = lvar;
 
@@ -1830,7 +1816,7 @@ make a new function
 static Function *new_function(const Token *token, Type *type, Node *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
-    new_func->name = make_ident(token);
+    new_func->name = make_identifier(token);
     new_func->type = new_type_function(type->base, type->args);
     new_func->body = body;
 
@@ -1868,13 +1854,13 @@ static Function *new_function(const Token *token, Type *type, Node *body)
 /*
 make a new label for string-literal
 */
-static char *new_strlabel(void)
+static char *new_string_label(void)
 {
     // A label for string-literal is of the form "LS<number>", so the length of buffer should be more than 2 + 10 + 1.
     char *label = calloc(15, sizeof(char));
 
-    sprintf(label, "LS%d", str_label);
-    str_label++;
+    sprintf(label, "Lstring%d", str_number);
+    str_number++;
 
     return label;
 }
@@ -1957,7 +1943,7 @@ static bool peek_func(void)
     Token *saved_token = get_token();
 
     // parse declaration specifier and declarator
-    Type *base = declaration_spec();
+    Type *base = declaration_specifier();
     Token *token;
     base = declarator(base, &token);
 
@@ -1973,8 +1959,11 @@ static bool peek_func(void)
 
 /*
 make a constant expression
+```
+const-expression ::= conditional
+```
 */
-static long const_expr(void)
+static long const_expression(void)
 {
     return evaluate(conditional());
 }
@@ -2020,13 +2009,13 @@ static long evaluate(const Node *node)
     case ND_LEQ:
         return evaluate(node->lhs) <= evaluate(node->rhs);;
 
-    case ND_AND:
+    case ND_BIT_AND:
         return evaluate(node->lhs) & evaluate(node->rhs);
 
-    case ND_XOR:
+    case ND_BIT_XOR:
         return evaluate(node->lhs) ^ evaluate(node->rhs);
 
-    case ND_OR:
+    case ND_BIT_OR:
         return evaluate(node->lhs) | evaluate(node->rhs);;
 
     case ND_LOG_AND:

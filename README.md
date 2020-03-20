@@ -9,33 +9,32 @@
 
 ## Syntax
 ```
-prg ::= (gvar | func)*
-gvar ::= declaration
-func ::= declaration-spec declarator compound-stmt
-stmt ::= ident ":" stmt
-       | "case" num ":" stmt
-       | "default" ":" stmt
-       | compound-stmt
-       | expr? ";"
-       | "if" "(" expr ")" stmt ("else" stmt)?
-       | "switch" "(" expr ")" stmt
-       | "while" "(" expr ")" stmt
-       | "do" stmt "while" "(" expr ")" ";"
-       | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-       | "goto" ident ";"
-       | "continue" ";"
-       | "break" ";"
-       | "return" expr ";"
-compound-stmt ::= "{" (declaration | stmt)* "}"
-expr ::= assign ("," assign)*
+program ::= (declaration | function-def)*
+function-def ::= declaration-specifier declarator compound-statement
+statement ::= identifier ":" statement
+            | "case" number ":" statement
+            | "default" ":" statement
+            | compound-statement
+            | expression? ";"
+            | "if" "(" expression ")" statement ("else" statement)?
+            | "switch" "(" expression ")" statement
+            | "while" "(" expression ")" statement
+            | "do" statement "while" "(" expression ")" ";"
+            | "for" "(" expression? ";" expression? ";" expression? ")" statement
+            | "goto" identifier ";"
+            | "continue" ";"
+            | "break" ";"
+            | "return" expression ";"
+compound-statement ::= "{" (declaration | statement)* "}"
+expression ::= assign ("," assign)*
 assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
-conditional ::= logical-or-expr ("?" expr ":" conditional)?
-logical-or-expr ::= logical-and-expr (|| logical-and-expr)*
-logical-and-expr ::= or-expr (&& or-expr)*
-or-expr ::= xor-expr (| xor-expr)*
-xor-expr ::= and-expr (^ and-expr)*
-and-expr ::= equality (& equality)*
+conditional ::= logical-or ("?" expression ":" conditional)?
+logical-or ::= logical-and (|| logical-and)*
+logical-and ::= bitwise-or (&& bitwise-or)*
+bitwise-or ::= bitwise-xor (| bitwise-xor)*
+bitwise-xor ::= bitwise-and (^ bitwise-and)*
+bitwise-and ::= equality (& equality)*
 equality ::= relational ("==" relational | "!=" relational)*
 relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 shift ::=  additive ("<<" additive | ">>" additive)*
@@ -48,25 +47,26 @@ unary ::= postfix
         | "sizeof" unary
         | "sizeof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
-postfix ::= primary ("[" expr "]" | "(" arg-expr-list? ")" | "++" | "--" )*
+postfix ::= primary ("[" expression "]" | "(" arg-expr-list? ")" | "++" | "--" )*
 arg-expr-list ::= assign ("," assign)*
-primary ::= ident
-          | num
-          | str
-          | "(" expr ")"
-declaration ::= declaration-spec init-declarator-list ";"
-declaration-spec ::= type-spec
-type-spec ::= "void" | "char" | "short" | "int" | "long"
+primary ::= identifier
+          | number
+          | string
+          | "(" expression ")"
+const-expression ::= conditional
+declaration ::= declaration-specifier init-declarator-list ";"
+declaration-specifier ::= type-specifier
+type-specifier ::= "void" | "char" | "short" | "int" | "long"
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
-direct-declarator ::= ident
-                    | direct-declarator "[" const-expr "]"
+direct-declarator ::= identifier
+                    | direct-declarator "[" const-expression "]"
                     | direct-declarator "(" ("void" | parameter-list)? ")"
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
-parameter-declaration ::= declaration-spec declarator
+parameter-declaration ::= declaration-specifier declarator
 initializer ::= assign
-type-name ::= type-spec pointer?
+type-name ::= type-specifier pointer?
 pointer ::= "*" "*"*
 ```
 
