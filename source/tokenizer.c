@@ -95,9 +95,11 @@ static const char *keyword_list[] = {
     "int",
     "long",
     "return",
+    "signed",
     "sizeof",
     "short",
     "switch",
+    "unsigned",
     "void",
     "while",
 };

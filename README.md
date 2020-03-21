@@ -10,7 +10,7 @@
 ## Syntax
 ```
 program ::= (declaration | function-def)*
-function-def ::= declaration-specifier declarator compound-statement
+function-def ::= declaration-specifiers declarator compound-statement
 statement ::= identifier ":" statement
             | "case" number ":" statement
             | "default" ":" statement
@@ -54,9 +54,15 @@ primary ::= identifier
           | string
           | "(" expression ")"
 const-expression ::= conditional
-declaration ::= declaration-specifier init-declarator-list ";"
-declaration-specifier ::= type-specifier
-type-specifier ::= "void" | "char" | "short" | "int" | "long"
+declaration ::= declaration-specifiers init-declarator-list ";"
+declaration-specifiers ::= type-specifier type-specifier*
+type-specifier ::= "void"
+                 | "char"
+                 | "short"
+                 | "int"
+                 | "long"
+                 | "signed"
+                 | "unsigned"
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
@@ -64,9 +70,9 @@ direct-declarator ::= identifier
                     | direct-declarator "[" const-expression "]"
                     | direct-declarator "(" ("void" | parameter-list)? ")"
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
-parameter-declaration ::= declaration-specifier declarator
+parameter-declaration ::= declaration-specifiers declarator
 initializer ::= assign
-type-name ::= type-specifier pointer?
+type-name ::= type-specifier type-specifier* pointer?
 pointer ::= "*" "*"*
 ```
 

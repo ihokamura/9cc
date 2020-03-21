@@ -17,7 +17,22 @@
 #include "9cc.h"
 
 
+// macro definition
+#define SPEC_LIST_SIZE ((size_t)7) // number of valid specifiers
+
+
 // type definition
+typedef enum {
+    SP_VOID,     // "void"
+    SP_CHAR,     // "char"
+    SP_SHORT,    // "short"
+    SP_INT,      // "int"
+    SP_LONG,     // "long"
+    SP_SIGNED,   // "signed"
+    SP_UNSIGNED, // "unsigned"
+    SP_INVALID,  // invalid specifier
+} SpecifierKind;
+
 typedef struct VarScope VarScope;
 struct VarScope {
     VarScope *next; // next element
@@ -29,12 +44,12 @@ struct VarScope {
 // function prototype
 static void program(void);
 static void function_def(void);
-static Type *declaration_specifier(void);
+static Type *declaration_specifiers(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
-static Type *type_specifier(void);
+static SpecifierKind type_specifier(void);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *statement(void);
@@ -64,7 +79,7 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
-static Node *new_node_number(int val);
+static Node *new_node_number(long val);
 static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
@@ -74,7 +89,9 @@ static VarScope *enter_scope(void);
 static void leave_scope(VarScope *scope);
 static void push_scope(Variable *var);
 static VarScope *find_scope(const Token *token);
-static bool peek_typename(void);
+static Type *determine_type(void);
+static void clear_current_spec_list(void);
+static bool peek_type_specifier(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static long const_expression(void);
@@ -91,6 +108,41 @@ static const size_t stack_alignment_size = 8; // alignment size of function stac
 static Node *current_switch = NULL; // currently parsing switch statement
 static VarScope *var_scope = NULL; // list of variables visible in the current scope
 static int scope_depth = 0; // depth of the current scope
+static int current_spec_list[SPEC_LIST_SIZE] = {}; // list of currently parsing specifiers
+static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
+    // synonym of 'void'
+    {{1, 0, 0, 0, 0, 0, 0}, TY_VOID},  // void
+    // synonym of 'char'
+    {{0, 1, 0, 0, 0, 0, 0}, TY_CHAR},  // char
+    // synonym of 'signed char'
+    {{0, 1, 0, 0, 0, 1, 0}, TY_CHAR},  // signed char
+    // synonym of 'unsigned char'
+    {{0, 1, 0, 0, 0, 0, 1}, TY_CHAR},  // unsigned char
+    // synonym of 'short'
+    {{0, 0, 1, 0, 0, 0, 0}, TY_SHORT}, // short
+    {{0, 0, 1, 0, 0, 1, 0}, TY_SHORT}, // signed short
+    {{0, 0, 1, 1, 0, 0, 0}, TY_SHORT}, // short int
+    {{0, 0, 1, 1, 0, 1, 0}, TY_SHORT}, // signed short int
+    // synonym of 'unsigned short'
+    {{0, 0, 1, 0, 0, 0, 1}, TY_SHORT}, // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1}, TY_SHORT}, // unsigned short int
+    // synonym of 'int'
+    {{0, 0, 0, 1, 0, 0, 0}, TY_INT},   // int
+    {{0, 0, 0, 0, 0, 1, 0}, TY_INT},   // signed
+    {{0, 0, 0, 1, 0, 1, 0}, TY_INT},   // signed int
+    // synonym of 'unsigned'
+    {{0, 0, 0, 0, 0, 0, 1}, TY_INT},   // unsigned
+    {{0, 0, 0, 1, 0, 0, 1}, TY_INT},   // unsigned int
+    // synonym of 'long'
+    {{0, 0, 0, 0, 1, 0, 0}, TY_LONG},  // long
+    {{0, 0, 0, 0, 1, 1, 0}, TY_LONG},  // signed long
+    {{0, 0, 0, 1, 1, 0, 0}, TY_LONG},  // long int
+    {{0, 0, 0, 1, 1, 1, 0}, TY_LONG},  // signed long int
+    // synonym of 'unsigned long'
+    {{0, 0, 0, 0, 1, 0, 1}, TY_LONG},  // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1}, TY_LONG},  // unsigned long int
+}; // map from list of specifiers to kind of type
+static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
 
 /*
@@ -139,7 +191,7 @@ static void program(void)
 /*
 make a function definition
 ```
-function-def ::= declaration-specifier declarator compound-statement
+function-def ::= declaration-specifiers declarator compound-statement
 ```
 */
 static void function_def(void)
@@ -148,7 +200,7 @@ static void function_def(void)
     lvar_list = NULL;
 
     // parse declaration specifier and declarator
-    Type *type = declaration_specifier();
+    Type *type = declaration_specifiers();
     Token *token;
     type = declarator(type, &token);
 
@@ -166,14 +218,19 @@ static void function_def(void)
 /*
 make a declaration specifier
 ```
-declaration-specifier ::= type-specifier
+declaration-specifiers ::= type-specifier type-specifier*
 ```
 */
-static Type *declaration_specifier(void)
+static Type *declaration_specifiers(void)
 {
-    Type *type = type_specifier();
+    clear_current_spec_list();
+    current_spec_list[type_specifier()]++;
+    while(peek_type_specifier())
+    {
+        current_spec_list[type_specifier()]++;
+    }
 
-    return type;
+    return determine_type();
 }
 
 
@@ -232,12 +289,12 @@ static Type *parameter_list(Variable **arg_vars)
 /*
 make a parameter declaration
 ```
-parameter-declaration ::= declaration-specifier declarator
+parameter-declaration ::= declaration-specifiers declarator
 ```
 */
 static Type *parameter_declaration(Variable **arg_var)
 {
-    Type *arg_type = declaration_specifier();
+    Type *arg_type = declaration_specifiers();
     Token *arg_token;
 
     arg_type = declarator(arg_type, &arg_token);
@@ -250,12 +307,18 @@ static Type *parameter_declaration(Variable **arg_var)
 /*
 make a type name
 ```
-type-name ::= type-specifier pointer?
+type-name ::= type-specifier type-specifier* pointer?
 ```
 */
 static Type *type_name(void)
 {
-    Type *type = type_specifier();
+    clear_current_spec_list();
+    current_spec_list[type_specifier()]++;
+    while(peek_type_specifier())
+    {
+        current_spec_list[type_specifier()]++;
+    }
+    Type *type = determine_type();
 
     if(peek_reserved("*"))
     {
@@ -269,34 +332,49 @@ static Type *type_name(void)
 /*
 make a type specifier
 ```
-type-specifier ::= "void" | "char" | "short" | "int" | "long"
+type-specifier ::= "void"
+                 | "char"
+                 | "short"
+                 | "int"
+                 | "long"
+                 | "signed"
+                 | "unsigned"
 ```
 */
-static Type *type_specifier(void)
+static SpecifierKind type_specifier(void)
 {
     if(consume_reserved("void"))
     {
-        return new_type(TY_VOID);
+        return SP_VOID;
     }
     else if(consume_reserved("char"))
     {
-        return new_type(TY_CHAR);
+        return SP_CHAR;
     }
     else if(consume_reserved("short"))
     {
-        return new_type(TY_SHORT);
+        return SP_SHORT;
     }
     else if(consume_reserved("int"))
     {
-        return new_type(TY_INT);
+        return SP_INT;
     }
     else if(consume_reserved("long"))
     {
-        return new_type(TY_LONG);
+        return SP_LONG;
+    }
+    else if(consume_reserved("signed"))
+    {
+        return SP_SIGNED;
+    }
+    else if(consume_reserved("unsigned"))
+    {
+        return SP_UNSIGNED;
     }
     else
     {
-        return NULL;
+        report_error(NULL, "invalid type specifier\n");
+        return SP_INVALID;
     }
 }
 
@@ -601,7 +679,7 @@ static Node *compound_statement(void)
     Node *cursor = &head;
     while(!consume_reserved("}"))
     {
-        if(peek_typename())
+        if(peek_type_specifier())
         {
             // declaration
             cursor->next = declaration(true);
@@ -624,13 +702,13 @@ static Node *compound_statement(void)
 /*
 make a declaration
 ```
-declaration ::= declaration-specifier init-declarator-list ";"
+declaration ::= declaration-specifiers init-declarator-list ";"
 ```
 */
 static Node *declaration(bool is_local)
 {
     // parse declaration specifier
-    Type *type = declaration_specifier();
+    Type *type = declaration_specifiers();
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
@@ -1287,7 +1365,7 @@ static Node *cast(void)
     Token *saved_token = get_token();
     if(consume_reserved("("))
     {
-        if(peek_typename())
+        if(peek_type_specifier())
         {
             Type *type = type_name();
             expect_reserved(")");
@@ -1329,7 +1407,7 @@ static Node *unary(void)
         Token *saved_token = get_token();
         if(consume_reserved("("))
         {
-            if(peek_typename())
+            if(peek_type_specifier())
             {
                 Type *type = type_name();
                 node = new_node_number(type->size);
@@ -1735,7 +1813,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 /*
 make a new node for number
 */
-static Node *new_node_number(int val)
+static Node *new_node_number(long val)
 {
     Node *node = new_node(ND_NUM);
     node->type = new_type(TY_INT);
@@ -1920,9 +1998,50 @@ static VarScope *find_scope(const Token *token)
 
 
 /*
-peek a type name
+determine type from list of specifiers
 */
-static bool peek_typename(void)
+static Type *determine_type(void)
+{
+    for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
+    {
+        bool equal = true;
+
+        for(size_t j = 0; j < SPEC_LIST_SIZE; j++)
+        {
+            if(TYPE_SPECS_MAP[i].spec_list[j] != current_spec_list[j])
+            {
+                equal = false;
+                break;
+            }
+        }
+
+        if(equal)
+        {
+            return new_type(TYPE_SPECS_MAP[i].type_kind);
+        }
+    }
+
+    report_error(NULL, "invalid specifier");
+    return NULL;
+}
+
+
+/*
+clear list of currently parsing specifiers
+*/
+static void clear_current_spec_list(void)
+{
+    for(size_t i = 0; i < SPEC_LIST_SIZE; i++)
+    {
+        current_spec_list[i] = 0;
+    }
+}
+
+
+/*
+peek a type-specifier
+*/
+static bool peek_type_specifier(void)
 {
     return (
            peek_reserved("void")
@@ -1930,6 +2049,8 @@ static bool peek_typename(void)
         || peek_reserved("short")
         || peek_reserved("int")
         || peek_reserved("long")
+        || peek_reserved("signed")
+        || peek_reserved("unsigned")
     );
 }
 
@@ -1943,7 +2064,7 @@ static bool peek_func(void)
     Token *saved_token = get_token();
 
     // parse declaration specifier and declarator
-    Type *base = declaration_specifier();
+    Type *base = declaration_specifiers();
     Token *token;
     base = declarator(base, &token);
 
