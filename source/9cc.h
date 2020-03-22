@@ -37,7 +37,7 @@ typedef enum {
 typedef enum {
     TK_RESERVED, // reserved token
     TK_IDENT,    // identifier
-    TK_NUM,      // integer
+    TK_CONST,    // integer-constant
     TK_STR,      // string-literal
     TK_EOF,      // end of input
 } TokenKind;
@@ -112,7 +112,7 @@ typedef enum {
     ND_VAR,        // variable
     ND_ADDR,       // address (&)
     ND_DEREF,      // dereference (*)
-    ND_NUM,        // integer
+    ND_CONST,      // integer-constant
 } NodeKind;
 
 
@@ -121,7 +121,6 @@ typedef struct Token Token;
 struct Token {
     Token *next;    // next token
     TokenKind kind; // kind of token
-    long val;       // value of token (only for TK_NUM)
     char *str;      // token string
     int len;        // length of token string
 };
@@ -161,7 +160,7 @@ struct Node {
     Node *lhs;          // left hand side
     Node *rhs;          // right hand side
     Type *type;         // type of node
-    long val;           // value of node (only for ND_NUM, ND_CASE)
+    long val;           // value of node (only for ND_CONST, ND_CASE)
     Variable *var;      // information of variable (only for ND_GVAR, ND_LVAR)
     Node *cond;         // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;      // pre-expression (only for ND_FOR)
@@ -206,7 +205,7 @@ Token *get_token(void);
 void set_token(Token *token);
 void expect_reserved(const char *str);
 Token *expect_identifier(void);
-long expect_number(void);
+Token *expect_integer_constant(void);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_identifier(const Token *token);

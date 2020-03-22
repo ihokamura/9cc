@@ -27,6 +27,7 @@ static int is_comment(const char *str);
 static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
+static int is_integer_constant(const char *str);
 static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
 static void report_position(const char *loc);
 
@@ -213,7 +214,7 @@ void expect_reserved(const char *str)
 
 /*
 parse an identifier
-* If the next token is an identifier, this function parses the token and returns the token.
+* If the next token is an identifier, this function parses and returns the token.
 * Otherwise, it reports an error.
 */
 Token *expect_identifier(void)
@@ -231,21 +232,21 @@ Token *expect_identifier(void)
 
 
 /*
-parse a number
-* If the next token is a number, this function parses the token and returns the value.
+parse an integer-constant
+* If the next token is an integer-constant, this function parses and returns the token.
 * Otherwise, it reports an error.
 */
-long expect_number(void)
+Token *expect_integer_constant(void)
 {
-    if(current_token->kind != TK_NUM)
+    if(current_token->kind != TK_CONST)
     {
-        report_error(current_token->str, "expected a number.");
+        report_error(current_token->str, "expected an integer-constant.");
     }
 
-    long val = current_token->val;
+    Token *token = current_token;
     current_token = current_token->next;
 
-    return val;
+    return token;
 }
 
 
@@ -308,11 +309,12 @@ void tokenize(char *str)
             continue;
         }
 
-        // parse a number
-        if(isdigit(*str))
+        // parse an integer-constant
+        len = is_integer_constant(str);
+        if(len > 0)
         {
-            cursor = new_token(TK_NUM, cursor, str, 0);
-            cursor->val = strtol(str, &str, 10);
+            cursor = new_token(TK_CONST, cursor, str, len);
+            str += len;
             continue;
         }
 
@@ -570,6 +572,22 @@ static int is_string(const char *str)
         {
             report_error(str, "expected '\"'");
         }
+    }
+
+    return len;
+}
+
+
+/*
+check if the following string is an integer-constant
+*/
+static int is_integer_constant(const char *str)
+{
+    int len = 0;
+
+    while(isdigit(str[len]))
+    {
+        len++;
     }
 
     return len;

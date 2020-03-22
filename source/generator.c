@@ -427,7 +427,7 @@ static void generate_node(const Node *node)
     case ND_NULL:
         return;
 
-    case ND_NUM:
+    case ND_CONST:
         put_instruction("  push %d", node->val);
         return;
 

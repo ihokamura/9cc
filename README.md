@@ -12,7 +12,7 @@
 program ::= (declaration | function-def)*
 function-def ::= declaration-specifiers declarator compound-statement
 statement ::= identifier ":" statement
-            | "case" number ":" statement
+            | "case" const-expression ":" statement
             | "default" ":" statement
             | compound-statement
             | expression? ";"
@@ -50,8 +50,8 @@ unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 postfix ::= primary ("[" expression "]" | "(" arg-expr-list? ")" | "++" | "--" )*
 arg-expr-list ::= assign ("," assign)*
 primary ::= identifier
-          | number
-          | string
+          | integer-constant
+          | string-literal
           | "(" expression ")"
 const-expression ::= conditional
 declaration ::= declaration-specifiers init-declarator-list ";"

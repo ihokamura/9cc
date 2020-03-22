@@ -79,7 +79,7 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
-static Node *new_node_number(long val);
+static Node *new_node_integer(long val);
 static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
@@ -452,7 +452,7 @@ static Type *direct_declarator(Type *type, Token **token)
 make a statement
 ```
 statement ::= identifier ":" statement
-            | "case" number ":" statement
+            | "case" const-expression ":" statement
             | "default" ":" statement
             | compound-statement
             | expr? ";"
@@ -484,7 +484,7 @@ static Node *statement(void)
     else if(consume_reserved("case"))
     {
         // parse label expression
-        long val = expect_number();
+        long val = const_expression();
         expect_reserved(":");
 
         // parse statement for the case label
@@ -1410,7 +1410,7 @@ static Node *unary(void)
             if(peek_type_specifier())
             {
                 Type *type = type_name();
-                node = new_node_number(type->size);
+                node = new_node_integer(type->size);
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -1421,7 +1421,7 @@ static Node *unary(void)
         }
 
         Node *operand = unary();
-        node = new_node_number(operand->type->size);
+        node = new_node_integer(operand->type->size);
     }
     else if(consume_reserved("++"))
     {
@@ -1429,11 +1429,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_number(1));
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer(1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_number(1));
+            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer(1));
         }
         else
         {
@@ -1446,11 +1446,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_number(1));
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer(1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_number(1));
+            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer(1));
         }
         else
         {
@@ -1471,7 +1471,7 @@ static Node *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_number(0), unary());
+        node = new_node_binary(ND_SUB, new_node_integer(0), unary());
     }
     else if (consume_reserved("~"))
     {
@@ -1602,8 +1602,8 @@ static Node *arg_expr_list(void)
 make a primary expression
 ```
 primary ::= identifier
-          | number
-          | string
+          | integer-constant
+          | string-literal
           | "(" expression ")"
 ```
 */
@@ -1668,8 +1668,10 @@ static Node *primary(void)
         return node;
     }
 
-    // number
-    return new_node_number(expect_number());
+    // integer-constant
+    token = expect_integer_constant();
+    long val = strtol(token->str, NULL, 10);
+    return new_node_integer(val);
 }
 
 
@@ -1811,11 +1813,11 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 
 
 /*
-make a new node for number
+make a new node for integer-constant
 */
-static Node *new_node_number(long val)
+static Node *new_node_integer(long val)
 {
-    Node *node = new_node(ND_NUM);
+    Node *node = new_node(ND_CONST);
     node->type = new_type(TY_INT);
     node->val = val;
 
@@ -2145,7 +2147,7 @@ static long evaluate(const Node *node)
     case ND_LOG_OR:
         return evaluate(node->lhs) || evaluate(node->rhs);
 
-    case ND_NUM:
+    case ND_CONST:
         return node->val;
 
     default:
