@@ -233,7 +233,11 @@ void report_warning(const char *loc, const char *fmt, ...);
 void report_error(const char *loc, const char *fmt, ...);
 // type.c
 Type *new_type(TypeKind kind);
+int get_conversion_rank(const Type *type);
+Type *discard_sign(const Type *type);
 bool is_integer(const Type *type);
+bool is_signed(const Type *type);
+bool is_unsigned(const Type *type);
 bool is_pointer(const Type *type);
 bool is_array(const Type *type);
 bool is_pointer_or_array(const Type *type);

@@ -82,6 +82,8 @@ static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_integer(IntegerConstant val);
+static Node *apply_integer_promotion(Node *node);
+static void apply_arithmetic_conversion(Node *lhs, Node *rhs);
 static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
@@ -97,8 +99,9 @@ static void clear_current_spec_list(void);
 static bool peek_type_specifier(void);
 static bool peek_func(void);
 static char *new_string_label(void);
-static long const_expression(void);
-static long evaluate(const Node *node);
+static IntegerConstant const_expression(void);
+static IntegerConstant evaluate(Node *node);
+static bool is_zero(IntegerConstant val);
 
 
 // global variable
@@ -422,10 +425,30 @@ static Type *direct_declarator(Type *type, Token **token)
     {
         if(consume_reserved("["))
         {
-            size_t len = const_expression();
+            IntegerConstant len = const_expression();
+            size_t len_val;
+            switch(len.kind)
+            {
+            case TY_ULONG:
+                len_val = len.ulong_val;
+                break;
+
+            case TY_LONG:
+                len_val = len.long_val;
+                break;
+
+            case TY_UINT:
+                len_val = len.uint_val;
+                break;
+
+            default:
+                len_val = len.int_val;
+                break;
+            }
+
             expect_reserved("]");
             type = direct_declarator(type, token);
-            type = new_type_array(type, len);
+            type = new_type_array(type, len_val);
         }
         else if(consume_reserved("("))
         {
@@ -487,7 +510,7 @@ static Node *statement(void)
     else if(consume_reserved("case"))
     {
         // parse label expression
-        long val = const_expression();
+        IntegerConstant val = const_expression();
         expect_reserved(":");
 
         // parse statement for the case label
@@ -495,7 +518,7 @@ static Node *statement(void)
         node->lhs = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
-        node->val = (IntegerConstant){.kind = TY_LONG, .long_val = val};
+        node->val = val;
         node->next_case = current_switch->next_case;
         current_switch->next_case = node;
     }
@@ -1010,7 +1033,15 @@ static Node *conditional(void)
         ternary->lhs = expression();
         expect_reserved(":");
         ternary->rhs = conditional();
-        ternary->type = node->type;
+
+        // copy LHS and RHS since their types may not be modified
+        Node lhs = *ternary->lhs;
+        Node rhs = *ternary->rhs;
+        if(is_integer(lhs.type) && is_integer(rhs.type))
+        {
+            apply_arithmetic_conversion(&lhs, &rhs);
+        }
+        ternary->type = lhs.type;
 
         return ternary;
     }
@@ -1472,15 +1503,15 @@ static Node *unary(void)
     }
     else if(consume_reserved("+"))
     {
-        node = unary();
+        node = apply_integer_promotion(unary());
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 0}), unary());
+        node = new_node_binary(ND_SUB, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 0}), apply_integer_promotion(unary()));
     }
     else if (consume_reserved("~"))
     {
-        node = new_node_unary(ND_COMPL, unary());
+        node = new_node_unary(ND_COMPL, apply_integer_promotion(unary()));
     }
     else if (consume_reserved("!"))
     {
@@ -1726,10 +1757,12 @@ static Node *new_node_unary(NodeKind kind, Node *lhs)
         node->type = lhs->type;
         break;
 
-    case ND_COMPL:
     case ND_NEG:
-    default:
         node->type = new_type(TY_INT);
+        break;
+
+    case ND_COMPL:
+    default:
         break;
     }
 
@@ -1743,8 +1776,6 @@ make a new node for binary operations
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 {
     Node *node = new_node(kind);
-    node->lhs = lhs;
-    node->rhs = rhs;
 
     switch(kind)
     {
@@ -1752,21 +1783,30 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
-    case ND_EQ:
-    case ND_NEQ:
+    case ND_MOD:
     case ND_L:
     case ND_LEQ:
     case ND_BIT_AND:
     case ND_BIT_XOR:
     case ND_BIT_OR:
-        if((lhs->type->kind == TY_LONG) || (rhs->type->kind == TY_LONG))
+        apply_arithmetic_conversion(lhs, rhs);
+        node->type = lhs->type;
+        break;
+
+    case ND_LSHIFT:
+    case ND_RSHIFT:
+        lhs = apply_integer_promotion(lhs);
+        rhs = apply_integer_promotion(rhs);
+        node->type = lhs->type;
+        break;
+
+    case ND_EQ:
+    case ND_NEQ:
+        if(is_integer(lhs->type) && is_integer(rhs->type))
         {
-            node->type = new_type(TY_LONG);
+            apply_arithmetic_conversion(lhs, rhs);
         }
-        else
-        {
-            node->type = new_type(TY_INT);
-        }
+        node->type = new_type(TY_INT);
         break;
 
     case ND_PTR_ADD:
@@ -1812,6 +1852,9 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         break;
     }
 
+    node->lhs = lhs;
+    node->rhs = rhs;
+
     return node;
 }
 
@@ -1842,6 +1885,95 @@ static Node *new_node_integer(IntegerConstant val)
     }
 
     return node;
+}
+
+
+/*
+apply integer promotion
+* In this implementation, integer promotions convert 'char' and 'short' (regardless of sign) to 'int' because
+    * The size of 'char' is 1 byte.
+    * The size of 'short' is 2 bytes.
+    * The size of 'int' is 4 bytes.
+    * Therefore, 'int' can represent 'char', 'unsigned char', 'short' and 'unsigned short'.
+*/
+static Node *apply_integer_promotion(Node *node)
+{
+    if((node->type->kind == TY_CHAR)
+    || (node->type->kind == TY_UCHAR)
+    || (node->type->kind == TY_SHORT)
+    || (node->type->kind == TY_USHORT))
+    {
+        node->type = new_type(TY_INT);
+    }
+
+    return node;
+}
+
+
+/*
+apply usual arithmetic conversion
+*/
+static void apply_arithmetic_conversion(Node *lhs, Node *rhs)
+{
+    // perform integer promotions on both operands at first
+    lhs = apply_integer_promotion(lhs);
+    rhs = apply_integer_promotion(rhs);
+
+    if(lhs->type->kind == rhs->type->kind)
+    {
+        // If both operands have the same type, then no further conversion is needed.
+    }
+    else
+    {
+        if((is_signed(lhs->type) && is_signed(rhs->type)) || (is_unsigned(lhs->type) && is_unsigned(rhs->type)))
+        {
+            // Otherwise, if both operands have signed integer types or both have unsigned integer types, the operand with the type of lesser integer conversion rank is converted to the type of the operand with greater rank.
+            if(lhs->type->kind < rhs->type->kind)
+            {
+                lhs->type = rhs->type;
+            }
+            else
+            {
+                rhs->type = lhs->type;
+            }
+        }
+        else
+        {
+            // Otherwise, if the operand that has unsigned integer type has rank greater or equal to the rank of the type of the other operand, then the operand with signed integer type is converted to the type of the operand with unsigned integer type.
+            if(is_unsigned(lhs->type) && is_signed(rhs->type) && (get_conversion_rank(lhs->type) >= get_conversion_rank(rhs->type)))
+            {
+                rhs->type = lhs->type;
+            }
+            else if(is_unsigned(rhs->type) && is_signed(lhs->type) && (get_conversion_rank(rhs->type) >= get_conversion_rank(lhs->type)))
+            {
+                lhs->type = rhs->type;
+            }
+            // Otherwise, if the type of the operand with signed integer type can represent all of the values of the type of the operand with unsigned integer type, then the operand with unsigned integer type is converted to the type of the operand with signed integer type.
+            // In this implementation, this rule can be checked only by comparing integer conversion ranks of operands.
+            else if(is_signed(lhs->type) && is_unsigned(rhs->type) && (get_conversion_rank(lhs->type) > get_conversion_rank(rhs->type)))
+            {
+                rhs->type = lhs->type;
+            }
+            else if(is_signed(rhs->type) && is_unsigned(lhs->type) && (get_conversion_rank(rhs->type) > get_conversion_rank(lhs->type)))
+            {
+                lhs->type = rhs->type;
+            }
+            // Otherwise, both operands are converted to the unsigned integer type corresponding to the type of the operand with signed integer type.
+            else
+            {
+                if(is_signed(lhs->type))
+                {
+                    lhs->type = discard_sign(lhs->type);
+                    rhs->type = lhs->type;
+                }
+                else
+                {
+                    rhs->type = discard_sign(rhs->type);
+                    lhs->type = rhs->type;
+                }
+            }
+        }
+    }
 }
 
 
@@ -2131,7 +2263,7 @@ make a constant expression
 const-expression ::= conditional
 ```
 */
-static long const_expression(void)
+static IntegerConstant const_expression(void)
 {
     return evaluate(conditional());
 }
@@ -2140,63 +2272,600 @@ static long const_expression(void)
 /*
 evaluate a node
 */
-static long evaluate(const Node *node)
+static IntegerConstant evaluate(Node *node)
 {
+    IntegerConstant result = {.kind = TY_INT, .int_val = 0};
+
     switch(node->kind)
     {
+    case ND_COMPL:
+    {
+        node = apply_integer_promotion(node);
+        result.kind = node->type->kind;
+        IntegerConstant operand = evaluate(node);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = ~operand.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = ~operand.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = ~operand.uint_val;
+            break;
+
+        default:
+            result.int_val = ~operand.int_val;
+            break;
+        }
+        break;
+    }
+
+    case ND_NEG:
+    {
+        node = apply_integer_promotion(node);
+        result.kind = TY_INT;
+        result.int_val = !is_zero(evaluate(node));
+        break;
+    }
+
     case ND_ADD:
-        return evaluate(node->lhs) + evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val + rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val + rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val + rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val + rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_SUB:
-        return evaluate(node->lhs) - evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val - rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val - rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val - rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val - rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_MUL:
-        return evaluate(node->lhs) * evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val * rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val * rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val * rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val * rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_DIV:
-        return evaluate(node->lhs) / evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val / rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val / rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val / rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val / rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_MOD:
-        return evaluate(node->lhs) % evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val % rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val % rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val % rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val % rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_LSHIFT:
-        return evaluate(node->lhs) << evaluate(node->rhs);;
+    {
+        node->lhs = apply_integer_promotion(node->lhs);
+        node->rhs = apply_integer_promotion(node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.ulong_val = lhs.ulong_val << rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.ulong_val = lhs.ulong_val << rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.ulong_val = lhs.ulong_val << rhs.uint_val;
+                break;
+
+            default:
+                result.ulong_val = lhs.ulong_val << rhs.int_val;
+                break;
+            }
+            break;
+
+        case TY_LONG:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.long_val = lhs.long_val << rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.long_val = lhs.long_val << rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.long_val = lhs.long_val << rhs.uint_val;
+                break;
+
+            default:
+                result.long_val = lhs.long_val << rhs.int_val;
+                break;
+            }
+            break;
+
+        case TY_UINT:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.uint_val = lhs.uint_val << rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.uint_val = lhs.uint_val << rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.uint_val = lhs.uint_val << rhs.uint_val;
+                break;
+
+            default:
+                result.uint_val = lhs.uint_val << rhs.int_val;
+                break;
+            }
+            break;
+
+        default:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.int_val = lhs.int_val << rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.int_val = lhs.int_val << rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.int_val = lhs.int_val << rhs.uint_val;
+                break;
+
+            default:
+                result.int_val = lhs.int_val << rhs.int_val;
+                break;
+            }
+            break;
+        }
+    }
 
     case ND_RSHIFT:
-        return evaluate(node->lhs) >> evaluate(node->rhs);
+    {
+        node->lhs = apply_integer_promotion(node->lhs);
+        node->rhs = apply_integer_promotion(node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.ulong_val = lhs.ulong_val >> rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.ulong_val = lhs.ulong_val >> rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.ulong_val = lhs.ulong_val >> rhs.uint_val;
+                break;
+
+            default:
+                result.ulong_val = lhs.ulong_val >> rhs.int_val;
+                break;
+            }
+            break;
+
+        case TY_LONG:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.long_val = lhs.long_val >> rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.long_val = lhs.long_val >> rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.long_val = lhs.long_val >> rhs.uint_val;
+                break;
+
+            default:
+                result.long_val = lhs.long_val >> rhs.int_val;
+                break;
+            }
+            break;
+
+        case TY_UINT:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.uint_val = lhs.uint_val >> rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.uint_val = lhs.uint_val >> rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.uint_val = lhs.uint_val >> rhs.uint_val;
+                break;
+
+            default:
+                result.uint_val = lhs.uint_val >> rhs.int_val;
+                break;
+            }
+            break;
+
+        default:
+            switch(rhs.kind)
+            {
+            case TY_ULONG:
+                result.int_val = lhs.int_val >> rhs.ulong_val;
+                break;
+
+            case TY_LONG:
+                result.int_val = lhs.int_val >> rhs.long_val;
+                break;
+
+            case TY_UINT:
+                result.int_val = lhs.int_val >> rhs.uint_val;
+                break;
+
+            default:
+                result.int_val = lhs.int_val >> rhs.int_val;
+                break;
+            }
+            break;
+        }
+    }
 
     case ND_EQ:
-        return evaluate(node->lhs) == evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = TY_INT;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            result.int_val = (lhs.ulong_val == rhs.ulong_val);
+            break;
+
+        case TY_LONG:
+            result.int_val = (lhs.long_val == rhs.long_val);
+            break;
+
+        case TY_UINT:
+            result.int_val = (lhs.uint_val == rhs.uint_val);
+            break;
+
+        default:
+            result.int_val = (lhs.int_val == rhs.int_val);
+            break;
+        }
+        break;
+    }
 
     case ND_NEQ:
-        return evaluate(node->lhs) != evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = TY_INT;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            result.int_val = (lhs.ulong_val != rhs.ulong_val);
+            break;
+
+        case TY_LONG:
+            result.int_val = (lhs.long_val != rhs.long_val);
+            break;
+
+        case TY_UINT:
+            result.int_val = (lhs.uint_val != rhs.uint_val);
+            break;
+
+        default:
+            result.int_val = (lhs.int_val != rhs.int_val);
+            break;
+        }
+        break;
+    }
 
     case ND_L:
-        return evaluate(node->lhs) < evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = TY_INT;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            result.int_val = (lhs.ulong_val < rhs.ulong_val);
+            break;
+
+        case TY_LONG:
+            result.int_val = (lhs.long_val < rhs.long_val);
+            break;
+
+        case TY_UINT:
+            result.int_val = (lhs.uint_val < rhs.uint_val);
+            break;
+
+        default:
+            result.int_val = (lhs.int_val < rhs.int_val);
+            break;
+        }
+        break;
+    }
 
     case ND_LEQ:
-        return evaluate(node->lhs) <= evaluate(node->rhs);;
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = TY_INT;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(lhs.kind)
+        {
+        case TY_ULONG:
+            result.int_val = (lhs.ulong_val <= rhs.ulong_val);
+            break;
+
+        case TY_LONG:
+            result.int_val = (lhs.long_val <= rhs.long_val);
+            break;
+
+        case TY_UINT:
+            result.int_val = (lhs.uint_val <= rhs.uint_val);
+            break;
+
+        default:
+            result.int_val = (lhs.int_val <= rhs.int_val);
+            break;
+        }
+        break;
+    }
 
     case ND_BIT_AND:
-        return evaluate(node->lhs) & evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val & rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val & rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val & rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val & rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_BIT_XOR:
-        return evaluate(node->lhs) ^ evaluate(node->rhs);
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val ^ rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val ^ rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val ^ rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val ^ rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_BIT_OR:
-        return evaluate(node->lhs) | evaluate(node->rhs);;
+    {
+        apply_arithmetic_conversion(node->lhs, node->rhs);
+        result.kind = node->lhs->type->kind;
+        IntegerConstant lhs = evaluate(node->lhs);
+        IntegerConstant rhs = evaluate(node->rhs);
+        switch(result.kind)
+        {
+        case TY_ULONG:
+            result.ulong_val = lhs.ulong_val | rhs.ulong_val;
+            break;
+
+        case TY_LONG:
+            result.long_val = lhs.long_val | rhs.long_val;
+            break;
+
+        case TY_UINT:
+            result.uint_val = lhs.uint_val | rhs.uint_val;
+            break;
+
+        default:
+            result.int_val = lhs.int_val | rhs.int_val;
+            break;
+        }
+        break;
+    }
 
     case ND_LOG_AND:
-        return evaluate(node->lhs) && evaluate(node->rhs);
+        result.kind = TY_INT;
+        result.int_val = !is_zero(evaluate(node->lhs)) && !is_zero(evaluate(node->rhs));
+        break;
 
     case ND_LOG_OR:
-        return evaluate(node->lhs) || evaluate(node->rhs);
+        result.kind = TY_INT;
+        result.int_val = !is_zero(evaluate(node->lhs)) || !is_zero(evaluate(node->rhs));
+        break;
 
     case ND_CONST:
-        return node->val.long_val;
+        result = node->val;
+        break;
 
     default:
         report_error(NULL, "cannot evaluate");
-        return 0;
+        break;
+    }
+
+    return result;
+}
+
+
+/*
+check if a given integer-constant is equal to zero
+*/
+static bool is_zero(IntegerConstant val)
+{
+    switch(val.kind)
+    {
+    case TY_ULONG:
+        return (val.ulong_val == 0);
+
+    case TY_LONG:
+        return (val.long_val == 0);
+
+    case TY_UINT:
+        return (val.uint_val == 0);
+
+    default:
+        return (val.int_val == 0);
     }
 }

@@ -23,6 +23,11 @@
 #define SIZEOF_LONG     (8)
 #define SIZEOF_PTR      (8)
 
+#define RANK_CHAR     (1)
+#define RANK_SHORT    (2)
+#define RANK_INT      (3)
+#define RANK_LONG     (4)
+
 
 // global variable
 static Type void_type   = {TY_VOID,   SIZEOF_VOID};
@@ -97,6 +102,64 @@ Type *new_type(TypeKind kind)
 
 
 /*
+get the integer conversion rank of an integer type
+*/
+int get_conversion_rank(const Type *type)
+{
+    switch(type->kind)
+    {
+    case TY_CHAR:
+    case TY_UCHAR:
+        return RANK_CHAR;
+
+    case TY_SHORT:
+    case TY_USHORT:
+        return RANK_SHORT;
+
+    case TY_INT:
+    case TY_UINT:
+        return RANK_INT;
+
+    case TY_LONG:
+    case TY_ULONG:
+        return RANK_LONG;
+
+    default:
+        return RANK_INT;
+    }
+}
+
+
+/*
+discard sign of an integer type
+*/
+Type *discard_sign(const Type *type)
+{
+    switch(type->kind)
+    {
+    case TY_CHAR:
+    case TY_UCHAR:
+        return &char_type;
+
+    case TY_SHORT:
+    case TY_USHORT:
+        return &short_type;
+
+    case TY_INT:
+    case TY_UINT:
+        return &int_type;
+
+    case TY_LONG:
+    case TY_ULONG:
+        return &long_type;
+
+    default:
+        return &int_type;
+    }
+}
+
+
+/*
 check if a given type is an integer type
 */
 bool is_integer(const Type *type)
@@ -109,6 +172,34 @@ bool is_integer(const Type *type)
         || (type->kind == TY_INT)
         || (type->kind == TY_UINT)
         || (type->kind == TY_LONG)
+        || (type->kind == TY_ULONG)
+        );
+}
+
+
+/*
+check if a given type is a signed integer type
+*/
+bool is_signed(const Type *type)
+{
+    return (
+           (type->kind == TY_CHAR)
+        || (type->kind == TY_SHORT)
+        || (type->kind == TY_INT)
+        || (type->kind == TY_LONG)
+        );
+}
+
+
+/*
+check if a given type is an unsigned integer type
+*/
+bool is_unsigned(const Type *type)
+{
+    return (
+           (type->kind == TY_UCHAR)
+        || (type->kind == TY_USHORT)
+        || (type->kind == TY_UINT)
         || (type->kind == TY_ULONG)
         );
 }

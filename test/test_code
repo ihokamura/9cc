@@ -307,6 +307,8 @@ int test_cast()
     int i;
     l = 4294967295; i = (int)l; assert_int(4294967295, i);
     l = 4294967296; i = (int)l; assert_int(0, i);
+
+    return 0;
 }
 
 
