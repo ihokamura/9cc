@@ -25,11 +25,15 @@
 
 
 // global variable
-static Type void_type  = {TY_VOID,  SIZEOF_VOID};
-static Type char_type  = {TY_CHAR,  SIZEOF_CHAR};
-static Type short_type = {TY_SHORT, SIZEOF_SHORT};
-static Type int_type   = {TY_INT,   SIZEOF_INT};
-static Type long_type  = {TY_LONG,  SIZEOF_LONG};
+static Type void_type   = {TY_VOID,   SIZEOF_VOID};
+static Type char_type   = {TY_CHAR,   SIZEOF_CHAR};
+static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR};
+static Type short_type  = {TY_SHORT,  SIZEOF_SHORT};
+static Type ushort_type = {TY_USHORT, SIZEOF_SHORT};
+static Type int_type    = {TY_INT,    SIZEOF_INT};
+static Type uint_type   = {TY_UINT,   SIZEOF_INT};
+static Type long_type   = {TY_LONG,   SIZEOF_LONG};
+static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG};
 
 
 /*
@@ -49,16 +53,32 @@ Type *new_type(TypeKind kind)
         type = &char_type;
         break;
 
+    case TY_UCHAR:
+        type = &uchar_type;
+        break;
+
     case TY_SHORT:
         type = &short_type;
+        break;
+
+    case TY_USHORT:
+        type = &ushort_type;
         break;
 
     case TY_INT:
         type = &int_type;
         break;
 
+    case TY_UINT:
+        type = &uint_type;
+        break;
+
     case TY_LONG:
         type = &long_type;
+        break;
+
+    case TY_ULONG:
+        type = &ulong_type;
         break;
 
     default:
@@ -83,9 +103,13 @@ bool is_integer(const Type *type)
 {
     return (
            (type->kind == TY_CHAR)
+        || (type->kind == TY_UCHAR)
         || (type->kind == TY_SHORT)
+        || (type->kind == TY_USHORT)
         || (type->kind == TY_INT)
+        || (type->kind == TY_UINT)
         || (type->kind == TY_LONG)
+        || (type->kind == TY_ULONG)
         );
 }
 

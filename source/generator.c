@@ -194,19 +194,19 @@ static void generate_gvar(const Variable *gvar)
             // allocate memory with an integer
             if(type->size == 1)
             {
-                put_instruction("  .byte %d\n", gvar->init->val);
+                put_instruction("  .byte %d\n", gvar->init->val.int_val);
             }
             else if(type->size == 2)
             {
-                put_instruction("  .value %d\n", gvar->init->val);
+                put_instruction("  .value %d\n", gvar->init->val.int_val);
             }
             else if(type->size == 4)
             {
-                put_instruction("  .long %d\n", gvar->init->val);
+                put_instruction("  .long %d\n", gvar->init->val.int_val);
             }
             else
             {
-                put_instruction("  .quad %d\n", gvar->init->val);
+                put_instruction("  .quad %d\n", gvar->init->val.long_val);
             }
         }
     }
@@ -428,7 +428,27 @@ static void generate_node(const Node *node)
         return;
 
     case ND_CONST:
-        put_instruction("  push %d", node->val);
+        switch(node->type->kind)
+        {
+        case TY_INT:
+            put_instruction("  push %d", node->val.int_val);
+            break;
+
+        case TY_UINT:
+            put_instruction("  push %d", node->val.uint_val);
+            break;
+
+        case TY_LONG:
+            put_instruction("  push %d", node->val.long_val);
+            break;
+
+        case TY_ULONG:
+            put_instruction("  push %d", node->val.ulong_val);
+            break;
+
+        default:
+            break;
+        }
         return;
 
     case ND_DECL:
@@ -763,7 +783,7 @@ static void generate_node(const Node *node)
             lab_number++;
 
             case_node->case_label = case_label;
-            put_instruction("  cmp rax, %d", case_node->val);
+            put_instruction("  cmp rax, %d", case_node->val.long_val);
             put_instruction("  je .Lcase%d", case_label);
         }
         if(node->default_case != NULL)

@@ -15,6 +15,9 @@
 * declaration of global variable
 */
 
+#ifndef __9CC_H__
+#define __9CC_H__
+
 #include <stdbool.h>
 
 
@@ -44,14 +47,18 @@ typedef enum {
 
 // kind of type
 typedef enum {
-    TY_VOID,  // void
-    TY_CHAR,  // char
-    TY_SHORT, // short
-    TY_INT,   // int
-    TY_LONG,  // long
-    TY_PTR,   // pointer
-    TY_ARRAY, // array
-    TY_FUNC,  // function
+    TY_VOID,   // void
+    TY_CHAR,   // char
+    TY_UCHAR,  // unsigned char
+    TY_SHORT,  // short
+    TY_USHORT, // unsigned short
+    TY_INT,    // int
+    TY_UINT,   // unsigned int
+    TY_LONG,   // long
+    TY_ULONG,  // unsigned long
+    TY_PTR,    // pointer
+    TY_ARRAY,  // array
+    TY_FUNC,   // function
 } TypeKind;
 
 // kind of node in AST(abstract syntax tree)
@@ -125,6 +132,17 @@ struct Token {
     int len;        // length of token string
 };
 
+// structure for integer-constant
+typedef struct {
+    TypeKind kind;               // type of integer-constant
+    union {
+        int int_val;             // value for 'int' type
+        unsigned int uint_val;   // value for 'unsigned int' type
+        long long_val;           // value for 'long' type
+        unsigned long ulong_val; // value for 'unsigned long' type
+    };
+} IntegerConstant;
+
 // structure for type
 typedef struct Type Type;
 struct Type {
@@ -155,22 +173,22 @@ struct Variable {
 
 // structure for node in AST
 struct Node {
-    Node *next;         // next element
-    NodeKind kind;      // kind of node
-    Node *lhs;          // left hand side
-    Node *rhs;          // right hand side
-    Type *type;         // type of node
-    long val;           // value of node (only for ND_CONST, ND_CASE)
-    Variable *var;      // information of variable (only for ND_GVAR, ND_LVAR)
-    Node *cond;         // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
-    Node *preexpr;      // pre-expression (only for ND_FOR)
-    Node *postexpr;     // post-expression (only for ND_FOR)
-    int case_label;     // sequential number of case label (only for ND_CASE)
-    Node *next_case;    // next case (only for ND_SWITCH, ND_CASE)
-    Node *default_case; // default case (only for ND_SWITCH)
-    Node *body;         // body of compound statements (only for ND_BLOCK, ND_DECL)
-    char *ident;        // identifier (only for ND_FUNC, ND_GOTO, ND_LABEL)
-    Node *args;         // arguments (only for ND_FUNC)
+    Node *next;          // next element
+    NodeKind kind;       // kind of node
+    Node *lhs;           // left hand side
+    Node *rhs;           // right hand side
+    Type *type;          // type of node
+    IntegerConstant val; // value of node (only for ND_CONST, ND_CASE)
+    Variable *var;       // information of variable (only for ND_GVAR, ND_LVAR)
+    Node *cond;          // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
+    Node *preexpr;       // pre-expression (only for ND_FOR)
+    Node *postexpr;      // post-expression (only for ND_FOR)
+    int case_label;      // sequential number of case label (only for ND_CASE)
+    Node *next_case;     // next case (only for ND_SWITCH, ND_CASE)
+    Node *default_case;  // default case (only for ND_SWITCH)
+    Node *body;          // body of compound statements (only for ND_BLOCK, ND_DECL)
+    char *ident;         // identifier (only for ND_FUNC, ND_GOTO, ND_LABEL)
+    Node *args;          // arguments (only for ND_FUNC)
 };
 
 // structure for function
@@ -222,3 +240,5 @@ bool is_pointer_or_array(const Type *type);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
 Type *new_type_function(Type *base, Type *args);
+
+#endif /* !__9CC_H__ */

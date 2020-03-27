@@ -10,6 +10,8 @@
 * parser (syntax tree constructor)
 */
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,7 +81,7 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
-static Node *new_node_integer(long val);
+static Node *new_node_integer(IntegerConstant val);
 static Variable *new_var(char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
@@ -90,6 +92,7 @@ static void leave_scope(VarScope *scope);
 static void push_scope(Variable *var);
 static VarScope *find_scope(const Token *token);
 static Type *determine_type(void);
+static IntegerConstant parse_integer_constant(const Token *token);
 static void clear_current_spec_list(void);
 static bool peek_type_specifier(void);
 static bool peek_func(void);
@@ -111,36 +114,36 @@ static int scope_depth = 0; // depth of the current scope
 static int current_spec_list[SPEC_LIST_SIZE] = {}; // list of currently parsing specifiers
 static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0}, TY_VOID},  // void
+    {{1, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0}, TY_CHAR},  // char
+    {{0, 1, 0, 0, 0, 0, 0}, TY_CHAR},   // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0}, TY_CHAR},  // signed char
+    {{0, 1, 0, 0, 0, 1, 0}, TY_CHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1}, TY_CHAR},  // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1}, TY_UCHAR},  // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0}, TY_SHORT}, // short
-    {{0, 0, 1, 0, 0, 1, 0}, TY_SHORT}, // signed short
-    {{0, 0, 1, 1, 0, 0, 0}, TY_SHORT}, // short int
-    {{0, 0, 1, 1, 0, 1, 0}, TY_SHORT}, // signed short int
+    {{0, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // short
+    {{0, 0, 1, 0, 0, 1, 0}, TY_SHORT},  // signed short
+    {{0, 0, 1, 1, 0, 0, 0}, TY_SHORT},  // short int
+    {{0, 0, 1, 1, 0, 1, 0}, TY_SHORT},  // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1}, TY_SHORT}, // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1}, TY_SHORT}, // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1}, TY_USHORT}, // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1}, TY_USHORT}, // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0}, TY_INT},   // int
-    {{0, 0, 0, 0, 0, 1, 0}, TY_INT},   // signed
-    {{0, 0, 0, 1, 0, 1, 0}, TY_INT},   // signed int
+    {{0, 0, 0, 1, 0, 0, 0}, TY_INT},    // int
+    {{0, 0, 0, 0, 0, 1, 0}, TY_INT},    // signed
+    {{0, 0, 0, 1, 0, 1, 0}, TY_INT},    // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1}, TY_INT},   // unsigned
-    {{0, 0, 0, 1, 0, 0, 1}, TY_INT},   // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1}, TY_UINT},   // unsigned
+    {{0, 0, 0, 1, 0, 0, 1}, TY_UINT},   // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0}, TY_LONG},  // long
-    {{0, 0, 0, 0, 1, 1, 0}, TY_LONG},  // signed long
-    {{0, 0, 0, 1, 1, 0, 0}, TY_LONG},  // long int
-    {{0, 0, 0, 1, 1, 1, 0}, TY_LONG},  // signed long int
+    {{0, 0, 0, 0, 1, 0, 0}, TY_LONG},   // long
+    {{0, 0, 0, 0, 1, 1, 0}, TY_LONG},   // signed long
+    {{0, 0, 0, 1, 1, 0, 0}, TY_LONG},   // long int
+    {{0, 0, 0, 1, 1, 1, 0}, TY_LONG},   // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1}, TY_LONG},  // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1}, TY_LONG},  // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1}, TY_ULONG},  // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1}, TY_ULONG},  // unsigned long int
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -492,7 +495,7 @@ static Node *statement(void)
         node->lhs = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
-        node->val = val;
+        node->val = (IntegerConstant){.kind = TY_LONG, .long_val = val};
         node->next_case = current_switch->next_case;
         current_switch->next_case = node;
     }
@@ -1404,13 +1407,15 @@ static Node *unary(void)
 
     if(consume_reserved("sizeof"))
     {
+        // The type of the result of 'sizeof' operator is 'size_t'.
+        // This implementation regards 'size_t' as 'unsigned long'.
         Token *saved_token = get_token();
         if(consume_reserved("("))
         {
             if(peek_type_specifier())
             {
                 Type *type = type_name();
-                node = new_node_integer(type->size);
+                node = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = type->size});
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -1421,7 +1426,7 @@ static Node *unary(void)
         }
 
         Node *operand = unary();
-        node = new_node_integer(operand->type->size);
+        node = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = operand->type->size});
     }
     else if(consume_reserved("++"))
     {
@@ -1429,11 +1434,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer(1));
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer(1));
+            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
         }
         else
         {
@@ -1446,11 +1451,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer(1));
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer(1));
+            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
         }
         else
         {
@@ -1471,7 +1476,7 @@ static Node *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_integer(0), unary());
+        node = new_node_binary(ND_SUB, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 0}), unary());
     }
     else if (consume_reserved("~"))
     {
@@ -1670,8 +1675,7 @@ static Node *primary(void)
 
     // integer-constant
     token = expect_integer_constant();
-    long val = strtol(token->str, NULL, 10);
-    return new_node_integer(val);
+    return new_node_integer(parse_integer_constant(token));
 }
 
 
@@ -1686,7 +1690,7 @@ static Node *new_node(NodeKind kind)
     node->lhs = NULL;
     node->rhs = NULL;
     node->type = NULL;
-    node->val = 0;
+    node->val = (IntegerConstant){.kind = TY_INT, .int_val = 0};
     node->var = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
@@ -1815,11 +1819,27 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 /*
 make a new node for integer-constant
 */
-static Node *new_node_integer(long val)
+static Node *new_node_integer(IntegerConstant val)
 {
     Node *node = new_node(ND_CONST);
-    node->type = new_type(TY_INT);
     node->val = val;
+
+    switch(val.kind)
+    {
+    case TY_INT:
+    case TY_UINT:
+        node->type = new_type(TY_INT);
+        break;
+
+    case TY_LONG:
+    case TY_ULONG:
+        node->type = new_type(TY_LONG);
+        break;
+
+    default:
+        node->type = new_type(TY_INT);
+        break;
+    }
 
     return node;
 }
@@ -2000,6 +2020,31 @@ static VarScope *find_scope(const Token *token)
 
 
 /*
+parse an integer-constant
+*/
+static IntegerConstant parse_integer_constant(const Token *token)
+{
+    long long_val = strtol(token->str, NULL, 10);
+    if(errno != ERANGE)
+    {
+        if((INT_MIN <= long_val) && (long_val <= INT_MAX))
+        {
+            return (IntegerConstant){.kind = TY_INT, .int_val = long_val};
+        }
+        else
+        {
+            return (IntegerConstant){.kind = TY_LONG, .long_val = long_val};
+        }
+    }
+    else
+    {
+        report_warning(token->str, "integer constant is too large");
+        return (IntegerConstant){.kind = TY_LONG, .long_val = long_val};
+    }
+}
+
+
+/*
 determine type from list of specifiers
 */
 static Type *determine_type(void)
@@ -2148,7 +2193,7 @@ static long evaluate(const Node *node)
         return evaluate(node->lhs) || evaluate(node->rhs);
 
     case ND_CONST:
-        return node->val;
+        return node->val.long_val;
 
     default:
         report_error(NULL, "cannot evaluate");
