@@ -973,6 +973,10 @@ int test_struct()
     st3.m2.mm3 = 33; assert_short(33, st3.m2.mm3);
     st3.m3 = 3; assert_char(3, st3.m3);
 
+    struct {char m1, *m2; int *m3, m4, **m5;} st4;
+    st4.m1 = 1; st4.m2 = &st4.m1; assert_char(1, *st4.m2);
+    st4.m4 = 2; st4.m3 = &st4.m4; st4.m5 = &st4.m3; assert_int(2, *st4.m3); assert_int(2, **st4.m5);
+
     return 0;
 }
 

@@ -72,7 +72,8 @@ type-specifier ::= "void"
                  | struct-specifier
 struct-specifier ::= "struct" "{" struct-declaration-list "}"
 struct-declaration-list ::= struct-declaration struct-declaration*
-struct-declaration ::= specifier-list declarator ";"
+struct-declaration ::= specifier-list struct-declarator-list ";"
+struct-declarator-list ::= declarator ("," declarator)*
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator

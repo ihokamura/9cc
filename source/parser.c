@@ -57,6 +57,7 @@ static SpecifierKind type_specifier(Type **type);
 static Type *struct_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
+static Member *struct_declarator_list(Type *type);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *statement(void);
@@ -491,8 +492,12 @@ static Member *struct_declaration_list(void)
     Member *cursor = member;
     while(!peek_reserved("}"))
     {
+        // move cursor until last element since a struct-declaration may have multiple declarators
+        while(cursor->next != NULL)
+        {
+            cursor = cursor->next;
+        }
         cursor->next = struct_declaration();
-        cursor = cursor->next;
     }
 
     return member;
@@ -502,17 +507,37 @@ static Member *struct_declaration_list(void)
 /*
 make a struct-declaration
 ```
-struct-declaration ::= specifier-list declarator ";"
+struct-declaration ::= specifier-list struct-declarator-list ";"
 ```
 */
 static Member *struct_declaration(void)
 {
     Type *type = specifier_list();
-    Token *token;
-    type = declarator(type, &token);
-
-    Member *member = new_member(token, type);
+    Member *member = struct_declarator_list(type);
     expect_reserved(";");
+
+    return member;
+}
+
+
+/*
+make a struct-declarator-list
+```
+struct-declarator-list ::= declarator ("," declarator)*
+```
+*/
+static Member *struct_declarator_list(Type *type)
+{
+    Token *token;
+    Type *decl_type = declarator(type, &token);
+    Member *member = new_member(token, decl_type);
+    Member *cursor = member;
+    while(consume_reserved(","))
+    {
+        decl_type = declarator(type, &token);
+        cursor->next = new_member(token, decl_type);
+        cursor = cursor->next;
+    }
 
     return member;
 }
