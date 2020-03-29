@@ -38,6 +38,7 @@ static void report_position(const char *loc);
 static const char *punctuator_list[] = {
     "<<=",
     ">>=",
+    "->",
     "==",
     "!=",
     "<=",
@@ -56,6 +57,7 @@ static const char *punctuator_list[] = {
     ">>",
     "&&",
     "||",
+    ".",
     "[",
     "]",
     "(",
@@ -99,6 +101,7 @@ static const char *keyword_list[] = {
     "signed",
     "sizeof",
     "short",
+    "struct",
     "switch",
     "unsigned",
     "void",

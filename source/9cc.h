@@ -58,6 +58,7 @@ typedef enum {
     TY_ULONG,  // unsigned long
     TY_PTR,    // pointer
     TY_ARRAY,  // array
+    TY_STRUCT, // structure
     TY_FUNC,   // function
 } TypeKind;
 
@@ -117,6 +118,7 @@ typedef enum {
     ND_FUNC,       // function call
     ND_DECL,       // declaration
     ND_VAR,        // variable
+    ND_MEMBER,     // member
     ND_ADDR,       // address (&)
     ND_DEREF,      // dereference (*)
     ND_CONST,      // integer-constant
@@ -128,8 +130,8 @@ typedef struct Token Token;
 struct Token {
     Token *next;    // next token
     TokenKind kind; // kind of token
-    char *str;      // token string
-    int len;        // length of token string
+    char *str;      // pointer to token string
+    size_t len;     // length of token string
 };
 
 // structure for integer-constant
@@ -143,15 +145,28 @@ typedef struct {
     };
 } IntegerConstant;
 
-// structure for type
+// structure for type (forward declaration)
 typedef struct Type Type;
+
+// structure for member
+typedef struct Member Member;
+struct Member {
+    Member *next;  // next element
+    Type *type;    // type of member
+    char *name;    // name of member
+    size_t offset; // offset of member
+};
+
+// structure for type
 struct Type {
-    TypeKind kind; // kind of type
-    size_t size;   // size of type
-    Type *base;    // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
-    size_t len;    // length of array (only for TY_ARRAY)
-    Type *args;    // type of arguments (only for TY_FUNC)
-    Type *next;    // next element (only for TY_FUNC)
+    TypeKind kind;  // kind of type
+    size_t size;    // size of type
+    size_t align;   // alignment of type
+    Type *base;     // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;     // length of array (only for TY_ARRAY)
+    Type *args;     // type of arguments (only for TY_FUNC)
+    Type *next;     // next element (only for TY_FUNC)
+    Member *member; // members (only for TY_STRUCT)
 };
 
 // structure for node in AST (forward declaration)
@@ -165,7 +180,7 @@ struct Variable {
     Type *type;     // type of variable
     Node *init;     // initializer
     bool local;     // flag indicating that the variable is local or global
-    int offset;     // offset from base pointer (rbp) (only for local variable)
+    size_t offset;  // offset from base pointer (rbp) (only for local variable)
     char *content;  // content of string-literal including '\0' (only for string-literal)
     bool entity;    // flag indicating that the variable has an entity in the current translation unit (only for global variable)
 };
@@ -189,6 +204,7 @@ struct Node {
     Node *body;          // body of compound statements (only for ND_BLOCK, ND_DECL)
     char *ident;         // identifier (only for ND_FUNC, ND_GOTO, ND_LABEL)
     Node *args;          // arguments (only for ND_FUNC)
+    Member *member;      // member (only for ND_MEMBER)
 };
 
 // structure for function
@@ -244,5 +260,7 @@ bool is_pointer_or_array(const Type *type);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
 Type *new_type_function(Type *base, Type *args);
+Member *new_member(const Token *token, Type *type);
+Member *find_member(const Token *token, const Type *type);
 
 #endif /* !__9CC_H__ */

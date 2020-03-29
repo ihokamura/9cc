@@ -20,7 +20,7 @@
 
 
 // macro definition
-#define SPEC_LIST_SIZE ((size_t)7) // number of valid specifiers
+#define SPEC_LIST_SIZE ((size_t)8) // number of valid specifiers
 
 
 // type definition
@@ -32,6 +32,7 @@ typedef enum {
     SP_LONG,     // "long"
     SP_SIGNED,   // "signed"
     SP_UNSIGNED, // "unsigned"
+    SP_STRUCT,   // "struct"
     SP_INVALID,  // invalid specifier
 } SpecifierKind;
 
@@ -47,11 +48,15 @@ struct VarScope {
 static void program(void);
 static void function_def(void);
 static Type *declaration_specifiers(void);
+static Type *specifier_list(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
-static SpecifierKind type_specifier(void);
+static SpecifierKind type_specifier(Type **type);
+static Type *struct_specifier(void);
+static Member *struct_declaration_list(void);
+static Member *struct_declaration(void);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *statement(void);
@@ -93,15 +98,14 @@ static VarScope *enter_scope(void);
 static void leave_scope(VarScope *scope);
 static void push_scope(Variable *var);
 static VarScope *find_scope(const Token *token);
-static Type *determine_type(void);
 static IntegerConstant parse_integer_constant(const Token *token);
-static void clear_current_spec_list(void);
 static bool peek_type_specifier(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static IntegerConstant const_expression(void);
 static IntegerConstant evaluate(Node *node);
 static bool is_zero(IntegerConstant val);
+static size_t adjust_alignment(size_t target, size_t alignment);
 
 
 // global variable
@@ -110,43 +114,44 @@ static Function *function_list; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
-static const size_t stack_alignment_size = 8; // alignment size of function stack
 static Node *current_switch = NULL; // currently parsing switch statement
 static VarScope *var_scope = NULL; // list of variables visible in the current scope
 static int scope_depth = 0; // depth of the current scope
-static int current_spec_list[SPEC_LIST_SIZE] = {}; // list of currently parsing specifiers
+static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
+    {{1, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0}, TY_CHAR},   // char
+    {{0, 1, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0}, TY_CHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0}, TY_CHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1}, TY_UCHAR},  // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0}, TY_UCHAR},  // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // short
-    {{0, 0, 1, 0, 0, 1, 0}, TY_SHORT},  // signed short
-    {{0, 0, 1, 1, 0, 0, 0}, TY_SHORT},  // short int
-    {{0, 0, 1, 1, 0, 1, 0}, TY_SHORT},  // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},  // short
+    {{0, 0, 1, 0, 0, 1, 0, 0}, TY_SHORT},  // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0}, TY_SHORT},  // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0}, TY_SHORT},  // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1}, TY_USHORT}, // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1}, TY_USHORT}, // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0}, TY_USHORT}, // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0}, TY_USHORT}, // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0}, TY_INT},    // int
-    {{0, 0, 0, 0, 0, 1, 0}, TY_INT},    // signed
-    {{0, 0, 0, 1, 0, 1, 0}, TY_INT},    // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0}, TY_INT},    // int
+    {{0, 0, 0, 0, 0, 1, 0, 0}, TY_INT},    // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0}, TY_INT},    // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1}, TY_UINT},   // unsigned
-    {{0, 0, 0, 1, 0, 0, 1}, TY_UINT},   // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0}, TY_UINT},   // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0}, TY_UINT},   // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0}, TY_LONG},   // long
-    {{0, 0, 0, 0, 1, 1, 0}, TY_LONG},   // signed long
-    {{0, 0, 0, 1, 1, 0, 0}, TY_LONG},   // long int
-    {{0, 0, 0, 1, 1, 1, 0}, TY_LONG},   // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0}, TY_LONG},   // long
+    {{0, 0, 0, 0, 1, 1, 0, 0}, TY_LONG},   // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0}, TY_LONG},   // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0}, TY_LONG},   // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1}, TY_ULONG},  // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1}, TY_ULONG},  // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1, 0}, TY_ULONG},  // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0}, TY_ULONG},  // unsigned long int
+    // structure
+    {{0, 0, 0, 0, 0, 0, 0, 1}, TY_STRUCT}, // struct
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -224,21 +229,75 @@ static void function_def(void)
 /*
 make a declaration specifier
 ```
-declaration-specifiers ::= type-specifier type-specifier*
+declaration-specifiers ::= specifier-list
 ```
 */
 static Type *declaration_specifiers(void)
 {
-    clear_current_spec_list();
-    current_spec_list[type_specifier()]++;
-    while(peek_type_specifier())
-    {
-        current_spec_list[type_specifier()]++;
-    }
-
-    return determine_type();
+    return specifier_list();
 }
 
+
+/*
+make a specifier-list
+```
+specifier-list ::= type-specifier type-specifier*
+```
+*/
+static Type *specifier_list(void)
+{
+    int spec_list[SPEC_LIST_SIZE] = {};
+    Type *type = NULL;
+
+    // parse type specifiers
+    while(peek_type_specifier())
+    {
+        spec_list[type_specifier(&type)]++;
+    }
+
+    // determine type
+    for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
+    {
+        bool equal = true;
+
+        for(size_t j = 0; j < SPEC_LIST_SIZE; j++)
+        {
+            if(TYPE_SPECS_MAP[i].spec_list[j] != spec_list[j])
+            {
+                equal = false;
+                break;
+            }
+        }
+
+        if(equal)
+        {
+            TypeKind type_kind = TYPE_SPECS_MAP[i].type_kind;
+            switch(type_kind)
+            {
+            case TY_VOID:
+            case TY_CHAR:
+            case TY_UCHAR:
+            case TY_SHORT:
+            case TY_USHORT:
+            case TY_INT:
+            case TY_UINT:
+            case TY_LONG:
+            case TY_ULONG:
+                return new_type(type_kind);
+
+            case TY_STRUCT:
+                return type;
+
+            default:
+                break;
+            }
+        }
+    }
+
+    // invalid combination of specifiers
+    report_error(NULL, "invalid specifiers");
+    return NULL;
+}
 
 
 /*
@@ -313,18 +372,12 @@ static Type *parameter_declaration(Variable **arg_var)
 /*
 make a type name
 ```
-type-name ::= type-specifier type-specifier* pointer?
+type-name ::= specifier-list pointer?
 ```
 */
 static Type *type_name(void)
 {
-    clear_current_spec_list();
-    current_spec_list[type_specifier()]++;
-    while(peek_type_specifier())
-    {
-        current_spec_list[type_specifier()]++;
-    }
-    Type *type = determine_type();
+    Type *type = specifier_list();
 
     if(peek_reserved("*"))
     {
@@ -345,9 +398,10 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
+                 | struct-specifier
 ```
 */
-static SpecifierKind type_specifier(void)
+static SpecifierKind type_specifier(Type **type)
 {
     if(consume_reserved("void"))
     {
@@ -377,11 +431,90 @@ static SpecifierKind type_specifier(void)
     {
         return SP_UNSIGNED;
     }
+    else if(peek_reserved("struct"))
+    {
+        *type = struct_specifier();
+        return SP_STRUCT;
+    }
     else
     {
         report_error(NULL, "invalid type specifier\n");
         return SP_INVALID;
     }
+}
+
+
+/*
+make a struct-specifier
+```
+struct-specifier ::= "struct" "{" struct-declaration-list "}"
+```
+*/
+static Type *struct_specifier(void)
+{
+    expect_reserved("struct");
+    expect_reserved("{");
+
+    Type *type = new_type(TY_STRUCT);
+    type->member = struct_declaration_list();
+
+    // set offset of members, accumulate size of the structure type and determine its alignment
+    size_t offset = 0;
+    size_t alignment = 0;
+    for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+    {
+        cursor->offset = adjust_alignment(offset, cursor->type->align);
+        offset = cursor->offset + cursor->type->size;
+        if(alignment < cursor->type->align)
+        {
+            alignment = cursor->type->align;
+        }
+    }
+    type->size = adjust_alignment(offset, alignment);
+    type->align = alignment;
+
+    expect_reserved("}");
+
+    return type;
+}
+
+
+/*
+make a struct-declaration-list
+```
+struct-declaration-list ::= struct-declaration struct-declaration*
+```
+*/
+static Member *struct_declaration_list(void)
+{
+    Member *member = struct_declaration();
+    Member *cursor = member;
+    while(!peek_reserved("}"))
+    {
+        cursor->next = struct_declaration();
+        cursor = cursor->next;
+    }
+
+    return member;
+}
+
+
+/*
+make a struct-declaration
+```
+struct-declaration ::= specifier-list declarator ";"
+```
+*/
+static Member *struct_declaration(void)
+{
+    Type *type = specifier_list();
+    Token *token;
+    type = declarator(type, &token);
+
+    Member *member = new_member(token, type);
+    expect_reserved(";");
+
+    return member;
 }
 
 
@@ -1530,7 +1663,13 @@ unary_end:
 /*
 make a postfix expression
 ```
-postfix ::= primary ("[" expression "]" | "(" arg-expr-list? ")" | "++" | "--" )*
+postfix ::= primary
+          | postfix "[" expression "]"
+          | postfix "(" arg-expr-list? ")"
+          | postfix "." identifier
+          | postfix "->" identifier
+          | postfix "++"
+          | postfix "--"
 ```
 */
 static Node *postfix(void)
@@ -1579,6 +1718,26 @@ static Node *postfix(void)
             func_node->type = node->type->base->base; // dereference pointer and get type of return value
             func_node->ident = node->ident;
             node = func_node;
+        }
+        else if(consume_reserved("."))
+        {
+            // access to member (by value)
+            Token *token = expect_identifier();
+            Node *struct_node = node;
+            Node *member_node = new_node_unary(ND_MEMBER, struct_node);
+            member_node->member = find_member(token, struct_node->type);
+            member_node->type = member_node->member->type;
+            node = member_node;
+        }
+        else if(consume_reserved("->"))
+        {
+            // access to member (by pointer)
+            Token *token = expect_identifier();
+            Node *struct_node = new_node_unary(ND_DEREF, node);
+            Node *member_node = new_node_unary(ND_MEMBER, struct_node);
+            member_node->member = find_member(token, struct_node->type);
+            member_node->type = member_node->member->type;
+            node = member_node;
         }
         else if(consume_reserved("++"))
         {
@@ -2052,24 +2211,24 @@ static Function *new_function(const Token *token, Type *type, Node *body)
     new_func->type = new_type_function(type->base, type->args);
     new_func->body = body;
 
-    // accumulate stack size and set offset of arguments and local variables
-    size_t stack_size = 0;
+    // set offset of arguments and local variables and accumulate stack size
+    size_t offset = 0;
     if(type->args->kind != TY_VOID)
     {
         for(Variable *arg = args_list; arg != NULL; arg = arg->next)
         {
-            stack_size += arg->type->size;
-            arg->offset = stack_size;
+            offset = adjust_alignment(offset, arg->type->align);
+            offset += arg->type->size;
+            arg->offset = offset;
         }
     }
-    for(Variable *arg = lvar_list; arg != NULL; arg = arg->next)
+    for(Variable *lvar = lvar_list; lvar != NULL; lvar = lvar->next)
     {
-        stack_size += arg->type->size;
-        arg->offset = stack_size;
+        offset = adjust_alignment(offset, lvar->type->align);
+        offset += lvar->type->size;
+        lvar->offset = offset;
     }
-
-    // align stack size
-    new_func->stack_size = (stack_size + (stack_alignment_size - 1)) & ~(stack_alignment_size - 1);
+    new_func->stack_size = adjust_alignment(offset, STACK_ALIGNMENT);;
 
     // save list of arguments and list of local variables
     new_func->args = args_list;
@@ -2177,47 +2336,6 @@ static IntegerConstant parse_integer_constant(const Token *token)
 
 
 /*
-determine type from list of specifiers
-*/
-static Type *determine_type(void)
-{
-    for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
-    {
-        bool equal = true;
-
-        for(size_t j = 0; j < SPEC_LIST_SIZE; j++)
-        {
-            if(TYPE_SPECS_MAP[i].spec_list[j] != current_spec_list[j])
-            {
-                equal = false;
-                break;
-            }
-        }
-
-        if(equal)
-        {
-            return new_type(TYPE_SPECS_MAP[i].type_kind);
-        }
-    }
-
-    report_error(NULL, "invalid specifier");
-    return NULL;
-}
-
-
-/*
-clear list of currently parsing specifiers
-*/
-static void clear_current_spec_list(void)
-{
-    for(size_t i = 0; i < SPEC_LIST_SIZE; i++)
-    {
-        current_spec_list[i] = 0;
-    }
-}
-
-
-/*
 peek a type-specifier
 */
 static bool peek_type_specifier(void)
@@ -2230,6 +2348,7 @@ static bool peek_type_specifier(void)
         || peek_reserved("long")
         || peek_reserved("signed")
         || peek_reserved("unsigned")
+        || peek_reserved("struct")
     );
 }
 
@@ -2868,4 +2987,13 @@ static bool is_zero(IntegerConstant val)
     default:
         return (val.int_val == 0);
     }
+}
+
+
+/*
+adjust alignment
+*/
+static size_t adjust_alignment(size_t target, size_t alignment)
+{
+    return (target + (alignment - 1)) & ~(alignment - 1);
 }

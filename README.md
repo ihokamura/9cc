@@ -47,7 +47,13 @@ unary ::= postfix
         | "sizeof" unary
         | "sizeof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
-postfix ::= primary ("[" expression "]" | "(" arg-expr-list? ")" | "++" | "--" )*
+postfix ::= primary
+          | postfix "[" expression "]"
+          | postfix "(" arg-expr-list? ")"
+          | postfix "." identifier
+          | postfix "->" identifier
+          | postfix "++"
+          | postfix "--"
 arg-expr-list ::= assign ("," assign)*
 primary ::= identifier
           | integer-constant
@@ -55,7 +61,7 @@ primary ::= identifier
           | "(" expression ")"
 const-expression ::= conditional
 declaration ::= declaration-specifiers init-declarator-list ";"
-declaration-specifiers ::= type-specifier type-specifier*
+declaration-specifiers ::= specifier-list
 type-specifier ::= "void"
                  | "char"
                  | "short"
@@ -63,6 +69,10 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
+                 | struct-specifier
+struct-specifier ::= "struct" "{" struct-declaration-list "}"
+struct-declaration-list ::= struct-declaration struct-declaration*
+struct-declaration ::= specifier-list declarator ";"
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
@@ -72,7 +82,7 @@ direct-declarator ::= identifier
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-specifiers declarator
 initializer ::= assign
-type-name ::= type-specifier type-specifier* pointer?
+type-name ::= specifier-list pointer?
 pointer ::= "*" "*"*
 ```
 

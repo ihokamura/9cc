@@ -11,6 +11,7 @@
 */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "9cc.h"
 
@@ -23,6 +24,13 @@
 #define SIZEOF_LONG     (8)
 #define SIZEOF_PTR      (8)
 
+#define ALIGNOF_VOID     (1)
+#define ALIGNOF_CHAR     (1)
+#define ALIGNOF_SHORT    (2)
+#define ALIGNOF_INT      (4)
+#define ALIGNOF_LONG     (8)
+#define ALIGNOF_PTR      (8)
+
 #define RANK_CHAR     (1)
 #define RANK_SHORT    (2)
 #define RANK_INT      (3)
@@ -30,15 +38,15 @@
 
 
 // global variable
-static Type void_type   = {TY_VOID,   SIZEOF_VOID};
-static Type char_type   = {TY_CHAR,   SIZEOF_CHAR};
-static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR};
-static Type short_type  = {TY_SHORT,  SIZEOF_SHORT};
-static Type ushort_type = {TY_USHORT, SIZEOF_SHORT};
-static Type int_type    = {TY_INT,    SIZEOF_INT};
-static Type uint_type   = {TY_UINT,   SIZEOF_INT};
-static Type long_type   = {TY_LONG,   SIZEOF_LONG};
-static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG};
+static Type void_type   = {TY_VOID,   SIZEOF_VOID,  ALIGNOF_VOID};
+static Type char_type   = {TY_CHAR,   SIZEOF_CHAR,  ALIGNOF_CHAR};
+static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR,  ALIGNOF_CHAR};
+static Type short_type  = {TY_SHORT,  SIZEOF_SHORT, ALIGNOF_SHORT};
+static Type ushort_type = {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT};
+static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT};
+static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT};
+static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG};
+static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG};
 
 
 /*
@@ -89,11 +97,13 @@ Type *new_type(TypeKind kind)
     default:
         type = calloc(1, sizeof(Type));
         type->size = 0;
+        type->align = 0;
         type->kind = kind;
         type->base = NULL;
         type->len = 0;
         type->args = NULL;
         type->next = NULL;
+        type->member = NULL;
         break;
     }
 
@@ -239,6 +249,7 @@ Type *new_type_pointer(Type *base)
 {
     Type *type = new_type(TY_PTR);
     type->size = SIZEOF_PTR;
+    type->align = ALIGNOF_PTR;
     type->base = base;
 
     return type;
@@ -252,6 +263,7 @@ Type *new_type_array(Type *base, size_t len)
 {
     Type *type = new_type(TY_ARRAY);
     type->size = base->size * len;
+    type->align = base->align;
     type->base = base;
     type->len = len;
 
@@ -269,4 +281,37 @@ Type *new_type_function(Type *base, Type *args)
     type->args = args;
 
     return type;
+}
+
+
+/*
+make a new member of structure
+*/
+Member *new_member(const Token *token, Type *type)
+{
+    Member *member = calloc(1, sizeof(Member));
+    member->next = NULL;
+    member->type = type;
+    member->name = make_identifier(token);
+    member->offset = 0;
+
+    return member;
+}
+
+
+/*
+find member of structure
+*/
+Member *find_member(const Token *token, const Type *type)
+{
+    for(Member *member = type->member; member != NULL; member = member->next)
+    {
+        if(strncmp(token->str, member->name, token->len) == 0)
+        {
+            return member;
+        }
+    }
+
+    report_error(NULL, "cannot find a member \"%s\"", make_identifier(token));
+    return NULL;
 }

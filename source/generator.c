@@ -166,6 +166,13 @@ static void generate_lvalue(const Node *node)
         generate_node(node->lhs);
         break;
 
+    case ND_MEMBER:
+        generate_lvalue(node->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  add rax, %d", node->member->offset);
+        put_instruction("  push rax");
+        break;
+
     default:
         report_error(NULL, "expected lvalue");
         break;
@@ -477,7 +484,15 @@ static void generate_node(const Node *node)
 
     case ND_DEREF:
         generate_node(node->lhs);
-        if(node->type->kind != TY_ARRAY)
+        if(!is_array(node->type))
+        {
+            generate_load(node->type);
+        }
+        return;
+
+    case ND_MEMBER:
+        generate_lvalue(node);
+        if(!is_array(node->type))
         {
             generate_load(node->type);
         }
