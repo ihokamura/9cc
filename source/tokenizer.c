@@ -92,6 +92,7 @@ static const char *keyword_list[] = {
     "default",
     "do",
     "else",
+    "enum",
     "for",
     "goto",
     "if",

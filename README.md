@@ -70,10 +70,14 @@ type-specifier ::= "void"
                  | "signed"
                  | "unsigned"
                  | struct-or-union-specifier
+                 | enum-specifier
 struct-or-union-specifier ::= ("struct" | "union") "{" struct-declaration-list "}"
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list struct-declarator-list ";"
 struct-declarator-list ::= declarator ("," declarator)*
+enum-specifier ::= "enum" "{" enumerator-list (",")? "}"
+enumerator-list ::= enumerator ("," enumerator)*
+enumerator ::= identifier ("=" const-expression)?
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator

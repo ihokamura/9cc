@@ -23,6 +23,7 @@
 #define SIZEOF_INT      (4)
 #define SIZEOF_LONG     (8)
 #define SIZEOF_PTR      (8)
+#define SIZEOF_ENUM     (SIZEOF_INT)
 
 #define ALIGNOF_VOID     (1)
 #define ALIGNOF_CHAR     (1)
@@ -30,6 +31,7 @@
 #define ALIGNOF_INT      (4)
 #define ALIGNOF_LONG     (8)
 #define ALIGNOF_PTR      (8)
+#define ALIGNOF_ENUM     (ALIGNOF_INT)
 
 #define RANK_CHAR     (1)
 #define RANK_SHORT    (2)
@@ -47,6 +49,7 @@ static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT};
 static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT};
 static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG};
 static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG};
+static Type enum_type   = {TY_ENUM,   SIZEOF_ENUM,  ALIGNOF_ENUM};
 
 
 /*
@@ -92,6 +95,10 @@ Type *new_type(TypeKind kind)
 
     case TY_ULONG:
         type = &ulong_type;
+        break;
+
+    case TY_ENUM:
+        type = &enum_type;
         break;
 
     default:

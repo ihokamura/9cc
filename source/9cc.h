@@ -60,6 +60,7 @@ typedef enum {
     TY_ARRAY,  // array
     TY_STRUCT, // structure
     TY_UNION,  // union
+    TY_ENUM,   // enumeration
     TY_FUNC,   // function
 } TypeKind;
 
@@ -176,16 +177,21 @@ typedef struct Node Node;
 // structure for variable
 typedef struct Variable Variable;
 struct Variable {
-    Variable *next; // next element
-    char *name;     // name of variable
-    Type *type;     // type of variable
-    Node *init;     // initializer
-    bool local;     // flag indicating that the variable is local or global
-    size_t offset;  // offset from base pointer (rbp) (only for local variable)
-    char *content;  // content of string-literal including '\0' (only for string-literal)
-    bool entity;    // flag indicating that the variable has an entity in the current translation unit (only for global variable)
+    Variable *next;   // next element
+    const char *name; // name of variable
+    Type *type;       // type of variable
+    Node *init;       // initializer
+    bool local;       // flag indicating that the variable is local or global
+    size_t offset;    // offset from base pointer (rbp) (only for local variable)
+    char *content;    // content of string-literal including '\0' (only for string-literal)
+    bool entity;      // flag indicating that the variable has an entity in the current translation unit (only for global variable)
 };
 
+// structure for enumerator
+typedef struct {
+    const char *name; // name of enumerator
+    int val;          // value of enumerator
+} Enumerator;
 
 // structure for node in AST
 struct Node {

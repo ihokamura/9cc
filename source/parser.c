@@ -20,7 +20,7 @@
 
 
 // macro definition
-#define SPEC_LIST_SIZE ((size_t)9) // number of valid specifiers
+#define SPEC_LIST_SIZE ((size_t)10) // number of valid specifiers
 
 
 // type definition
@@ -34,14 +34,17 @@ typedef enum {
     SP_UNSIGNED, // "unsigned"
     SP_STRUCT,   // structure
     SP_UNION,    // union
+    SP_ENUM,     // enumeration
     SP_INVALID,  // invalid specifier
 } SpecifierKind;
 
-typedef struct VarScope VarScope;
-struct VarScope {
-    VarScope *next; // next element
-    Variable *var;  // visible variable
-    int depth;      // depth of scope
+typedef struct Identifier Identifier;
+struct Identifier {
+    Identifier *next; // next element
+    const char *name; // identifier
+    Variable *var;    // variable
+    Enumerator *en;   // enumerator
+    int depth;        // depth of scope
 };
 
 
@@ -59,6 +62,9 @@ static Type *struct_or_union_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
 static Member *struct_declarator_list(Type *type);
+static void enum_specifier(void);
+static void enumerator_list(void);
+static int enumerator(int val);
 static Type *pointer(Type *base);
 static Type *direct_declarator(Type *type, Token **token);
 static Node *statement(void);
@@ -91,15 +97,16 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_integer(IntegerConstant val);
 static Node *apply_integer_promotion(Node *node);
 static void apply_arithmetic_conversion(Node *lhs, Node *rhs);
-static Variable *new_var(char *name, Type *type, bool local);
+static Variable *new_var(const char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
 static Function *new_function(const Token *token, Type *type, Node *body);
-static VarScope *enter_scope(void);
-static void leave_scope(VarScope *scope);
-static void push_scope(Variable *var);
-static VarScope *find_scope(const Token *token);
+static Enumerator *new_enumerator(const char *name, int val);
+static Identifier *push_scope(const char *name);
+static Identifier *enter_scope(void);
+static void leave_scope(Identifier *ident);
+static Identifier *find_identifier(const Token *token);
 static IntegerConstant parse_integer_constant(const Token *token);
 static bool peek_type_specifier(void);
 static bool peek_func(void);
@@ -117,45 +124,45 @@ static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static Node *current_switch = NULL; // currently parsing switch statement
-static VarScope *var_scope = NULL; // list of variables visible in the current scope
+static Identifier *ident_list = NULL; // list of ordinary identifiers visible in the current scope
 static int scope_depth = 0; // depth of the current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
+    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
+    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0, 0}, TY_CHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0}, TY_CHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1, 0, 0}, TY_UCHAR},  // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0}, TY_UCHAR},  // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short
-    {{0, 0, 1, 0, 0, 1, 0, 0, 0}, TY_SHORT},  // signed short
-    {{0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_SHORT},  // short int
-    {{0, 0, 1, 1, 0, 1, 0, 0, 0}, TY_SHORT},  // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short
+    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1, 0, 0}, TY_USHORT}, // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1, 0, 0}, TY_USHORT}, // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0}, TY_USHORT}, // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0}, TY_USHORT}, // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_INT},    // int
-    {{0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_INT},    // signed
-    {{0, 0, 0, 1, 0, 1, 0, 0, 0}, TY_INT},    // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},    // int
+    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_INT},    // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0}, TY_INT},    // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UINT},   // unsigned
-    {{0, 0, 0, 1, 0, 0, 1, 0, 0}, TY_UINT},   // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_UINT},   // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0}, TY_UINT},   // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_LONG},   // long
-    {{0, 0, 0, 0, 1, 1, 0, 0, 0}, TY_LONG},   // signed long
-    {{0, 0, 0, 1, 1, 0, 0, 0, 0}, TY_LONG},   // long int
-    {{0, 0, 0, 1, 1, 1, 0, 0, 0}, TY_LONG},   // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_LONG},   // long
+    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0}, TY_LONG},   // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},   // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0}, TY_LONG},   // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1, 0, 0}, TY_ULONG},  // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1, 0, 0}, TY_ULONG},  // unsigned long int
-    // structure
-    {{0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_STRUCT}, // structure
-    // union
-    {{0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_UNION},  // union
+    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0}, TY_ULONG},  // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0}, TY_ULONG},  // unsigned long int
+    // other type specifiers
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_STRUCT}, // structure
+    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_UNION},  // union
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_ENUM},   // enumeration
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -287,6 +294,7 @@ static Type *specifier_list(void)
             case TY_UINT:
             case TY_LONG:
             case TY_ULONG:
+            case TY_ENUM:
                 return new_type(type_kind);
 
             case TY_STRUCT:
@@ -446,6 +454,11 @@ static SpecifierKind type_specifier(Type **type)
         *type = struct_or_union_specifier();
         return SP_UNION;
     }
+    else if(peek_reserved("enum"))
+    {
+        enum_specifier();
+        return SP_ENUM;
+    }
     else
     {
         report_error(NULL, "invalid type specifier\n");
@@ -585,6 +598,80 @@ static Member *struct_declarator_list(Type *type)
     }
 
     return member;
+}
+
+
+/*
+make an enum-specifier
+```
+enum-specifier ::= "enum" "{" enumerator-list (",")? "}"
+```
+*/
+static void enum_specifier(void)
+{
+    expect_reserved("enum");
+    expect_reserved("{");
+    enumerator_list();
+    if(consume_reserved(","))
+    {
+        // do nothing (only consume the trailing ",")
+    }
+    expect_reserved("}");
+}
+
+
+/*
+make an enumerator-list
+```
+enumerator-list ::= enumerator ("," enumerator)*
+```
+*/
+static void enumerator_list(void)
+{
+    Token *token;
+
+    int val = enumerator(0);
+    while(consume_reserved(",") && peek_token(TK_IDENT, &token))
+    {
+        val = enumerator(val);
+    }
+}
+
+
+/*
+make an enumerator
+```
+enumerator ::= identifier ("=" const-expression)?
+```
+*/
+static int enumerator(int val)
+{
+    Token *token = expect_identifier();
+    if(consume_reserved("="))
+    {
+        IntegerConstant const_val = const_expression();
+        switch(const_val.kind)
+        {
+        case TY_ULONG:
+            val = const_val.ulong_val;
+            break;
+
+        case TY_LONG:
+            val = const_val.long_val;
+            break;
+
+        case TY_UINT:
+            val = const_val.uint_val;
+            break;
+
+        default:
+            val = const_val.int_val;
+            break;
+        }
+    }
+    new_enumerator(make_identifier(token), val);
+
+    return val + 1;
 }
 
 
@@ -901,7 +988,7 @@ static Node *compound_statement(void)
     expect_reserved("{");
 
     // save the current scope
-    VarScope *scope = enter_scope();
+    Identifier *ident = enter_scope();
 
     // parse declaration and/or statement until reaching '}'
     Node head = {};
@@ -922,7 +1009,7 @@ static Node *compound_statement(void)
     }
 
     // restore the scope
-    leave_scope(scope);
+    leave_scope(ident);
 
     return head.next;
 }
@@ -983,8 +1070,8 @@ static Node *init_declarator(Type *type, bool is_local)
     type = declarator(type, &token);
 
     // check duplicated declaration
-    VarScope *scope = find_scope(token);
-    if((scope != NULL) && (scope->depth == scope_depth))
+    Identifier *ident = find_identifier(token);
+    if((ident != NULL) && (ident->depth == scope_depth))
     {
         report_error(token->str, "duplicated declaration of '%s'\n", make_identifier(token));
     }
@@ -1888,24 +1975,32 @@ static Node *primary(void)
     Token *token;
     if(consume_token(TK_IDENT, &token))
     {
-        // search variable
-        VarScope *scope = find_scope(token);
-        if(scope != NULL)
+        Identifier *ident = find_identifier(token);
+        if(ident != NULL)
         {
-            Variable *var = scope->var;
-            if(var->type->kind == TY_FUNC)
+            if(ident->var != NULL)
             {
-                Node *node = new_node(ND_FUNC);
-                node->type = new_type_pointer(var->type);
-                node->ident = make_identifier(token);
-                return node;
+                // variable
+                Variable *var = ident->var;
+                if(var->type->kind == TY_FUNC)
+                {
+                    Node *node = new_node(ND_FUNC);
+                    node->type = new_type_pointer(var->type);
+                    node->ident = make_identifier(token);
+                    return node;
+                }
+                else
+                {
+                    Node *node = new_node(ND_VAR);
+                    node->type = var->type;
+                    node->var = var;
+                    return node;
+                }
             }
-            else
+            else if(ident->en != NULL)
             {
-                Node *node = new_node(ND_VAR);
-                node->type = var->type;
-                node->var = var;
-                return node;
+                // enumeration
+                return new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = ident->en->val});
             }
         }
 
@@ -1921,7 +2016,7 @@ static Node *primary(void)
             return node;
         }
 
-        report_error(token->str, "undefined variable '%s'", make_identifier(token));
+        report_error(token->str, "undefined identifier '%s'", make_identifier(token));
     }
 
     // string-literal
@@ -2209,7 +2304,7 @@ static void apply_arithmetic_conversion(Node *lhs, Node *rhs)
 /*
 make a new variable
 */
-static Variable *new_var(char *name, Type *type, bool local)
+static Variable *new_var(const char *name, Type *type, bool local)
 {
     Variable *var = calloc(1, sizeof(Variable));
     var->next = NULL;
@@ -2221,7 +2316,7 @@ static Variable *new_var(char *name, Type *type, bool local)
     var->content = NULL;
     var->entity = false;
 
-    push_scope(var);
+    push_scope(var->name)->var = var;
 
     return var;
 }
@@ -2328,51 +2423,70 @@ static char *new_string_label(void)
 
 
 /*
-push a variable to the current scope
+make a new enumerator
 */
-static void push_scope(Variable *var)
+static Enumerator *new_enumerator(const char *name, int val)
 {
-    VarScope *scope = calloc(1, sizeof(VarScope));
-    scope->next = var_scope;
-    scope->var = var;
-    scope->depth = scope_depth;
-    var_scope = scope;
+    Enumerator *en = calloc(1, sizeof(Enumerator));
+    en->name = name;
+    en->val = val;
+
+    push_scope(en->name)->en = en;
+
+    return en;
+}
+
+
+/*
+push an identifier to the current scope
+*/
+static Identifier *push_scope(const char *name)
+{
+    Identifier *ident = calloc(1, sizeof(Identifier));
+    ident->next = ident_list;
+    ident->name = name;
+    ident->var = NULL;
+    ident->en = NULL;
+    ident->depth = scope_depth;
+    ident_list = ident;
+
+    return ident;
 }
 
 
 /*
 enter a new scope
 */
-static VarScope *enter_scope(void)
+static Identifier *enter_scope(void)
 {
     scope_depth++;
-    return var_scope;
+    return ident_list;
 }
 
 
 /*
 leave the current scope
 */
-static void leave_scope(VarScope *scope)
+static void leave_scope(Identifier *ident)
 {
     scope_depth--;
-    var_scope = scope;
+    ident_list = ident;
 }
 
 
 /*
-find a variable in the current scope
-* If there exists a visible variable with a given token, this function returns the scope.
+find an ordinary identifier in the current scope
+* If there exists a visible identifier with a given token, this function returns the identifier.
 * Otherwise, it returns NULL.
 */
-static VarScope *find_scope(const Token *token)
+static Identifier *find_identifier(const Token *token)
 {
-    // search list of variables visible in the current scope
-    for(VarScope *scope = var_scope; scope != NULL; scope = scope->next)
+    // search list of ordinary identifiers visible in the current scope
+    for(Identifier *ident = ident_list; ident != NULL; ident = ident->next)
     {
-        if((strlen(scope->var->name) == token->len) && (strncmp(token->str, scope->var->name, token->len) == 0))
+        if((strlen(ident->name) == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
         {
-            return scope;
+            return ident;
         }
     }
 
@@ -2420,6 +2534,7 @@ static bool peek_type_specifier(void)
         || peek_reserved("unsigned")
         || peek_reserved("struct")
         || peek_reserved("union")
+        || peek_reserved("enum")
     );
 }
 
