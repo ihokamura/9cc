@@ -103,6 +103,7 @@ static const char *keyword_list[] = {
     "short",
     "struct",
     "switch",
+    "union",
     "unsigned",
     "void",
     "while",

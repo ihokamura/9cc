@@ -20,7 +20,7 @@
 
 
 // macro definition
-#define SPEC_LIST_SIZE ((size_t)8) // number of valid specifiers
+#define SPEC_LIST_SIZE ((size_t)9) // number of valid specifiers
 
 
 // type definition
@@ -32,7 +32,8 @@ typedef enum {
     SP_LONG,     // "long"
     SP_SIGNED,   // "signed"
     SP_UNSIGNED, // "unsigned"
-    SP_STRUCT,   // "struct"
+    SP_STRUCT,   // structure
+    SP_UNION,    // union
     SP_INVALID,  // invalid specifier
 } SpecifierKind;
 
@@ -54,7 +55,7 @@ static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
 static SpecifierKind type_specifier(Type **type);
-static Type *struct_specifier(void);
+static Type *struct_or_union_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
 static Member *struct_declarator_list(Type *type);
@@ -121,38 +122,40 @@ static int scope_depth = 0; // depth of the current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
+    {{1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
+    {{0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0}, TY_CHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0}, TY_CHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1, 0}, TY_UCHAR},  // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0, 0}, TY_UCHAR},  // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},  // short
-    {{0, 0, 1, 0, 0, 1, 0, 0}, TY_SHORT},  // signed short
-    {{0, 0, 1, 1, 0, 0, 0, 0}, TY_SHORT},  // short int
-    {{0, 0, 1, 1, 0, 1, 0, 0}, TY_SHORT},  // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short
+    {{0, 0, 1, 0, 0, 1, 0, 0, 0}, TY_SHORT},  // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_SHORT},  // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0, 0}, TY_SHORT},  // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1, 0}, TY_USHORT}, // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1, 0}, TY_USHORT}, // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0, 0}, TY_USHORT}, // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0, 0}, TY_USHORT}, // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0, 0}, TY_INT},    // int
-    {{0, 0, 0, 0, 0, 1, 0, 0}, TY_INT},    // signed
-    {{0, 0, 0, 1, 0, 1, 0, 0}, TY_INT},    // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_INT},    // int
+    {{0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_INT},    // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0, 0}, TY_INT},    // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1, 0}, TY_UINT},   // unsigned
-    {{0, 0, 0, 1, 0, 0, 1, 0}, TY_UINT},   // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UINT},   // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0, 0}, TY_UINT},   // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0, 0}, TY_LONG},   // long
-    {{0, 0, 0, 0, 1, 1, 0, 0}, TY_LONG},   // signed long
-    {{0, 0, 0, 1, 1, 0, 0, 0}, TY_LONG},   // long int
-    {{0, 0, 0, 1, 1, 1, 0, 0}, TY_LONG},   // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_LONG},   // long
+    {{0, 0, 0, 0, 1, 1, 0, 0, 0}, TY_LONG},   // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0, 0}, TY_LONG},   // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0, 0}, TY_LONG},   // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1, 0}, TY_ULONG},  // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1, 0}, TY_ULONG},  // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1, 0, 0}, TY_ULONG},  // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0, 0}, TY_ULONG},  // unsigned long int
     // structure
-    {{0, 0, 0, 0, 0, 0, 0, 1}, TY_STRUCT}, // struct
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_STRUCT}, // structure
+    // union
+    {{0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_UNION},  // union
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -287,6 +290,7 @@ static Type *specifier_list(void)
                 return new_type(type_kind);
 
             case TY_STRUCT:
+            case TY_UNION:
                 return type;
 
             default:
@@ -399,7 +403,7 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
-                 | struct-specifier
+                 | struct-or-union-specifier
 ```
 */
 static SpecifierKind type_specifier(Type **type)
@@ -434,8 +438,13 @@ static SpecifierKind type_specifier(Type **type)
     }
     else if(peek_reserved("struct"))
     {
-        *type = struct_specifier();
+        *type = struct_or_union_specifier();
         return SP_STRUCT;
+    }
+    else if(peek_reserved("union"))
+    {
+        *type = struct_or_union_specifier();
+        return SP_UNION;
     }
     else
     {
@@ -448,34 +457,70 @@ static SpecifierKind type_specifier(Type **type)
 /*
 make a struct-specifier
 ```
-struct-specifier ::= "struct" "{" struct-declaration-list "}"
+struct-or-union-specifier ::= ("struct" | "union") "{" struct-declaration-list "}"
 ```
 */
-static Type *struct_specifier(void)
+static Type *struct_or_union_specifier(void)
 {
-    expect_reserved("struct");
-    expect_reserved("{");
+    Type *type = NULL;
 
-    Type *type = new_type(TY_STRUCT);
-    type->member = struct_declaration_list();
-
-    // set offset of members, accumulate size of the structure type and determine its alignment
-    size_t offset = 0;
-    size_t alignment = 0;
-    for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+    if(consume_reserved("struct"))
     {
-        cursor->offset = adjust_alignment(offset, cursor->type->align);
-        offset = cursor->offset + cursor->type->size;
-        if(alignment < cursor->type->align)
+        expect_reserved("{");
+
+        type = new_type(TY_STRUCT);
+        type->member = struct_declaration_list();
+
+        // set offset of members and determine size and alignment of the structure type
+        size_t offset = 0;
+        size_t alignment = 0;
+        for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
         {
-            alignment = cursor->type->align;
+            cursor->offset = adjust_alignment(offset, cursor->type->align);
+            offset = cursor->offset + cursor->type->size;
+            if(alignment < cursor->type->align)
+            {
+                alignment = cursor->type->align;
+            }
         }
+        type->size = adjust_alignment(offset, alignment);
+        type->align = alignment;
+
+        expect_reserved("}");
     }
-    type->size = adjust_alignment(offset, alignment);
-    type->align = alignment;
+    else if(consume_reserved("union"))
+    {
+        expect_reserved("{");
 
-    expect_reserved("}");
+        type = new_type(TY_UNION);
+        type->member = struct_declaration_list();
 
+        // determine size and alignment of the union type
+        size_t size = 0;
+        size_t alignment = 0;
+        for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+        {
+            // offset is always 0
+            cursor->offset = 0;
+            if(size < cursor->type->size)
+            {
+                size = cursor->type->size;
+            }
+            if(alignment < cursor->type->align)
+            {
+                alignment = cursor->type->align;
+            }
+        }
+        type->size = adjust_alignment(size, alignment);
+        type->align = alignment;
+
+        expect_reserved("}");
+    }
+    else
+    {
+        report_error(NULL, "expected 'struct' or 'union'");
+    }
+    
     return type;
 }
 
@@ -2374,6 +2419,7 @@ static bool peek_type_specifier(void)
         || peek_reserved("signed")
         || peek_reserved("unsigned")
         || peek_reserved("struct")
+        || peek_reserved("union")
     );
 }
 

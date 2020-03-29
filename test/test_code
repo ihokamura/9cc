@@ -788,6 +788,10 @@ int test_sizeof()
     struct {char m1; int m2; short m3;} st2; assert_int(12, sizeof(st2));
     struct {char m1; struct {char mm1; int mm2; short mm3;} m2; short m3;} st3; assert_int(20, sizeof(st3));
 
+    union {int m1; int m2;} un1; assert_int(4, sizeof(un1));
+    union {char m1; int m2; short m3;} un2; assert_int(4, sizeof(un2));
+    union {char m1; union {char mm1; int mm2; short mm3;} m2; short m3;} un3; assert_int(4, sizeof(un3));
+
     return 0;
 }
 
@@ -982,6 +986,36 @@ int test_struct()
 
 
 /*
+union type
+*/
+int test_union()
+{
+    put_title("union type");
+
+    union {int m1; int m2;} un1, *pun1;
+    un1.m1 = 1; assert_int(1, un1.m1);
+    un1.m2 = 2; assert_int(2, un1.m2);
+    pun1 = &un1;
+    pun1->m1 = 3; assert_int(3, un1.m1);
+    pun1->m2 = 4; assert_int(4, un1.m2);
+
+    union {char m1; int m2; short m3;} un2;
+    un2.m1 = 1; assert_char(1, un2.m1);
+    un2.m2 = 2; assert_int(2, un2.m2);
+    un2.m3 = 3; assert_int(3, un2.m3);
+
+    union {char m1; union {char mm1; int mm2; short mm3;} m2; short m3;} un3;
+    un3.m1 = 1; assert_char(1, un3.m1);
+    un3.m2.mm1 = 11; assert_char(11, un3.m2.mm1);
+    un3.m2.mm2 = 22; assert_int(22, un3.m2.mm2);
+    un3.m2.mm3 = 33; assert_short(33, un3.m2.mm3);
+    un3.m3 = 3; assert_char(3, un3.m3);
+
+    return 0;
+}
+
+
+/*
 string-literal
 */
 int test_string_literal()
@@ -1111,6 +1145,7 @@ int main()
     test_int();
     test_long();
     test_struct();
+    test_union();
     test_string_literal();
     test_integer_constant();
     test_initializer();

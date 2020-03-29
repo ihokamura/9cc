@@ -59,6 +59,7 @@ typedef enum {
     TY_PTR,    // pointer
     TY_ARRAY,  // array
     TY_STRUCT, // structure
+    TY_UNION,  // union
     TY_FUNC,   // function
 } TypeKind;
 
@@ -166,7 +167,7 @@ struct Type {
     size_t len;     // length of array (only for TY_ARRAY)
     Type *args;     // type of arguments (only for TY_FUNC)
     Type *next;     // next element (only for TY_FUNC)
-    Member *member; // members (only for TY_STRUCT)
+    Member *member; // members (only for TY_STRUCT, TY_UNION)
 };
 
 // structure for node in AST (forward declaration)

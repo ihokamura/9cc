@@ -69,8 +69,8 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
-                 | struct-specifier
-struct-specifier ::= "struct" "{" struct-declaration-list "}"
+                 | struct-or-union-specifier
+struct-or-union-specifier ::= ("struct" | "union") "{" struct-declaration-list "}"
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list struct-declarator-list ";"
 struct-declarator-list ::= declarator ("," declarator)*
