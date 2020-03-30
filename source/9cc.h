@@ -164,6 +164,7 @@ struct Type {
     TypeKind kind;  // kind of type
     size_t size;    // size of type
     size_t align;   // alignment of type
+    bool complete;  // flag indicating that the tyee is complete or incomplete
     Type *base;     // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
     size_t len;     // length of array (only for TY_ARRAY)
     Type *args;     // type of arguments (only for TY_FUNC)

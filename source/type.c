@@ -40,16 +40,16 @@
 
 
 // global variable
-static Type void_type   = {TY_VOID,   SIZEOF_VOID,  ALIGNOF_VOID};
-static Type char_type   = {TY_CHAR,   SIZEOF_CHAR,  ALIGNOF_CHAR};
-static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR,  ALIGNOF_CHAR};
-static Type short_type  = {TY_SHORT,  SIZEOF_SHORT, ALIGNOF_SHORT};
-static Type ushort_type = {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT};
-static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT};
-static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT};
-static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG};
-static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG};
-static Type enum_type   = {TY_ENUM,   SIZEOF_ENUM,  ALIGNOF_ENUM};
+static Type void_type   = {TY_VOID,   SIZEOF_VOID,  ALIGNOF_VOID,  false};
+static Type char_type   = {TY_CHAR,   SIZEOF_CHAR,  ALIGNOF_CHAR,  true};
+static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR,  ALIGNOF_CHAR,  true};
+static Type short_type  = {TY_SHORT,  SIZEOF_SHORT, ALIGNOF_SHORT, true};
+static Type ushort_type = {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, true};
+static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT,   true};
+static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT,   true};
+static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG,  true};
+static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG,  true};
+static Type enum_type   = {TY_ENUM,   SIZEOF_ENUM,  ALIGNOF_ENUM,  true};
 
 
 /*
@@ -105,6 +105,7 @@ Type *new_type(TypeKind kind)
         type = calloc(1, sizeof(Type));
         type->size = 0;
         type->align = 0;
+        type->complete = false;
         type->kind = kind;
         type->base = NULL;
         type->len = 0;
@@ -257,6 +258,7 @@ Type *new_type_pointer(Type *base)
     Type *type = new_type(TY_PTR);
     type->size = SIZEOF_PTR;
     type->align = ALIGNOF_PTR;
+    type->complete = true;
     type->base = base;
 
     return type;
@@ -271,6 +273,7 @@ Type *new_type_array(Type *base, size_t len)
     Type *type = new_type(TY_ARRAY);
     type->size = base->size * len;
     type->align = base->align;
+    type->complete = true;
     type->base = base;
     type->len = len;
 
@@ -284,6 +287,7 @@ make a function type
 Type *new_type_function(Type *base, Type *args)
 {
     Type *type = new_type(TY_FUNC);
+    type->complete = true;
     type->base = base;
     type->args = args;
 

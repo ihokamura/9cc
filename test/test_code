@@ -1100,9 +1100,10 @@ int test_initializer()
 
 
 /*
-scope of variables
+scope of variables and tags
 */
 int test_scope_var = 1;
+struct test_scope_tag {int s1;};
 int test_scope(void)
 {
     put_title("scope");
@@ -1118,6 +1119,31 @@ int test_scope(void)
     }
 
     assert_int(2, test_scope_var);
+    struct test_scope_tag tag_var;
+    tag_var.s1 = 11; assert_int(11, tag_var.s1);
+
+    {
+        struct test_scope_tag {int s1;};
+        tag_var.s1 = 22; assert_int(22, tag_var.s1);
+
+        struct test_scope_tag tag_var;
+        tag_var.s1 = 33; assert_int(33, tag_var.s1);
+    }
+
+    assert_int(22, tag_var.s1);
+
+    {
+        struct test_scope_tag;
+        struct test_scope_tag {int s1;} tag_var;
+        tag_var.s1 = 44; assert_int(44, tag_var.s1);
+    }
+
+    {
+        union test_scope_tag {int u1;} tag_var;
+        tag_var.u1 = -11; assert_int(-11, tag_var.u1);
+    }
+
+    assert_int(22, tag_var.s1);
 
     return 0;
 }

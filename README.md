@@ -60,7 +60,7 @@ primary ::= identifier
           | string-literal
           | "(" expression ")"
 const-expression ::= conditional
-declaration ::= declaration-specifiers init-declarator-list ";"
+declaration ::= declaration-specifiers init-declarator-list? ";"
 declaration-specifiers ::= specifier-list
 type-specifier ::= "void"
                  | "char"
@@ -71,7 +71,8 @@ type-specifier ::= "void"
                  | "unsigned"
                  | struct-or-union-specifier
                  | enum-specifier
-struct-or-union-specifier ::= ("struct" | "union") "{" struct-declaration-list "}"
+struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
+                            | ("struct" | "union") identifier
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list struct-declarator-list ";"
 struct-declarator-list ::= declarator ("," declarator)*

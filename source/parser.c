@@ -47,6 +47,19 @@ struct Identifier {
     int depth;        // depth of scope
 };
 
+typedef struct Tag Tag;
+struct Tag {
+    Tag *next;        // next element
+    const char *name; // name of tag
+    Type *type;       // type 
+    int depth;        // depth of scope
+};
+
+typedef struct {
+    Identifier *ident_list; // list of ordinary identifiers visible in the current scope
+    Tag *tag_list;          // list of tags visible in the current scope
+    int depth;              // depth of the current scope
+} Scope;
 
 // function prototype
 static void program(void);
@@ -103,10 +116,12 @@ static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
 static Function *new_function(const Token *token, Type *type, Node *body);
 static Enumerator *new_enumerator(const char *name, int val);
-static Identifier *push_scope(const char *name);
-static Identifier *enter_scope(void);
-static void leave_scope(Identifier *ident);
+static Identifier *push_identifier_scope(const char *name);
+static Tag *push_tag_scope(const char *name);
+static Scope enter_scope(void);
+static void leave_scope(Scope scope);
 static Identifier *find_identifier(const Token *token);
+static Tag *find_tag(const Token *token);
 static IntegerConstant parse_integer_constant(const Token *token);
 static bool peek_type_specifier(void);
 static bool peek_func(void);
@@ -119,13 +134,12 @@ static size_t adjust_alignment(size_t target, size_t alignment);
 
 // global variable
 static int str_number = 0; // label number of string-literal
-static Function *function_list; // list of functions
+static Function *function_list = NULL; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static Node *current_switch = NULL; // currently parsing switch statement
-static Identifier *ident_list = NULL; // list of ordinary identifiers visible in the current scope
-static int scope_depth = 0; // depth of the current scope
+static Scope current_scope = {NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
@@ -470,70 +484,133 @@ static SpecifierKind type_specifier(Type **type)
 /*
 make a struct-specifier
 ```
-struct-or-union-specifier ::= ("struct" | "union") "{" struct-declaration-list "}"
+struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
+                            | ("struct" | "union") identifier
 ```
 */
 static Type *struct_or_union_specifier(void)
 {
+    // parse "struct" or "union"
+    SpecifierKind spec_kind = SP_INVALID;
+    TypeKind type_kind;
     Type *type = NULL;
-
     if(consume_reserved("struct"))
     {
-        expect_reserved("{");
-
-        type = new_type(TY_STRUCT);
-        type->member = struct_declaration_list();
-
-        // set offset of members and determine size and alignment of the structure type
-        size_t offset = 0;
-        size_t alignment = 0;
-        for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
-        {
-            cursor->offset = adjust_alignment(offset, cursor->type->align);
-            offset = cursor->offset + cursor->type->size;
-            if(alignment < cursor->type->align)
-            {
-                alignment = cursor->type->align;
-            }
-        }
-        type->size = adjust_alignment(offset, alignment);
-        type->align = alignment;
-
-        expect_reserved("}");
+        spec_kind = SP_STRUCT;
+        type_kind = TY_STRUCT;
     }
     else if(consume_reserved("union"))
     {
-        expect_reserved("{");
-
-        type = new_type(TY_UNION);
-        type->member = struct_declaration_list();
-
-        // determine size and alignment of the union type
-        size_t size = 0;
-        size_t alignment = 0;
-        for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
-        {
-            // offset is always 0
-            cursor->offset = 0;
-            if(size < cursor->type->size)
-            {
-                size = cursor->type->size;
-            }
-            if(alignment < cursor->type->align)
-            {
-                alignment = cursor->type->align;
-            }
-        }
-        type->size = adjust_alignment(size, alignment);
-        type->align = alignment;
-
-        expect_reserved("}");
+        spec_kind = SP_UNION;
+        type_kind = TY_UNION;
     }
     else
     {
         report_error(NULL, "expected 'struct' or 'union'");
+        return type;
     }
-    
+
+    // parse tag
+    char *name = NULL;
+    Tag *tag = NULL;
+    Token *token = NULL;
+    if(consume_token(TK_IDENT, &token))
+    {
+        name = make_identifier(token);
+        tag = find_tag(token);
+        if(tag == NULL)
+        {
+            // declaration of a new tag
+            type = new_type(type_kind);
+            push_tag_scope(name)->type = type;
+        }
+        else
+        {
+            if(tag->type->kind == type_kind)
+            {
+                type = tag->type;
+            }
+            else if(tag->depth == current_scope.depth)
+            {
+                report_error(token->str, "redefinition of tag '%s %s'", ((type_kind == TY_STRUCT) ? "struct" : "union"), name);
+            }
+        }
+    }
+    else
+    {
+        type = new_type(type_kind);
+    }
+
+    // parse structure content
+    if(consume_reserved("{"))
+    {
+        if(tag != NULL)
+        {
+            if(tag->depth < current_scope.depth)
+            {
+                // declaration of a new tag in the current scope
+                type = new_type(type_kind);
+                push_tag_scope(name)->type = type;
+            }
+            else
+            {
+                if(tag->type->kind == type_kind)
+                {
+                    report_error(token->str, "redefinition of tag '%s %s'", (type_kind == TY_STRUCT ? "struct" : "union"), name);
+                }
+                else
+                {
+                    report_error(token->str, "'%s' defined as wrong kind of tag", name);
+                }
+                
+            }
+        }
+
+        type->member = struct_declaration_list();
+
+        if(spec_kind == SP_STRUCT)
+        {
+            // set offset of members and determine size and alignment of the structure type
+            size_t offset = 0;
+            size_t alignment = 0;
+            for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+            {
+                cursor->offset = adjust_alignment(offset, cursor->type->align);
+                offset = cursor->offset + cursor->type->size;
+                if(alignment < cursor->type->align)
+                {
+                    alignment = cursor->type->align;
+                }
+            }
+            type->size = adjust_alignment(offset, alignment);
+            type->align = alignment;
+        }
+        else if(spec_kind == SP_UNION)
+        {
+            // determine size and alignment of the union type
+            size_t size = 0;
+            size_t alignment = 0;
+            for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+            {
+                // offset is always 0
+                cursor->offset = 0;
+                if(size < cursor->type->size)
+                {
+                    size = cursor->type->size;
+                }
+                if(alignment < cursor->type->align)
+                {
+                    alignment = cursor->type->align;
+                }
+            }
+            type->size = adjust_alignment(size, alignment);
+            type->align = alignment;
+        }
+
+        expect_reserved("}");
+        type->complete = true;
+    }
+
     return type;
 }
 
@@ -988,7 +1065,7 @@ static Node *compound_statement(void)
     expect_reserved("{");
 
     // save the current scope
-    Identifier *ident = enter_scope();
+    Scope scope = enter_scope();
 
     // parse declaration and/or statement until reaching '}'
     Node head = {};
@@ -1009,7 +1086,7 @@ static Node *compound_statement(void)
     }
 
     // restore the scope
-    leave_scope(ident);
+    leave_scope(scope);
 
     return head.next;
 }
@@ -1018,7 +1095,7 @@ static Node *compound_statement(void)
 /*
 make a declaration
 ```
-declaration ::= declaration-specifiers init-declarator-list ";"
+declaration ::= declaration-specifiers init-declarator-list? ";"
 ```
 */
 static Node *declaration(bool is_local)
@@ -1028,7 +1105,11 @@ static Node *declaration(bool is_local)
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
-    node->body = init_declarator_list(type, is_local);
+    Token *token;
+    if(peek_reserved("*") || peek_token(TK_IDENT, &token))
+    {
+        node->body = init_declarator_list(type, is_local);
+    }
 
     expect_reserved(";");
 
@@ -1071,7 +1152,7 @@ static Node *init_declarator(Type *type, bool is_local)
 
     // check duplicated declaration
     Identifier *ident = find_identifier(token);
-    if((ident != NULL) && (ident->depth == scope_depth))
+    if((ident != NULL) && (ident->depth == current_scope.depth))
     {
         report_error(token->str, "duplicated declaration of '%s'\n", make_identifier(token));
     }
@@ -2316,7 +2397,7 @@ static Variable *new_var(const char *name, Type *type, bool local)
     var->content = NULL;
     var->entity = false;
 
-    push_scope(var->name)->var = var;
+    push_identifier_scope(var->name)->var = var;
 
     return var;
 }
@@ -2431,7 +2512,7 @@ static Enumerator *new_enumerator(const char *name, int val)
     en->name = name;
     en->val = val;
 
-    push_scope(en->name)->en = en;
+    push_identifier_scope(en->name)->en = en;
 
     return en;
 }
@@ -2440,37 +2521,53 @@ static Enumerator *new_enumerator(const char *name, int val)
 /*
 push an identifier to the current scope
 */
-static Identifier *push_scope(const char *name)
+static Identifier *push_identifier_scope(const char *name)
 {
     Identifier *ident = calloc(1, sizeof(Identifier));
-    ident->next = ident_list;
+    ident->next = current_scope.ident_list;
     ident->name = name;
     ident->var = NULL;
     ident->en = NULL;
-    ident->depth = scope_depth;
-    ident_list = ident;
+    ident->depth = current_scope.depth;
+    current_scope.ident_list = ident;
 
     return ident;
 }
 
 
 /*
+push a tag to the current scope
+*/
+static Tag *push_tag_scope(const char *name)
+{
+    Tag *tag = calloc(1, sizeof(Tag));
+    tag->next = current_scope.tag_list;
+    tag->name = name;
+    tag->type = NULL;
+    tag->depth = current_scope.depth;
+    current_scope.tag_list = tag;
+
+    return tag;
+}
+
+
+/*
 enter a new scope
 */
-static Identifier *enter_scope(void)
+static Scope enter_scope(void)
 {
-    scope_depth++;
-    return ident_list;
+    current_scope.depth++;
+    return current_scope;
 }
 
 
 /*
 leave the current scope
 */
-static void leave_scope(Identifier *ident)
+static void leave_scope(Scope scope)
 {
-    scope_depth--;
-    ident_list = ident;
+    current_scope.depth--;
+    current_scope = scope;
 }
 
 
@@ -2482,11 +2579,31 @@ find an ordinary identifier in the current scope
 static Identifier *find_identifier(const Token *token)
 {
     // search list of ordinary identifiers visible in the current scope
-    for(Identifier *ident = ident_list; ident != NULL; ident = ident->next)
+    for(Identifier *ident = current_scope.ident_list; ident != NULL; ident = ident->next)
     {
         if((strlen(ident->name) == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
         {
             return ident;
+        }
+    }
+
+    return NULL;
+}
+
+
+/*
+find a tag in the current scope
+* If there exists a visible tag with a given token, this function returns the tag.
+* Otherwise, it returns NULL.
+*/
+static Tag *find_tag(const Token *token)
+{
+    // search list of tags visible in the current scope
+    for(Tag *tag = current_scope.tag_list; tag != NULL; tag = tag->next)
+    {
+        if((strlen(tag->name) == token->len) && (strncmp(token->str, tag->name, token->len) == 0))
+        {
+            return tag;
         }
     }
 
@@ -2544,8 +2661,10 @@ peek a function
 */
 static bool peek_func(void)
 {
-    // save the currently parsing token
+    // save the currently parsing token and the current scope
+    // since the parser twice reads declaration specifiers and/or declarators in external definitions
     Token *saved_token = get_token();
+    Scope scope = current_scope;
 
     // parse declaration specifier and declarator
     Type *base = declaration_specifiers();
@@ -2555,8 +2674,9 @@ static bool peek_func(void)
     // check if a compound statement follows
     bool is_func = consume_reserved("{");
 
-    // resume the saved token
+    // restore the saved token and scope
     set_token(saved_token);
+    current_scope = scope;
 
     return is_func;
 }
