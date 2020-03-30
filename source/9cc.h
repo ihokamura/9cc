@@ -265,6 +265,7 @@ bool is_unsigned(const Type *type);
 bool is_pointer(const Type *type);
 bool is_array(const Type *type);
 bool is_pointer_or_array(const Type *type);
+Type *new_type_enum(void);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
 Type *new_type_function(Type *base, Type *args);

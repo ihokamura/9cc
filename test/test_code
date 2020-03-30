@@ -1143,6 +1143,18 @@ int test_scope(void)
         tag_var.u1 = -11; assert_int(-11, tag_var.u1);
     }
 
+    {
+        enum test_scope_tag {EN1 = 100, EN2};
+        enum test_scope_tag tag_var = EN1; assert_int(100, tag_var);
+        {
+            enum test_scope_tag tag_var = EN2; assert_int(101, tag_var);
+
+            enum test_scope_tag {EN1 = 1000, EN2};
+            tag_var = EN2; assert_int(1001, tag_var);
+        }
+        assert_int(100, tag_var);
+    }
+
     assert_int(22, tag_var.s1);
 
     return 0;
@@ -1194,6 +1206,7 @@ int main()
     test_string_literal();
     test_integer_constant();
     test_initializer();
+    test_scope();
 
     return 0;
 }

@@ -75,7 +75,7 @@ static Type *struct_or_union_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
 static Member *struct_declarator_list(Type *type);
-static void enum_specifier(void);
+static Type *enum_specifier(void);
 static void enumerator_list(void);
 static int enumerator(int val);
 static Type *pointer(Type *base);
@@ -308,11 +308,11 @@ static Type *specifier_list(void)
             case TY_UINT:
             case TY_LONG:
             case TY_ULONG:
-            case TY_ENUM:
                 return new_type(type_kind);
 
             case TY_STRUCT:
             case TY_UNION:
+            case TY_ENUM:
                 return type;
 
             default:
@@ -470,7 +470,7 @@ static SpecifierKind type_specifier(Type **type)
     }
     else if(peek_reserved("enum"))
     {
-        enum_specifier();
+        *type = enum_specifier();
         return SP_ENUM;
     }
     else
@@ -532,7 +532,7 @@ static Type *struct_or_union_specifier(void)
             }
             else if(tag->depth == current_scope.depth)
             {
-                report_error(token->str, "redefinition of tag '%s %s'", ((type_kind == TY_STRUCT) ? "struct" : "union"), name);
+                report_error(token->str, "'%s' defined as wrong kind of tag", name);
             }
         }
     }
@@ -541,7 +541,7 @@ static Type *struct_or_union_specifier(void)
         type = new_type(type_kind);
     }
 
-    // parse structure content
+    // parse structure content or union content
     if(consume_reserved("{"))
     {
         if(tag != NULL)
@@ -681,19 +681,64 @@ static Member *struct_declarator_list(Type *type)
 /*
 make an enum-specifier
 ```
-enum-specifier ::= "enum" "{" enumerator-list (",")? "}"
+enum-specifier ::= "enum" identifier? "{" enumerator-list (",")? "}"
+                 | "enum" identifier
 ```
 */
-static void enum_specifier(void)
+static Type *enum_specifier(void)
 {
+    // parse "enum"
+    Type *type = NULL;
     expect_reserved("enum");
-    expect_reserved("{");
-    enumerator_list();
-    if(consume_reserved(","))
+
+    // parse tag
+    char *name = NULL;
+    Tag *tag = NULL;
+    Token *token = NULL;
+    if(consume_token(TK_IDENT, &token))
     {
-        // do nothing (only consume the trailing ",")
+        name = make_identifier(token);
+        tag = find_tag(token);
+        if((tag == NULL) || (tag->depth < current_scope.depth))
+        {
+            type = new_type_enum();
+            push_tag_scope(name)->type = type;
+        }
+        else
+        {
+            if(tag->type->kind == TY_ENUM)
+            {
+                type = tag->type;
+            }
+            else
+            {
+                report_error(token->str, "'%s' defined as wrong kind of tag", name);
+            }
+        }
     }
-    expect_reserved("}");
+    else
+    {
+        type = new_type_enum();
+    }
+
+    // parse enumeration content
+    if(consume_reserved("{"))
+    {
+        if(type->complete)
+        {
+            report_error(token->str, "redefinition of tag 'enum %s'", name);
+        }
+
+        enumerator_list();
+        if(consume_reserved(","))
+        {
+            // do nothing (only consume the trailing ",")
+        }
+        expect_reserved("}");
+        type->complete = true;
+    }
+
+    return type;
 }
 
 
@@ -2566,8 +2611,8 @@ leave the current scope
 */
 static void leave_scope(Scope scope)
 {
-    current_scope.depth--;
     current_scope = scope;
+    current_scope.depth--;
 }
 
 

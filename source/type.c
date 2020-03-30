@@ -49,7 +49,6 @@ static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT,   true};
 static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT,   true};
 static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG,  true};
 static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG,  true};
-static Type enum_type   = {TY_ENUM,   SIZEOF_ENUM,  ALIGNOF_ENUM,  true};
 
 
 /*
@@ -95,10 +94,6 @@ Type *new_type(TypeKind kind)
 
     case TY_ULONG:
         type = &ulong_type;
-        break;
-
-    case TY_ENUM:
-        type = &enum_type;
         break;
 
     default:
@@ -247,6 +242,19 @@ check if a given type is a pointer type or an array type
 bool is_pointer_or_array(const Type *type)
 {
     return (is_pointer(type) || is_array(type));
+}
+
+
+/*
+make an enumeration type
+*/
+Type *new_type_enum(void)
+{
+    Type *type = new_type(TY_ENUM);
+    type->size = SIZEOF_ENUM;
+    type->align = ALIGNOF_ENUM;
+
+    return type;
 }
 
 
