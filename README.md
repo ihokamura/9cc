@@ -62,6 +62,7 @@ primary ::= identifier
 const-expression ::= conditional
 declaration ::= declaration-specifiers init-declarator-list? ";"
 declaration-specifiers ::= specifier-list
+specifier-list ::= type-specifier type-specifier*
 type-specifier ::= "void"
                  | "char"
                  | "short"

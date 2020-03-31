@@ -482,7 +482,7 @@ static SpecifierKind type_specifier(Type **type)
 
 
 /*
-make a struct-specifier
+make a struct-or-union-specifier
 ```
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
                             | ("struct" | "union") identifier
@@ -491,7 +491,7 @@ struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declar
 static Type *struct_or_union_specifier(void)
 {
     // parse "struct" or "union"
-    SpecifierKind spec_kind = SP_INVALID;
+    SpecifierKind spec_kind;
     TypeKind type_kind;
     Type *type = NULL;
     if(consume_reserved("struct"))
@@ -507,10 +507,10 @@ static Type *struct_or_union_specifier(void)
     else
     {
         report_error(NULL, "expected 'struct' or 'union'");
-        return type;
     }
 
     // parse tag
+    bool parse_content = true;
     char *name = NULL;
     Tag *tag = NULL;
     Token *token = NULL;
@@ -518,6 +518,12 @@ static Type *struct_or_union_specifier(void)
     {
         name = make_identifier(token);
         tag = find_tag(token);
+
+        if((tag != NULL) && (tag->type->kind != type_kind) && (tag->depth == current_scope.depth))
+        {
+            report_error(token->str, "'%s' defined as wrong kind of tag", name);
+        }
+
         if(tag == NULL)
         {
             // declaration of a new tag
@@ -528,44 +534,37 @@ static Type *struct_or_union_specifier(void)
         {
             if(tag->type->kind == type_kind)
             {
+                // save the tagged type
                 type = tag->type;
             }
-            else if(tag->depth == current_scope.depth)
+        }
+
+        parse_content = consume_reserved("{");
+        if(parse_content)
+        {
+            if((tag != NULL) && (tag->depth < current_scope.depth))
             {
-                report_error(token->str, "'%s' defined as wrong kind of tag", name);
+                // make a new type since this is a declaration of a new tag in the current scope
+                type = new_type(type_kind);
+                push_tag_scope(name)->type = type;
+            }
+
+            if(type->complete)
+            {
+                report_error(token->str, "redefinition of tag '%s %s'", (type_kind == TY_STRUCT ? "struct" : "union"), name);
             }
         }
     }
     else
     {
+        // structure content or union content is required if there is no tag
+        expect_reserved("{");
         type = new_type(type_kind);
     }
 
-    // parse structure content or union content
-    if(consume_reserved("{"))
+    if(parse_content)
     {
-        if(tag != NULL)
-        {
-            if(tag->depth < current_scope.depth)
-            {
-                // declaration of a new tag in the current scope
-                type = new_type(type_kind);
-                push_tag_scope(name)->type = type;
-            }
-            else
-            {
-                if(tag->type->kind == type_kind)
-                {
-                    report_error(token->str, "redefinition of tag '%s %s'", (type_kind == TY_STRUCT ? "struct" : "union"), name);
-                }
-                else
-                {
-                    report_error(token->str, "'%s' defined as wrong kind of tag", name);
-                }
-                
-            }
-        }
-
+        // parse structure content or union content
         type->member = struct_declaration_list();
 
         if(spec_kind == SP_STRUCT)
@@ -692,6 +691,7 @@ static Type *enum_specifier(void)
     expect_reserved("enum");
 
     // parse tag
+    bool parse_content = true;
     char *name = NULL;
     Tag *tag = NULL;
     Token *token = NULL;
@@ -699,8 +699,15 @@ static Type *enum_specifier(void)
     {
         name = make_identifier(token);
         tag = find_tag(token);
-        if((tag == NULL) || (tag->depth < current_scope.depth))
+
+        if((tag != NULL) && (tag->type->kind != TY_ENUM) && (tag->depth == current_scope.depth))
         {
+            report_error(token->str, "'%s' defined as wrong kind of tag", name);
+        }
+
+        if(tag == NULL)
+        {
+            // declaration of a new tag
             type = new_type_enum();
             push_tag_scope(name)->type = type;
         }
@@ -708,27 +715,37 @@ static Type *enum_specifier(void)
         {
             if(tag->type->kind == TY_ENUM)
             {
+                // save the tagged type
                 type = tag->type;
             }
-            else
+        }
+
+        parse_content = consume_reserved("{");
+        if(parse_content)
+        {
+            if((tag != NULL) && (tag->depth < current_scope.depth))
             {
-                report_error(token->str, "'%s' defined as wrong kind of tag", name);
+                // make a new type since this is a declaration of a new tag in the current scope
+                type = new_type_enum();
+                push_tag_scope(name)->type = type;
+            }
+
+            if(type->complete)
+            {
+                report_error(token->str, "redefinition of tag 'enum %s'", name);
             }
         }
     }
     else
     {
+        // enumeration content is required if there is no tag
+        expect_reserved("{");
         type = new_type_enum();
     }
 
-    // parse enumeration content
-    if(consume_reserved("{"))
+    if(parse_content)
     {
-        if(type->complete)
-        {
-            report_error(token->str, "redefinition of tag 'enum %s'", name);
-        }
-
+        // parse enumeration content
         enumerator_list();
         if(consume_reserved(","))
         {
