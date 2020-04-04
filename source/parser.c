@@ -76,11 +76,16 @@ static void program(void);
 static void function_def(void);
 static Type *declaration_specifiers(StorageClassSpecifier *sclass);
 static Type *specifier_qualifier_list(void);
-static Type *declarator(Type *type, Token **token);
-static Type *parameter_type_list(Variable **arg_vars);
-static Type *parameter_list(Variable **arg_vars);
-static Type *parameter_declaration(Variable **arg_var);
+static Type *declarator(Type *type, Token **token, bool need_arg_token);
+static Type *direct_declarator(Type *type, Token **token, bool need_arg_token);
+static Type *pointer(Type *base);
+static Type *parameter_type_list(Variable **arg_vars, bool need_arg_token);
+static Type *parameter_list(Variable **arg_vars, bool need_arg_token);
+static Type *parameter_declaration(Variable **arg_var, bool need_arg_token);
 static Type *type_name(void);
+static Type *abstract_declarator(Type *type);
+static Type *direct_abstract_declarator(Type *type);
+static Type *declarator_suffixes(Type *type, bool need_arg_token);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static TypeQualifier type_qualifier(void);
@@ -91,13 +96,11 @@ static Member *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
 static void enumerator_list(void);
 static int enumerator(int val);
-static Type *pointer(Type *base);
-static Type *direct_declarator(Type *type, Token **token);
 static Node *statement(void);
 static Node *compound_statement(void);
 static Node *declaration(bool is_local);
-static Node *init_declarator_list(Type *type, bool is_local);
-static Node *init_declarator(Type *type, bool is_local);
+static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
+static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Node *initializer(void);
 static Node *expression(void);
 static Node *assign(void);
@@ -143,6 +146,12 @@ static bool peek_reserved_type_specifier(void);
 static bool peek_user_type_specifier(void);
 static bool peek_typedef_name(void);
 static bool peek_type_qualifier(void);
+static bool peek_declarator(void);
+static bool peek_pointer(void);
+static bool peek_type_name(void);
+static bool peek_abstract_declarator(void);
+static bool peek_direct_abstract_declarator(void);
+static bool peek_declarator_suffix(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static IntegerConstant const_expression(void);
@@ -261,7 +270,7 @@ static void function_def(void)
     StorageClassSpecifier sclass;
     Type *type = declaration_specifiers(&sclass);
     Token *token;
-    type = declarator(type, &token);
+    type = declarator(type, &token, true);
 
     // make a function declarator
     new_gvar(token, new_type_function(type->base, type->args), false);
@@ -366,14 +375,98 @@ make a declarator
 declarator ::= pointer? direct-declarator
 ```
 */
-static Type *declarator(Type *type, Token **token)
+static Type *declarator(Type *type, Token **token, bool need_arg_token)
 {
-    if(peek_reserved("*"))
+    if(peek_pointer())
     {
         type = pointer(type);
     }
 
-    type = direct_declarator(type, token);
+    type = direct_declarator(type, token, need_arg_token);
+
+    return type;
+}
+
+
+/*
+make a direct declarator
+```
+direct-declarator ::= identifier
+                    | "(" declarator ")"
+                    | direct-declarator "[" const-expression "]"
+                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
+```
+* This is equivalent to the following.
+```
+direct-declarator ::= (identifier | "(" declarator ")") declarator-suffixes
+declarator-suffixes ::= declarator-suffix*
+declarator-suffix ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")
+```
+*/
+static Type *direct_declarator(Type *type, Token **token, bool need_arg_token)
+{
+    Token *saved_token = get_token();
+    if(consume_reserved("("))
+    {
+        if(peek_declarator())
+        {
+            // parse declarator
+            Type *placeholder = new_type(TY_VOID, TQ_NONE);
+            Type *whole_type = declarator(placeholder, token, need_arg_token);
+            expect_reserved(")");
+
+            // parse declarator-suffixes
+            type = declarator_suffixes(type, need_arg_token);
+
+            // overwrite the placeholder to fix the type
+            *placeholder = *type;
+            type = whole_type;
+            goto direct_declarator_end;
+        }
+        else
+        {
+            // restore the saved token
+            set_token(saved_token);
+        }
+    }
+
+    if(consume_token(TK_IDENT, token))
+    {
+        // do nothing (only consume an identifier)
+        // note that an identifier may be omitted in a parameter-declaration
+    }
+
+    type = declarator_suffixes(type, need_arg_token);
+
+direct_declarator_end:
+    return type;
+}
+
+
+/*
+make a pointer
+```
+pointer ::= "*" ("*" | type-qualifier)*
+```
+*/
+static Type *pointer(Type *base)
+{
+    Type *type = base;
+
+    expect_reserved("*");
+    type = new_type_pointer(type);
+
+    while(peek_reserved("*") || peek_type_qualifier())
+    {
+        if(consume_reserved("*"))
+        {
+            type = new_type_pointer(type);
+        }
+        else
+        {
+            type->qual |= type_qualifier();
+        }
+    }
 
     return type;
 }
@@ -385,9 +478,9 @@ make a parameter-type-list
 parameter-type-list ::= parameter-list ("," "...")?
 ```
 */
-static Type *parameter_type_list(Variable **arg_vars)
+static Type *parameter_type_list(Variable **arg_vars, bool need_arg_token)
 {
-    Type *arg_types = parameter_list(arg_vars);
+    Type *arg_types = parameter_list(arg_vars, need_arg_token);
 
     if(consume_reserved(","))
     {
@@ -404,7 +497,7 @@ make a parameter-list
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
 */
-static Type *parameter_list(Variable **arg_vars)
+static Type *parameter_list(Variable **arg_vars, bool need_arg_token)
 {
     Type *arg_types;
     Type arg_types_head = {};
@@ -412,7 +505,7 @@ static Type *parameter_list(Variable **arg_vars)
     Variable arg_vars_head = {};
     Variable *arg_vars_cursor = &arg_vars_head;
 
-    arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
+    arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next, need_arg_token);
     arg_types_cursor = arg_types_cursor->next;
     arg_vars_cursor = arg_vars_cursor->next;
 
@@ -423,7 +516,7 @@ static Type *parameter_list(Variable **arg_vars)
         {
             if(!consume_reserved("..."))
             {
-                arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
+                arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next, need_arg_token);
                 arg_types_cursor = arg_types_cursor->next;
                 arg_vars_cursor = arg_vars_cursor->next;
                 continue;
@@ -446,22 +539,33 @@ static Type *parameter_list(Variable **arg_vars)
 /*
 make a parameter declaration
 ```
-parameter-declaration ::= declaration-specifiers declarator
+parameter-declaration ::= declaration-specifiers (declarator | abstract-declarator?)
 ```
 */
-static Type *parameter_declaration(Variable **arg_var)
+static Type *parameter_declaration(Variable **arg_var, bool need_arg_token)
 {
     StorageClassSpecifier sclass;
     Type *arg_type = declaration_specifiers(&sclass);
-    Token *arg_token;
-    arg_type = declarator(arg_type, &arg_token);
 
     if(!((sclass == SC_REGISTER) || (sclass == INVALID_DECLSPEC)))
     {
-        report_error(arg_token->str, "invalid storage class specified for parameter '%s'", make_identifier(arg_token));
+        report_error(NULL, "invalid storage class specified for parameter");
     }
 
-    *arg_var = new_var(make_identifier(arg_token), arg_type, true);
+    // The function 'declarator()' can also handle abstract-declarator (declarator with no identifier).
+    // In this case, the argument 'arg_token' is not modified.
+    Token *arg_token = NULL;
+    arg_type = declarator(arg_type, &arg_token, need_arg_token);
+
+    if(arg_token != NULL)
+    {
+        *arg_var = new_var(make_identifier(arg_token), arg_type, true);
+    }
+    else
+    {
+        static Variable dummy_variable;
+        *arg_var = &dummy_variable;
+    }
 
     return arg_type;
 }
@@ -470,16 +574,153 @@ static Type *parameter_declaration(Variable **arg_var)
 /*
 make a type name
 ```
-type-name ::= specifier-qualifier-list pointer?
+type-name ::= specifier-qualifier-list abstract-declarator?
 ```
 */
 static Type *type_name(void)
 {
     Type *type = specifier_qualifier_list();
 
-    if(peek_reserved("*"))
+    if(peek_abstract_declarator())
+    {
+        type = abstract_declarator(type);
+    }
+
+    return type;
+}
+
+
+/*
+make an abstract-declarator
+```
+abstract-declarator ::= pointer | pointer? direct-abstract-declarator
+```
+*/
+static Type *abstract_declarator(Type *type)
+{
+    if(peek_pointer())
     {
         type = pointer(type);
+        if(!peek_direct_abstract_declarator())
+        {
+            goto abstract_declarator_end;
+        }
+    }
+
+    type = direct_abstract_declarator(type);
+
+abstract_declarator_end:
+    return type;
+}
+
+
+/*
+make a direct-abstract-declarator
+```
+direct-abstract-declarator ::= "(" abstract-declarator ")"
+                             | direct-abstract-declarator? "[" const-expression "]"
+                             | direct-abstract-declarator? "(" ("void" | parameter-type-list)? ")"
+```
+* This is equivalent to the following.
+```
+direct-abstract-declarator ::= ("(" abstract-declarator ")" | declarator-suffix) declarator-suffixes
+declarator-suffixes ::= declarator-suffix*
+declarator-suffix ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")
+```
+*/
+static Type *direct_abstract_declarator(Type *type)
+{
+    Token *saved_token = get_token();
+    if(consume_reserved("("))
+    {
+        if(peek_abstract_declarator())
+        {
+            // parse abstract-declarator
+            Type *placeholder = new_type(TY_VOID, TQ_NONE);
+            Type *whole_type = abstract_declarator(placeholder);
+            expect_reserved(")");
+
+            // parse declarator-suffixes
+            type = declarator_suffixes(type, false);
+
+            // overwrite the placeholder to fix the type
+            *placeholder = *type;
+            type = whole_type;
+            goto direct_abstract_declarator_end;
+        }
+        else
+        {
+            // restore the saved token
+            set_token(saved_token);
+        }
+    }
+
+    if(!peek_declarator_suffix())
+    {
+        report_error(saved_token->str, "expected '[' or '('");
+    }
+
+    type = declarator_suffixes(type, false);
+
+direct_abstract_declarator_end:
+    return type;
+}
+
+
+/*
+make a declarator-suffixes
+```
+declarator-suffixes ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")*
+```
+*/
+static Type *declarator_suffixes(Type *type, bool need_arg_token)
+{
+    if(consume_reserved("["))
+    {
+        // parse array declarator
+        IntegerConstant len = const_expression();
+        size_t len_val;
+        switch(len.kind)
+        {
+        case TY_ULONG:
+            len_val = len.ulong_val;
+            break;
+
+        case TY_LONG:
+            len_val = len.long_val;
+            break;
+
+        case TY_UINT:
+            len_val = len.uint_val;
+            break;
+
+        default:
+            len_val = len.int_val;
+            break;
+        }
+        expect_reserved("]");
+        type = declarator_suffixes(type, need_arg_token);
+        type = new_type_array(type, len_val);
+    }
+    else if(consume_reserved("("))
+    {
+        // parse parameter declarators
+        Type *arg_types = new_type(TY_VOID, TQ_NONE);
+        Variable *arg_vars = NULL;
+        if(!consume_reserved(")"))
+        {
+            if(!consume_reserved("void"))
+            {
+                arg_types = parameter_type_list(&arg_vars, need_arg_token);
+            }
+            expect_reserved(")");
+        }
+        type = declarator_suffixes(type, need_arg_token);
+        type = new_type_function(type, arg_types);
+        if(need_arg_token)
+        {
+            args_list = arg_vars;
+        }
     }
 
     return type;
@@ -815,12 +1056,12 @@ struct-declarator-list ::= declarator ("," declarator)*
 static Member *struct_declarator_list(Type *type)
 {
     Token *token;
-    Type *decl_type = declarator(type, &token);
+    Type *decl_type = declarator(type, &token, false);
     Member *member = new_member(token, decl_type);
     Member *cursor = member;
     while(consume_reserved(","))
     {
-        decl_type = declarator(type, &token);
+        decl_type = declarator(type, &token, false);
         cursor->next = new_member(token, decl_type);
         cursor = cursor->next;
     }
@@ -963,102 +1204,6 @@ static int enumerator(int val)
     new_enumerator(make_identifier(token), val);
 
     return val + 1;
-}
-
-
-/*
-make a pointer
-```
-pointer ::= "*" ("*" | type-qualifier)*
-```
-*/
-static Type *pointer(Type *base)
-{
-    Type *type = base;
-
-    expect_reserved("*");
-    type = new_type_pointer(type);
-
-    while(peek_reserved("*") || peek_type_qualifier())
-    {
-        if(consume_reserved("*"))
-        {
-            type = new_type_pointer(type);
-        }
-        else
-        {
-            type->qual |= type_qualifier();
-        }
-    }
-
-    return type;
-}
-
-
-/*
-make a direct declarator
-```
-direct-declarator ::= identifier
-                    | direct-declarator "[" const-expression "]"
-                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
-```
-*/
-static Type *direct_declarator(Type *type, Token **token)
-{
-    if(consume_token(TK_IDENT, token))
-    {
-        type = direct_declarator(type, token);
-    }
-    else
-    {
-        if(consume_reserved("["))
-        {
-            IntegerConstant len = const_expression();
-            size_t len_val;
-            switch(len.kind)
-            {
-            case TY_ULONG:
-                len_val = len.ulong_val;
-                break;
-
-            case TY_LONG:
-                len_val = len.long_val;
-                break;
-
-            case TY_UINT:
-                len_val = len.uint_val;
-                break;
-
-            default:
-                len_val = len.int_val;
-                break;
-            }
-
-            expect_reserved("]");
-            type = direct_declarator(type, token);
-            type = new_type_array(type, len_val);
-        }
-        else if(consume_reserved("("))
-        {
-            // parse arguments
-            Type *arg_types = new_type(TY_VOID, TQ_NONE);
-            Variable *arg_vars = NULL;
-            if(!consume_reserved(")"))
-            {
-                if(!consume_reserved("void"))
-                {
-                    arg_types = parameter_type_list(&arg_vars);
-                }
-                expect_reserved(")");
-            }
-
-            type = direct_declarator(type, token);
-            type = new_type_function(type, arg_types);
-            args_list = arg_vars;
-        }
-    }
-
-    return type;
 }
 
 
@@ -1326,21 +1471,10 @@ static Node *declaration(bool is_local)
     Type *type = declaration_specifiers(&sclass);
 
     // parse init-declarator-list
-    Node *node = new_node(ND_DECL);
-    Token *token;
-    if(peek_reserved("*") || peek_token(TK_IDENT, &token))
+    Node *node = new_node((sclass == SC_TYPEDEF) ? ND_NULL : ND_DECL);
+    if(peek_declarator())
     {
-        node->body = init_declarator_list(type, is_local);
-    }
-
-    if(sclass == SC_TYPEDEF)
-    {
-        // push typedef names
-        node->kind = ND_NULL;
-        for(Node *n = node->body; n != NULL; n = n->next)
-        {
-            push_identifier_scope(n->var->name)->type_def = n->var->type;
-        }
+        node->body = init_declarator_list(type, sclass, is_local);
     }
 
     expect_reserved(";");
@@ -1355,14 +1489,14 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static Node *init_declarator_list(Type *type, bool is_local)
+static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
-    Node *node = init_declarator(type, is_local);
+    Node *node = init_declarator(type, sclass, is_local);
     Node *cursor = node;
 
     while(consume_reserved(","))
     {
-        cursor->next = init_declarator(type, is_local);
+        cursor->next = init_declarator(type, sclass, is_local);
         cursor = cursor->next;
     }
 
@@ -1376,11 +1510,11 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Node *init_declarator(Type *type, bool is_local)
+static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
     // parse declarator
     Token *token;
-    type = declarator(type, &token);
+    type = declarator(type, &token, false);
 
     // check duplicated declaration
     Identifier *ident = find_identifier(token);
@@ -1389,32 +1523,43 @@ static Node *init_declarator(Type *type, bool is_local)
         report_error(token->str, "duplicated declaration of '%s'\n", make_identifier(token));
     }
 
-    // make a new node for variable
-    Node *node = new_node(ND_VAR);
-    node->type = type;
-    if(is_local)
+    if(sclass == SC_TYPEDEF)
     {
-        node->var = new_lvar(token, type);
+        push_identifier_scope(make_identifier(token))->type_def = type;
 
-        // parse initializer
-        if(consume_reserved("="))
-        {
-            node->var->init = initializer();
-        }
+        static Node dummy_node;
+        return &dummy_node;
     }
     else
     {
-        bool emit = (type->kind != TY_FUNC);
-        node->var = new_gvar(token, type, emit);
+        // make a new node for variable
+        Node *node = new_node(ND_VAR);
+        node->type = type;
 
-        // parse initializer
-        if(consume_reserved("="))
+        if(is_local)
         {
-            node->var->init = initializer();
-        }
-    }
+            node->var = new_lvar(token, type);
 
-    return node;
+            // parse initializer
+            if(consume_reserved("="))
+            {
+                node->var->init = initializer();
+            }
+        }
+        else
+        {
+            bool emit = (type->kind != TY_FUNC);
+            node->var = new_gvar(token, type, emit);
+
+            // parse initializer
+            if(consume_reserved("="))
+            {
+                node->var->init = initializer();
+            }
+        }
+
+        return node;
+    }
 }
 
 
@@ -2002,7 +2147,7 @@ static Node *cast(void)
     Token *saved_token = get_token();
     if(consume_reserved("("))
     {
-        if(peek_type_specifier())
+        if(peek_type_name())
         {
             Type *type = type_name();
             expect_reserved(")");
@@ -2046,7 +2191,7 @@ static Node *unary(void)
         Token *saved_token = get_token();
         if(consume_reserved("("))
         {
-            if(peek_type_specifier())
+            if(peek_type_name())
             {
                 Type *type = type_name();
                 node = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = type->size});
@@ -2964,6 +3109,62 @@ static bool peek_type_qualifier(void)
 
 
 /*
+peek a declarator
+*/
+static bool peek_declarator(void)
+{
+    Token *token;
+
+    return peek_pointer() || peek_token(TK_IDENT, &token) || peek_reserved("(");
+}
+
+
+/*
+peek a pointer
+*/
+static bool peek_pointer(void)
+{
+    return peek_reserved("*");
+}
+
+
+/*
+peek a type name
+*/
+static bool peek_type_name(void)
+{
+    return peek_type_specifier() || peek_type_qualifier();
+}
+
+
+/*
+peek an abstract-declarator
+*/
+static bool peek_abstract_declarator(void)
+{
+    return peek_pointer() || peek_direct_abstract_declarator();
+}
+
+
+/*
+peek a direct-abstract-declarator
+*/
+static bool peek_direct_abstract_declarator(void)
+{
+    return peek_reserved("[") || peek_reserved("(");
+}
+
+
+/*
+peek a declarator-suffix
+*/
+static bool peek_declarator_suffix(void)
+{
+    return peek_reserved("[") || peek_reserved("(");
+}
+
+
+/*
 peek a function
 */
 static bool peek_func(void)
@@ -2977,7 +3178,7 @@ static bool peek_func(void)
     StorageClassSpecifier sclass;
     Type *base = declaration_specifiers(&sclass);
     Token *token;
-    base = declarator(base, &token);
+    base = declarator(base, &token, true);
 
     // check if a compound statement follows
     bool is_func = consume_reserved("{");

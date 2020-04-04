@@ -94,15 +94,19 @@ init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
 direct-declarator ::= identifier
+                    | "(" declarator ")"
                     | direct-declarator "[" const-expression "]"
                     | direct-declarator "(" ("void" | parameter-type-list)? ")"
 pointer ::= "*" ("*" | type-qualifier)*
 parameter-type-list ::= parameter-list ("," "...")?
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
-parameter-declaration ::= declaration-specifiers declarator
+parameter-declaration ::= declaration-specifiers (declarator | abstract-declarator?)
 initializer ::= assign
-type-name ::= specifier-qualifier-list pointer?
-pointer ::= "*" ("*" | type-qualifier)*
+type-name ::= specifier-qualifier-list abstract-declarator?
+abstract-declarator ::= pointer | pointer? direct-abstract-declarator
+direct-abstract-declarator ::= "(" abstract-declarator ")"
+                             | direct-abstract-declarator? "[" const-expression "]"
+                             | direct-abstract-declarator? "(" ("void" | parameter-type-list)? ")"
 typedef-name ::= identifier
 ```
 

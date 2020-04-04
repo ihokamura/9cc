@@ -792,6 +792,18 @@ int test_sizeof()
     union {char m1; int m2; short m3;} un2; assert_int(4, sizeof(un2));
     union {char m1; union {char mm1; int mm2; short mm3;} m2; short m3;} un3; assert_int(4, sizeof(un3));
 
+    assert_int(12, sizeof(const int [3]));
+    assert_int(24, sizeof(int const [3][2]));
+    assert_int(48, sizeof(int const *[3][2][1]));
+    assert_int(48, sizeof(int const * const[3][2][1]));
+    assert_int(8, sizeof(int (*)[3][2][1]));
+    assert_int(32, sizeof(int (*[4])[3][2][1]));
+    assert_int(32, sizeof(int (**[4])[3][2][1]));
+    assert_int(8, sizeof(int (*(*)[4])[3][2][1]));
+    assert_int(8, sizeof(int (*)(void)));
+    assert_int(24, sizeof(int (*[3])(int, int param, char *, volatile long ** const *)));
+    typedef void (*sig_handler)(int); assert_int(8, sizeof(sig_handler));
+
     return 0;
 }
 
