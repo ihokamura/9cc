@@ -61,8 +61,12 @@ primary ::= identifier
           | "(" expression ")"
 const-expression ::= conditional
 declaration ::= declaration-specifiers init-declarator-list? ";"
-declaration-specifiers ::= specifier-list
-specifier-list ::= type-specifier type-specifier*
+declaration-specifiers ::= (storage-class-specifier | type-specifier)*
+storage-class-specifier ::= "typedef"
+                          | "extern"
+                          | "static"
+                          | "auto"
+                          | "register"
 type-specifier ::= "void"
                  | "char"
                  | "short"
@@ -72,10 +76,12 @@ type-specifier ::= "void"
                  | "unsigned"
                  | struct-or-union-specifier
                  | enum-specifier
+                 | typedef-name
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
                             | ("struct" | "union") identifier
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list struct-declarator-list ";"
+specifier-list ::= type-specifier*
 struct-declarator-list ::= declarator ("," declarator)*
 enum-specifier ::= "enum" identifier? "{" enumerator-list (",")? "}"
                  | "enum" identifier

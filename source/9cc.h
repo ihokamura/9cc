@@ -47,21 +47,22 @@ typedef enum {
 
 // kind of type
 typedef enum {
-    TY_VOID,   // void
-    TY_CHAR,   // char
-    TY_UCHAR,  // unsigned char
-    TY_SHORT,  // short
-    TY_USHORT, // unsigned short
-    TY_INT,    // int
-    TY_UINT,   // unsigned int
-    TY_LONG,   // long
-    TY_ULONG,  // unsigned long
-    TY_PTR,    // pointer
-    TY_ARRAY,  // array
-    TY_STRUCT, // structure
-    TY_UNION,  // union
-    TY_ENUM,   // enumeration
-    TY_FUNC,   // function
+    TY_VOID,    // void
+    TY_CHAR,    // char
+    TY_UCHAR,   // unsigned char
+    TY_SHORT,   // short
+    TY_USHORT,  // unsigned short
+    TY_INT,     // int
+    TY_UINT,    // unsigned int
+    TY_LONG,    // long
+    TY_ULONG,   // unsigned long
+    TY_PTR,     // pointer
+    TY_ARRAY,   // array
+    TY_STRUCT,  // structure
+    TY_UNION,   // union
+    TY_ENUM,    // enumeration
+    TY_TYPEDEF, // typedef name
+    TY_FUNC,    // function
 } TypeKind;
 
 // kind of node in AST(abstract syntax tree)

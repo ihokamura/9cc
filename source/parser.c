@@ -20,23 +20,32 @@
 
 
 // macro definition
-#define SPEC_LIST_SIZE ((size_t)10) // number of valid specifiers
+#define INVALID_DECLSPEC (-1) // invalid declaration specifier
+#define TYPESPEC_SIZE ((size_t)11) // number of type specifiers
 
 
 // type definition
 typedef enum {
-    SP_VOID,     // "void"
-    SP_CHAR,     // "char"
-    SP_SHORT,    // "short"
-    SP_INT,      // "int"
-    SP_LONG,     // "long"
-    SP_SIGNED,   // "signed"
-    SP_UNSIGNED, // "unsigned"
-    SP_STRUCT,   // structure
-    SP_UNION,    // union
-    SP_ENUM,     // enumeration
-    SP_INVALID,  // invalid specifier
-} SpecifierKind;
+    SC_TYPEDEF,  // "typdef"
+    SC_EXTERN,   // "extern"
+    SC_STATIC,   // "static"
+    SC_AUTO,     // "auto"
+    SC_REGISTER, // "register"
+} StorageClassSpecifier;
+
+typedef enum {
+    TS_VOID,     // "void"
+    TS_CHAR,     // "char"
+    TS_SHORT,    // "short"
+    TS_INT,      // "int"
+    TS_LONG,     // "long"
+    TS_SIGNED,   // "signed"
+    TS_UNSIGNED, // "unsigned"
+    TS_STRUCT,   // structure
+    TS_UNION,    // union
+    TS_ENUM,     // enumeration
+    TS_TYPEDEF,  // typedef name
+} TypeSpecifier;
 
 typedef struct Identifier Identifier;
 struct Identifier {
@@ -44,6 +53,7 @@ struct Identifier {
     const char *name; // identifier
     Variable *var;    // variable
     Enumerator *en;   // enumerator
+    Type *type_def;   // type definition
     int depth;        // depth of scope
 };
 
@@ -64,13 +74,14 @@ typedef struct {
 // function prototype
 static void program(void);
 static void function_def(void);
-static Type *declaration_specifiers(void);
+static Type *declaration_specifiers(StorageClassSpecifier *sclass);
 static Type *specifier_list(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
-static SpecifierKind type_specifier(Type **type);
+static StorageClassSpecifier storage_class_specifier(void);
+static TypeSpecifier type_specifier(Type **type);
 static Type *struct_or_union_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
@@ -123,13 +134,20 @@ static void leave_scope(Scope scope);
 static Identifier *find_identifier(const Token *token);
 static Tag *find_tag(const Token *token);
 static IntegerConstant parse_integer_constant(const Token *token);
+static bool peek_declaration_specifiers(void);
+static bool peek_storage_class_specifier(void);
 static bool peek_type_specifier(void);
+static bool peek_reserved_type_specifier(void);
+static bool peek_user_type_specifier(void);
+static bool peek_typedef_name(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static IntegerConstant const_expression(void);
 static IntegerConstant evaluate(Node *node);
 static bool is_zero(IntegerConstant val);
 static size_t adjust_alignment(size_t target, size_t alignment);
+static Type *determine_type(const int *spec_list, Type *type);
+static bool can_determine_type(const int *spec_list);
 
 
 // global variable
@@ -141,42 +159,43 @@ static Variable *lvar_list = NULL; // list of local variables of currently const
 static Node *current_switch = NULL; // currently parsing switch statement
 static Scope current_scope = {NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
-static const struct {int spec_list[SPEC_LIST_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
+static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},   // void
+    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},   // char
+    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0}, TY_CHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_CHAR},    // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0}, TY_UCHAR},  // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short
-    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // signed short
-    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},  // short int
-    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0}, TY_SHORT},  // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short
+    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0}, TY_USHORT}, // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0}, TY_USHORT}, // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0}, TY_USHORT},  // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0}, TY_USHORT},  // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},    // int
-    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_INT},    // signed
-    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0}, TY_INT},    // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // int
+    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_INT},     // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0}, TY_INT},     // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_UINT},   // unsigned
-    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0}, TY_UINT},   // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_UINT},    // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0}, TY_UINT},    // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_LONG},   // long
-    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0}, TY_LONG},   // signed long
-    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},   // long int
-    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0}, TY_LONG},   // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long
+    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0}, TY_ULONG},  // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0}, TY_ULONG},  // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
     // other type specifiers
-    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_STRUCT}, // structure
-    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_UNION},  // union
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_ENUM},   // enumeration
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
+    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_ENUM},    // enumeration
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_TYPEDEF}, // typedef name
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -236,7 +255,8 @@ static void function_def(void)
     lvar_list = NULL;
 
     // parse declaration specifier and declarator
-    Type *type = declaration_specifiers();
+    StorageClassSpecifier sclass;
+    Type *type = declaration_specifiers(&sclass);
     Token *token;
     type = declarator(type, &token);
 
@@ -254,76 +274,72 @@ static void function_def(void)
 /*
 make a declaration specifier
 ```
-declaration-specifiers ::= specifier-list
+declaration-specifiers ::= (storage-class-specifier | type-specifier)*
 ```
+* This function sets INVALID_DECLSPEC to the argument 'sclass' if no storage-class specifier is given.
 */
-static Type *declaration_specifiers(void)
+static Type *declaration_specifiers(StorageClassSpecifier *sclass)
 {
-    return specifier_list();
+    int spec_list[TYPESPEC_SIZE] = {};
+    Type *type = NULL;
+    *sclass = INVALID_DECLSPEC;
+
+    // parse storage-class specifiers and type specifiers
+    while(true)
+    {
+        if(peek_storage_class_specifier())
+        {
+            if(*sclass != INVALID_DECLSPEC)
+            {
+                report_error(NULL, "multiple storage classes in declaration specifiers");
+            }
+            *sclass = storage_class_specifier();
+            continue;
+        }
+
+        if(!peek_reserved_type_specifier() && can_determine_type(spec_list))
+        {
+            break;
+        }
+
+        if(peek_type_specifier())
+        {
+            spec_list[type_specifier(&type)]++;
+            continue;
+        }
+    }
+
+    return determine_type(spec_list, type);
 }
 
 
 /*
 make a specifier-list
 ```
-specifier-list ::= type-specifier type-specifier*
+specifier-list ::= type-specifier*
 ```
 */
 static Type *specifier_list(void)
 {
-    int spec_list[SPEC_LIST_SIZE] = {};
+    int spec_list[TYPESPEC_SIZE] = {};
     Type *type = NULL;
 
     // parse type specifiers
-    while(peek_type_specifier())
+    while(true)
     {
-        spec_list[type_specifier(&type)]++;
-    }
-
-    // determine type
-    for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
-    {
-        bool equal = true;
-
-        for(size_t j = 0; j < SPEC_LIST_SIZE; j++)
+        if(!peek_reserved_type_specifier() && can_determine_type(spec_list))
         {
-            if(TYPE_SPECS_MAP[i].spec_list[j] != spec_list[j])
-            {
-                equal = false;
-                break;
-            }
+            break;
         }
 
-        if(equal)
+        if(peek_type_specifier())
         {
-            TypeKind type_kind = TYPE_SPECS_MAP[i].type_kind;
-            switch(type_kind)
-            {
-            case TY_VOID:
-            case TY_CHAR:
-            case TY_UCHAR:
-            case TY_SHORT:
-            case TY_USHORT:
-            case TY_INT:
-            case TY_UINT:
-            case TY_LONG:
-            case TY_ULONG:
-                return new_type(type_kind);
-
-            case TY_STRUCT:
-            case TY_UNION:
-            case TY_ENUM:
-                return type;
-
-            default:
-                break;
-            }
+            spec_list[type_specifier(&type)]++;
+            continue;
         }
     }
 
-    // invalid combination of specifiers
-    report_error(NULL, "invalid specifiers");
-    return NULL;
+    return determine_type(spec_list, type);
 }
 
 
@@ -386,10 +402,16 @@ parameter-declaration ::= declaration-specifiers declarator
 */
 static Type *parameter_declaration(Variable **arg_var)
 {
-    Type *arg_type = declaration_specifiers();
+    StorageClassSpecifier sclass;
+    Type *arg_type = declaration_specifiers(&sclass);
     Token *arg_token;
-
     arg_type = declarator(arg_type, &arg_token);
+
+    if(!((sclass == SC_REGISTER) || (sclass == INVALID_DECLSPEC)))
+    {
+        report_error(arg_token->str, "invalid storage class specified for parameter '%s'", make_identifier(arg_token));
+    }
+
     *arg_var = new_var(make_identifier(arg_token), arg_type, true);
 
     return arg_type;
@@ -416,6 +438,46 @@ static Type *type_name(void)
 
 
 /*
+make a storage-class specifier
+```
+storage-class-specifier ::= "typedef"
+                          | "extern"
+                          | "static"
+                          | "auto"
+                          | "register"
+```
+*/
+static StorageClassSpecifier storage_class_specifier(void)
+{
+    if(consume_reserved("typedef"))
+    {
+        return SC_TYPEDEF;
+    }
+    else if(consume_reserved("extern"))
+    {
+        return SC_EXTERN;
+    }
+    else if(consume_reserved("static"))
+    {
+        return SC_STATIC;
+    }
+    else if(consume_reserved("auto"))
+    {
+        return SC_AUTO;
+    }
+    else if(consume_reserved("register"))
+    {
+        return SC_REGISTER;
+    }
+    else
+    {
+        report_error(NULL, "invalid storage-class specifier\n");
+        return INVALID_DECLSPEC;
+    }
+}
+
+
+/*
 make a type specifier
 ```
 type-specifier ::= "void"
@@ -426,57 +488,69 @@ type-specifier ::= "void"
                  | "signed"
                  | "unsigned"
                  | struct-or-union-specifier
+                 | enum-specifier
+                 | typedef-name
 ```
 */
-static SpecifierKind type_specifier(Type **type)
+static TypeSpecifier type_specifier(Type **type)
 {
     if(consume_reserved("void"))
     {
-        return SP_VOID;
+        return TS_VOID;
     }
     else if(consume_reserved("char"))
     {
-        return SP_CHAR;
+        return TS_CHAR;
     }
     else if(consume_reserved("short"))
     {
-        return SP_SHORT;
+        return TS_SHORT;
     }
     else if(consume_reserved("int"))
     {
-        return SP_INT;
+        return TS_INT;
     }
     else if(consume_reserved("long"))
     {
-        return SP_LONG;
+        return TS_LONG;
     }
     else if(consume_reserved("signed"))
     {
-        return SP_SIGNED;
+        return TS_SIGNED;
     }
     else if(consume_reserved("unsigned"))
     {
-        return SP_UNSIGNED;
+        return TS_UNSIGNED;
     }
     else if(peek_reserved("struct"))
     {
         *type = struct_or_union_specifier();
-        return SP_STRUCT;
+        return TS_STRUCT;
     }
     else if(peek_reserved("union"))
     {
         *type = struct_or_union_specifier();
-        return SP_UNION;
+        return TS_UNION;
     }
     else if(peek_reserved("enum"))
     {
         *type = enum_specifier();
-        return SP_ENUM;
+        return TS_ENUM;
     }
     else
     {
-        report_error(NULL, "invalid type specifier\n");
-        return SP_INVALID;
+        Token *token = expect_identifier();
+        Identifier *ident = find_identifier(token);
+        if((ident != NULL) && (ident->type_def != NULL))
+        {
+            *type = ident->type_def;
+            return TS_TYPEDEF;
+        }
+        else
+        {
+            report_error(token->str, "invalid type specifier\n");
+            return INVALID_DECLSPEC;
+        }
     }
 }
 
@@ -491,17 +565,17 @@ struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declar
 static Type *struct_or_union_specifier(void)
 {
     // parse "struct" or "union"
-    SpecifierKind spec_kind;
+    TypeSpecifier spec_kind;
     TypeKind type_kind;
     Type *type = NULL;
     if(consume_reserved("struct"))
     {
-        spec_kind = SP_STRUCT;
+        spec_kind = TS_STRUCT;
         type_kind = TY_STRUCT;
     }
     else if(consume_reserved("union"))
     {
-        spec_kind = SP_UNION;
+        spec_kind = TS_UNION;
         type_kind = TY_UNION;
     }
     else
@@ -567,7 +641,7 @@ static Type *struct_or_union_specifier(void)
         // parse structure content or union content
         type->member = struct_declaration_list();
 
-        if(spec_kind == SP_STRUCT)
+        if(spec_kind == TS_STRUCT)
         {
             // set offset of members and determine size and alignment of the structure type
             size_t offset = 0;
@@ -584,7 +658,7 @@ static Type *struct_or_union_specifier(void)
             type->size = adjust_alignment(offset, alignment);
             type->align = alignment;
         }
-        else if(spec_kind == SP_UNION)
+        else if(spec_kind == TS_UNION)
         {
             // determine size and alignment of the union type
             size_t size = 0;
@@ -1134,7 +1208,7 @@ static Node *compound_statement(void)
     Node *cursor = &head;
     while(!consume_reserved("}"))
     {
-        if(peek_type_specifier())
+        if(peek_declaration_specifiers())
         {
             // declaration
             cursor->next = declaration(true);
@@ -1163,7 +1237,8 @@ declaration ::= declaration-specifiers init-declarator-list? ";"
 static Node *declaration(bool is_local)
 {
     // parse declaration specifier
-    Type *type = declaration_specifiers();
+    StorageClassSpecifier sclass;
+    Type *type = declaration_specifiers(&sclass);
 
     // parse init-declarator-list
     Node *node = new_node(ND_DECL);
@@ -1171,6 +1246,16 @@ static Node *declaration(bool is_local)
     if(peek_reserved("*") || peek_token(TK_IDENT, &token))
     {
         node->body = init_declarator_list(type, is_local);
+    }
+
+    if(sclass == SC_TYPEDEF)
+    {
+        // push typedef names
+        node->kind = ND_NULL;
+        for(Node *n = node->body; n != NULL; n = n->next)
+        {
+            push_identifier_scope(n->var->name)->type_def = n->var->type;
+        }
     }
 
     expect_reserved(";");
@@ -2699,9 +2784,42 @@ static IntegerConstant parse_integer_constant(const Token *token)
 
 
 /*
+peek declaration-specifiers
+*/
+static bool peek_declaration_specifiers(void)
+{
+    return peek_storage_class_specifier() || peek_type_specifier();
+}
+
+
+/*
+peek a storage-class-specifier
+*/
+static bool peek_storage_class_specifier(void)
+{
+    return (
+           peek_reserved("typedef")
+        || peek_reserved("extern")
+        || peek_reserved("static")
+        || peek_reserved("auto")
+        || peek_reserved("register")
+    );
+}
+
+
+/*
 peek a type-specifier
 */
 static bool peek_type_specifier(void)
+{
+    return peek_reserved_type_specifier() || peek_user_type_specifier();
+}
+
+
+/*
+peek a reserved type-specifier
+*/
+static bool peek_reserved_type_specifier(void)
 {
     return (
            peek_reserved("void")
@@ -2711,10 +2829,39 @@ static bool peek_type_specifier(void)
         || peek_reserved("long")
         || peek_reserved("signed")
         || peek_reserved("unsigned")
-        || peek_reserved("struct")
+    );
+}
+
+
+/*
+peek a user-defined type-specifier
+*/
+static bool peek_user_type_specifier(void)
+{
+    return (
+           peek_reserved("struct")
         || peek_reserved("union")
         || peek_reserved("enum")
+        || peek_typedef_name()
     );
+}
+
+
+
+/*
+peek a typedef name
+*/
+static bool peek_typedef_name(void)
+{
+    bool peek = false;
+    Token *token;
+    if(peek_token(TK_IDENT, &token))
+    {
+        Identifier *ident = find_identifier(token);
+        peek = ((ident != NULL) && (ident->type_def != NULL));
+    }
+
+    return peek;
 }
 
 
@@ -2729,7 +2876,8 @@ static bool peek_func(void)
     Scope scope = current_scope;
 
     // parse declaration specifier and declarator
-    Type *base = declaration_specifiers();
+    StorageClassSpecifier sclass;
+    Type *base = declaration_specifiers(&sclass);
     Token *token;
     base = declarator(base, &token);
 
@@ -3364,4 +3512,73 @@ adjust alignment
 static size_t adjust_alignment(size_t target, size_t alignment)
 {
     return (target + (alignment - 1)) & ~(alignment - 1);
+}
+
+
+/*
+determine type by type-specifiers
+*/
+static Type *determine_type(const int *spec_list, Type *type)
+{
+    for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
+    {
+        bool equal = true;
+
+        for(size_t j = 0; j < TYPESPEC_SIZE; j++)
+        {
+            if(TYPE_SPECS_MAP[i].spec_list[j] != spec_list[j])
+            {
+                equal = false;
+                break;
+            }
+        }
+
+        if(equal)
+        {
+            TypeKind type_kind = TYPE_SPECS_MAP[i].type_kind;
+            switch(type_kind)
+            {
+            case TY_VOID:
+            case TY_CHAR:
+            case TY_UCHAR:
+            case TY_SHORT:
+            case TY_USHORT:
+            case TY_INT:
+            case TY_UINT:
+            case TY_LONG:
+            case TY_ULONG:
+                return new_type(type_kind);
+
+            case TY_STRUCT:
+            case TY_UNION:
+            case TY_ENUM:
+            case TY_TYPEDEF:
+                return type;
+
+            default:
+                break;
+            }
+        }
+    }
+
+    // invalid combination of type specifiers
+    report_error(NULL, "invalid combination of type specifiers");
+    return NULL;
+}
+
+
+/*
+check if it is possible to determine type by type-specifiers
+*/
+static bool can_determine_type(const int *spec_list)
+{
+    for(size_t i = 0; i < TYPESPEC_SIZE; i++)
+    {
+        if(spec_list[i] > 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
