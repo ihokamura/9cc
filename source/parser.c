@@ -77,6 +77,7 @@ static void function_def(void);
 static Type *declaration_specifiers(StorageClassSpecifier *sclass);
 static Type *specifier_qualifier_list(void);
 static Type *declarator(Type *type, Token **token);
+static Type *parameter_type_list(Variable **arg_vars);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
@@ -379,7 +380,26 @@ static Type *declarator(Type *type, Token **token)
 
 
 /*
-make a parameterlist
+make a parameter-type-list
+```
+parameter-type-list ::= parameter-list ("," "...")?
+```
+*/
+static Type *parameter_type_list(Variable **arg_vars)
+{
+    Type *arg_types = parameter_list(arg_vars);
+
+    if(consume_reserved(","))
+    {
+        expect_reserved("...");
+    }
+
+    return arg_types;
+}
+
+
+/*
+make a parameter-list
 ```
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
@@ -396,11 +416,24 @@ static Type *parameter_list(Variable **arg_vars)
     arg_types_cursor = arg_types_cursor->next;
     arg_vars_cursor = arg_vars_cursor->next;
 
-    while(consume_reserved(","))
+    while(true)
     {
-        arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
-        arg_types_cursor = arg_types_cursor->next;
-        arg_vars_cursor = arg_vars_cursor->next;
+        Token *token = get_token();
+        if(consume_reserved(","))
+        {
+            if(!consume_reserved("..."))
+            {
+                arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next);
+                arg_types_cursor = arg_types_cursor->next;
+                arg_vars_cursor = arg_vars_cursor->next;
+                continue;
+            }
+            else
+            {
+                set_token(token);
+            }
+        }
+        break;
     }
 
     arg_types = arg_types_head.next;
@@ -967,7 +1000,7 @@ make a direct declarator
 ```
 direct-declarator ::= identifier
                     | direct-declarator "[" const-expression "]"
-                    | direct-declarator "(" ("void" | parameter-list)? ")"
+                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
 ```
 */
 static Type *direct_declarator(Type *type, Token **token)
@@ -1014,7 +1047,7 @@ static Type *direct_declarator(Type *type, Token **token)
             {
                 if(!consume_reserved("void"))
                 {
-                    arg_types = parameter_list(&arg_vars);
+                    arg_types = parameter_type_list(&arg_vars);
                 }
                 expect_reserved(")");
             }

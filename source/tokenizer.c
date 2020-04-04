@@ -36,6 +36,7 @@ static void report_position(const char *loc);
 // list of punctuators
 // It is necessary to put longer strings above than shorter strings.
 static const char *punctuator_list[] = {
+    "...",
     "<<=",
     ">>=",
     "->",

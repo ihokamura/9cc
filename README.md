@@ -95,7 +95,9 @@ init-declarator ::= declarator ("=" initializer)?
 declarator ::= pointer? direct-declarator
 direct-declarator ::= identifier
                     | direct-declarator "[" const-expression "]"
-                    | direct-declarator "(" ("void" | parameter-list)? ")"
+                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
+pointer ::= "*" ("*" | type-qualifier)*
+parameter-type-list ::= parameter-list ("," "...")?
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-specifiers declarator
 initializer ::= assign

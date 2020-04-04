@@ -4,7 +4,7 @@ test code for 9cc compiler
 
 
 // function declaration
-int printf(char *format);
+int printf(char *format, ...);
 void exit(int code);
 
 int func_call_return0();
