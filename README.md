@@ -61,7 +61,7 @@ primary ::= identifier
           | "(" expression ")"
 const-expression ::= conditional
 declaration ::= declaration-specifiers init-declarator-list? ";"
-declaration-specifiers ::= (storage-class-specifier | type-specifier)*
+declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier)*
 storage-class-specifier ::= "typedef"
                           | "extern"
                           | "static"
@@ -77,11 +77,14 @@ type-specifier ::= "void"
                  | struct-or-union-specifier
                  | enum-specifier
                  | typedef-name
+type-qualifier ::= "const"
+                 | "restrict"
+                 | "volatile"
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
                             | ("struct" | "union") identifier
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list struct-declarator-list ";"
-specifier-list ::= type-specifier*
+specifier-qualifier-list ::= (type-specifier | type-qualifier)*
 struct-declarator-list ::= declarator ("," declarator)*
 enum-specifier ::= "enum" identifier? "{" enumerator-list (",")? "}"
                  | "enum" identifier
@@ -96,8 +99,9 @@ direct-declarator ::= identifier
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-specifiers declarator
 initializer ::= assign
-type-name ::= specifier-list pointer?
-pointer ::= "*" "*"*
+type-name ::= specifier-qualifier-list pointer?
+pointer ::= "*" ("*" | type-qualifier)*
+typedef-name ::= identifier
 ```
 
 

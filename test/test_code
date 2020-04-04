@@ -1194,6 +1194,27 @@ int test_storage_class(void)
 
 
 /*
+type qualifier
+*/
+int test_type_qualifier(void)
+{
+    put_title("type qualifier");
+
+    typedef const int const_int;
+
+    const int a = 1; assert_int(1, a);
+    volatile int b = 2; assert_int(2, b);
+    const volatile int c = 3; assert_int(3, c);
+    const int const unsigned volatile d = 4; assert_int(4, d);
+    const_int *e = &a; assert_int(1, *e);
+    const int * const f = &a; assert_int(1, *f);
+    const int * const * restrict volatile g = &f; assert_int(1, **g);
+
+    return 0;
+}
+
+
+/*
 main function of test code
 */
 int main()
@@ -1240,6 +1261,7 @@ int main()
     test_initializer();
     test_scope();
     test_storage_class();
+    test_type_qualifier();
 
     return 0;
 }

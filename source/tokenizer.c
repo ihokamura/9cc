@@ -89,6 +89,7 @@ static const char *keyword_list[] = {
     "break",
     "case",
     "char",
+    "const",
     "continue",
     "default",
     "do",
@@ -101,6 +102,7 @@ static const char *keyword_list[] = {
     "int",
     "long",
     "register",
+    "restrict",
     "return",
     "signed",
     "sizeof",
@@ -112,6 +114,7 @@ static const char *keyword_list[] = {
     "union",
     "unsigned",
     "void",
+    "volatile",
     "while",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords

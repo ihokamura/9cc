@@ -65,6 +65,14 @@ typedef enum {
     TY_FUNC,    // function
 } TypeKind;
 
+// type qualifiers
+typedef enum {
+    TQ_NONE     = 0,      // no qualifier
+    TQ_CONST    = 1 << 0, // const
+    TQ_RESTRICT = 1 << 1, // restrict
+    TQ_VOLATILE = 1 << 2, // volatile
+} TypeQualifier;
+
 // kind of node in AST(abstract syntax tree)
 typedef enum {
     ND_COMPL,      // bitwise complement (~)
@@ -162,15 +170,16 @@ struct Member {
 
 // structure for type
 struct Type {
-    TypeKind kind;  // kind of type
-    size_t size;    // size of type
-    size_t align;   // alignment of type
-    bool complete;  // flag indicating that the tyee is complete or incomplete
-    Type *base;     // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
-    size_t len;     // length of array (only for TY_ARRAY)
-    Type *args;     // type of arguments (only for TY_FUNC)
-    Type *next;     // next element (only for TY_FUNC)
-    Member *member; // members (only for TY_STRUCT, TY_UNION)
+    TypeKind kind;      // kind of type
+    size_t size;        // size of type
+    size_t align;       // alignment of type
+    TypeQualifier qual; // qualification of type
+    bool complete;      // flag indicating that the tyee is complete or incomplete
+    Type *base;         // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;         // length of array (only for TY_ARRAY)
+    Type *args;         // type of arguments (only for TY_FUNC)
+    Type *next;         // next element (only for TY_FUNC)
+    Member *member;     // members (only for TY_STRUCT, TY_UNION)
 };
 
 // structure for node in AST (forward declaration)
@@ -257,7 +266,7 @@ char *read_file(const char *path);
 void report_warning(const char *loc, const char *fmt, ...);
 void report_error(const char *loc, const char *fmt, ...);
 // type.c
-Type *new_type(TypeKind kind);
+Type *new_type(TypeKind kind, TypeQualifier qual);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
 bool is_integer(const Type *type);

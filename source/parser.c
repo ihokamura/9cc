@@ -75,13 +75,14 @@ typedef struct {
 static void program(void);
 static void function_def(void);
 static Type *declaration_specifiers(StorageClassSpecifier *sclass);
-static Type *specifier_list(void);
+static Type *specifier_qualifier_list(void);
 static Type *declarator(Type *type, Token **token);
 static Type *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
+static TypeQualifier type_qualifier(void);
 static Type *struct_or_union_specifier(void);
 static Member *struct_declaration_list(void);
 static Member *struct_declaration(void);
@@ -140,13 +141,14 @@ static bool peek_type_specifier(void);
 static bool peek_reserved_type_specifier(void);
 static bool peek_user_type_specifier(void);
 static bool peek_typedef_name(void);
+static bool peek_type_qualifier(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static IntegerConstant const_expression(void);
 static IntegerConstant evaluate(Node *node);
 static bool is_zero(IntegerConstant val);
 static size_t adjust_alignment(size_t target, size_t alignment);
-static Type *determine_type(const int *spec_list, Type *type);
+static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
 
 
@@ -274,7 +276,7 @@ static void function_def(void)
 /*
 make a declaration specifier
 ```
-declaration-specifiers ::= (storage-class-specifier | type-specifier)*
+declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier)*
 ```
 * This function sets INVALID_DECLSPEC to the argument 'sclass' if no storage-class specifier is given.
 */
@@ -282,6 +284,7 @@ static Type *declaration_specifiers(StorageClassSpecifier *sclass)
 {
     int spec_list[TYPESPEC_SIZE] = {};
     Type *type = NULL;
+    TypeQualifier qual = TQ_NONE;
     *sclass = INVALID_DECLSPEC;
 
     // parse storage-class specifiers and type specifiers
@@ -297,6 +300,12 @@ static Type *declaration_specifiers(StorageClassSpecifier *sclass)
             continue;
         }
 
+        if(peek_type_qualifier())
+        {
+            qual |= type_qualifier();
+            continue;
+        }
+
         if(!peek_reserved_type_specifier() && can_determine_type(spec_list))
         {
             break;
@@ -309,24 +318,31 @@ static Type *declaration_specifiers(StorageClassSpecifier *sclass)
         }
     }
 
-    return determine_type(spec_list, type);
+    return determine_type(spec_list, type, qual);
 }
 
 
 /*
-make a specifier-list
+make a specifier-qualifier-list
 ```
-specifier-list ::= type-specifier*
+specifier-qualifier-list ::= (type-specifier | type-qualifier)*
 ```
 */
-static Type *specifier_list(void)
+static Type *specifier_qualifier_list(void)
 {
     int spec_list[TYPESPEC_SIZE] = {};
     Type *type = NULL;
+    TypeQualifier qual = TQ_NONE;
 
     // parse type specifiers
     while(true)
     {
+        if(peek_type_qualifier())
+        {
+            qual |= type_qualifier();
+            continue;
+        }
+
         if(!peek_reserved_type_specifier() && can_determine_type(spec_list))
         {
             break;
@@ -339,7 +355,7 @@ static Type *specifier_list(void)
         }
     }
 
-    return determine_type(spec_list, type);
+    return determine_type(spec_list, type, qual);
 }
 
 
@@ -421,12 +437,12 @@ static Type *parameter_declaration(Variable **arg_var)
 /*
 make a type name
 ```
-type-name ::= specifier-list pointer?
+type-name ::= specifier-qualifier-list pointer?
 ```
 */
 static Type *type_name(void)
 {
-    Type *type = specifier_list();
+    Type *type = specifier_qualifier_list();
 
     if(peek_reserved("*"))
     {
@@ -556,6 +572,35 @@ static TypeSpecifier type_specifier(Type **type)
 
 
 /*
+make a type qualifier
+```
+type-qualifier ::= "const"
+                 | "restrict"
+                 | "volatile"
+```
+*/
+static TypeQualifier type_qualifier(void)
+{
+    if(consume_reserved("const"))
+    {
+        return TQ_CONST;
+    }
+    else if(consume_reserved("restrict"))
+    {
+        return TQ_RESTRICT;
+    }
+    else if(consume_reserved("volatile"))
+    {
+        return TQ_VOLATILE;
+    }
+    else
+    {
+        return TQ_NONE;
+    }
+}
+
+
+/*
 make a struct-or-union-specifier
 ```
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
@@ -601,7 +646,7 @@ static Type *struct_or_union_specifier(void)
         if(tag == NULL)
         {
             // declaration of a new tag
-            type = new_type(type_kind);
+            type = new_type(type_kind, TQ_NONE);
             push_tag_scope(name)->type = type;
         }
         else
@@ -619,7 +664,7 @@ static Type *struct_or_union_specifier(void)
             if((tag != NULL) && (tag->depth < current_scope.depth))
             {
                 // make a new type since this is a declaration of a new tag in the current scope
-                type = new_type(type_kind);
+                type = new_type(type_kind, TQ_NONE);
                 push_tag_scope(name)->type = type;
             }
 
@@ -633,7 +678,7 @@ static Type *struct_or_union_specifier(void)
     {
         // structure content or union content is required if there is no tag
         expect_reserved("{");
-        type = new_type(type_kind);
+        type = new_type(type_kind, TQ_NONE);
     }
 
     if(parse_content)
@@ -715,12 +760,12 @@ static Member *struct_declaration_list(void)
 /*
 make a struct-declaration
 ```
-struct-declaration ::= specifier-list struct-declarator-list ";"
+struct-declaration ::= specifier-qualifier-list struct-declarator-list ";"
 ```
 */
 static Member *struct_declaration(void)
 {
-    Type *type = specifier_list();
+    Type *type = specifier_qualifier_list();
     Member *member = struct_declarator_list(type);
     expect_reserved(";");
 
@@ -891,7 +936,7 @@ static int enumerator(int val)
 /*
 make a pointer
 ```
-pointer ::= "*" "*"*
+pointer ::= "*" ("*" | type-qualifier)*
 ```
 */
 static Type *pointer(Type *base)
@@ -901,9 +946,16 @@ static Type *pointer(Type *base)
     expect_reserved("*");
     type = new_type_pointer(type);
 
-    while(consume_reserved("*"))
+    while(peek_reserved("*") || peek_type_qualifier())
     {
-        type = new_type_pointer(type);
+        if(consume_reserved("*"))
+        {
+            type = new_type_pointer(type);
+        }
+        else
+        {
+            type->qual |= type_qualifier();
+        }
     }
 
     return type;
@@ -956,7 +1008,7 @@ static Type *direct_declarator(Type *type, Token **token)
         else if(consume_reserved("("))
         {
             // parse arguments
-            Type *arg_types = new_type(TY_VOID);
+            Type *arg_types = new_type(TY_VOID, TQ_NONE);
             Variable *arg_vars = NULL;
             if(!consume_reserved(")"))
             {
@@ -2236,7 +2288,7 @@ static Node *primary(void)
         {
             // implicitly assume that the token denotes a function which returns int
             Node *node = new_node(ND_FUNC);
-            node->type = new_type_pointer(new_type_function(new_type(TY_INT), NULL));
+            node->type = new_type_pointer(new_type_function(new_type(TY_INT, TQ_NONE), new_type(TY_VOID, TQ_NONE)));
             node->ident = make_identifier(token);
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
             report_warning(token->str, "implicit declaration of function '%s'\n", make_identifier(token));
@@ -2310,7 +2362,7 @@ static Node *new_node_unary(NodeKind kind, Node *lhs)
         break;
 
     case ND_NEG:
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
 
     case ND_COMPL:
@@ -2358,7 +2410,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         {
             apply_arithmetic_conversion(lhs, rhs);
         }
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
 
     case ND_PTR_ADD:
@@ -2400,7 +2452,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
     case ND_LOG_AND:
     case ND_LOG_OR:
     default:
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
 
@@ -2423,16 +2475,16 @@ static Node *new_node_integer(IntegerConstant val)
     {
     case TY_INT:
     case TY_UINT:
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
 
     case TY_LONG:
     case TY_ULONG:
-        node->type = new_type(TY_LONG);
+        node->type = new_type(TY_LONG, TQ_NONE);
         break;
 
     default:
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
 
@@ -2455,7 +2507,7 @@ static Node *apply_integer_promotion(Node *node)
     || (node->type->kind == TY_SHORT)
     || (node->type->kind == TY_USHORT))
     {
-        node->type = new_type(TY_INT);
+        node->type = new_type(TY_INT, TQ_NONE);
     }
 
     return node;
@@ -2570,7 +2622,7 @@ make a new string-literal
 */
 static Variable *new_string(const Token *token)
 {
-    Variable *gvar = new_var(new_string_label(), new_type_array(new_type(TY_CHAR), token->len + 1), false);
+    Variable *gvar = new_var(new_string_label(), new_type_array(new_type(TY_CHAR, TQ_CONST), token->len + 1), false);
     gvar->content = calloc(token->len + 1, sizeof(char));
     strncpy(gvar->content, token->str, token->len);
     gvar->entity = true;
@@ -2788,7 +2840,7 @@ peek declaration-specifiers
 */
 static bool peek_declaration_specifiers(void)
 {
-    return peek_storage_class_specifier() || peek_type_specifier();
+    return peek_storage_class_specifier() || peek_type_specifier() || peek_type_qualifier();
 }
 
 
@@ -2862,6 +2914,19 @@ static bool peek_typedef_name(void)
     }
 
     return peek;
+}
+
+
+/*
+peek a type-qualifier
+*/
+static bool peek_type_qualifier(void)
+{
+    return (
+           peek_reserved("const")
+        || peek_reserved("restrict")
+        || peek_reserved("volatile")
+    );
 }
 
 
@@ -3518,7 +3583,7 @@ static size_t adjust_alignment(size_t target, size_t alignment)
 /*
 determine type by type-specifiers
 */
-static Type *determine_type(const int *spec_list, Type *type)
+static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual)
 {
     for(size_t i = 0; i < TYPE_SPECS_MAP_SIZE; i++)
     {
@@ -3547,12 +3612,13 @@ static Type *determine_type(const int *spec_list, Type *type)
             case TY_UINT:
             case TY_LONG:
             case TY_ULONG:
-                return new_type(type_kind);
+                return new_type(type_kind, qual);
 
             case TY_STRUCT:
             case TY_UNION:
             case TY_ENUM:
             case TY_TYPEDEF:
+                type->qual = qual;
                 return type;
 
             default:

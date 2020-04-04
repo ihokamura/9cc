@@ -40,66 +40,148 @@
 
 
 // global variable
-static Type void_type   = {TY_VOID,   SIZEOF_VOID,  ALIGNOF_VOID,  false};
-static Type char_type   = {TY_CHAR,   SIZEOF_CHAR,  ALIGNOF_CHAR,  true};
-static Type uchar_type  = {TY_UCHAR,  SIZEOF_CHAR,  ALIGNOF_CHAR,  true};
-static Type short_type  = {TY_SHORT,  SIZEOF_SHORT, ALIGNOF_SHORT, true};
-static Type ushort_type = {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, true};
-static Type int_type    = {TY_INT,    SIZEOF_INT,   ALIGNOF_INT,   true};
-static Type uint_type   = {TY_UINT,   SIZEOF_INT,   ALIGNOF_INT,   true};
-static Type long_type   = {TY_LONG,   SIZEOF_LONG,  ALIGNOF_LONG,  true};
-static Type ulong_type  = {TY_ULONG,  SIZEOF_LONG,  ALIGNOF_LONG,  true};
+static Type void_types[] = {
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_NONE,                              false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST,                             false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_RESTRICT,                          false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST | TQ_RESTRICT,               false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_VOLATILE,                          false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST | TQ_VOLATILE,               false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_RESTRICT | TQ_VOLATILE,            false},
+    {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, false},
+};
+static Type char_types[] = {
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_NONE,                              true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST,                             true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT,                          true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_VOLATILE,                          true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type uchar_types[] = {
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_NONE,                              true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST,                             true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT,                          true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_VOLATILE,                          true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type short_types[] = {
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_NONE,                              true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST,                             true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_RESTRICT,                          true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_VOLATILE,                          true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_SHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type ushort_types[] = {
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_NONE,                              true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST,                             true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_RESTRICT,                          true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_VOLATILE,                          true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_USHORT, SIZEOF_SHORT, ALIGNOF_SHORT, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type int_types[] = {
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_NONE,                              true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST,                             true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_RESTRICT,                          true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_VOLATILE,                          true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_INT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type uint_types[] = {
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_NONE,                              true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST,                             true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_RESTRICT,                          true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_VOLATILE,                          true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_UINT, SIZEOF_INT, ALIGNOF_INT, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type long_types[] = {
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_NONE,                              true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST,                             true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_RESTRICT,                          true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_VOLATILE,                          true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_LONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type ulong_types[] = {
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_NONE,                              true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST,                             true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_RESTRICT,                          true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_VOLATILE,                          true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
 
 
 /*
 make a new type
 */
-Type *new_type(TypeKind kind)
+Type *new_type(TypeKind kind, TypeQualifier qual)
 {
     Type *type;
 
     switch(kind)
     {
     case TY_VOID:
-        type = &void_type;
+        type = &void_types[qual];
         break;
 
     case TY_CHAR:
-        type = &char_type;
+        type = &char_types[qual];
         break;
 
     case TY_UCHAR:
-        type = &uchar_type;
+        type = &uchar_types[qual];
         break;
 
     case TY_SHORT:
-        type = &short_type;
+        type = &short_types[qual];
         break;
 
     case TY_USHORT:
-        type = &ushort_type;
+        type = &ushort_types[qual];
         break;
 
     case TY_INT:
-        type = &int_type;
+        type = &int_types[qual];
         break;
 
     case TY_UINT:
-        type = &uint_type;
+        type = &uint_types[qual];
         break;
 
     case TY_LONG:
-        type = &long_type;
+        type = &long_types[qual];
         break;
 
     case TY_ULONG:
-        type = &ulong_type;
+        type = &ulong_types[qual];
         break;
 
     default:
         type = calloc(1, sizeof(Type));
         type->size = 0;
         type->align = 0;
+        type->qual = qual;
         type->complete = false;
         type->kind = kind;
         type->base = NULL;
@@ -152,22 +234,22 @@ Type *discard_sign(const Type *type)
     {
     case TY_CHAR:
     case TY_UCHAR:
-        return &char_type;
+        return &char_types[type->qual];
 
     case TY_SHORT:
     case TY_USHORT:
-        return &short_type;
+        return &short_types[type->qual];
 
     case TY_INT:
     case TY_UINT:
-        return &int_type;
+        return &int_types[type->qual];
 
     case TY_LONG:
     case TY_ULONG:
-        return &long_type;
+        return &long_types[type->qual];
 
     default:
-        return &int_type;
+        return &int_types[type->qual];
     }
 }
 
@@ -250,7 +332,7 @@ make an enumeration type
 */
 Type *new_type_enum(void)
 {
-    Type *type = new_type(TY_ENUM);
+    Type *type = new_type(TY_ENUM, TQ_NONE);
     type->size = SIZEOF_ENUM;
     type->align = ALIGNOF_ENUM;
 
@@ -263,7 +345,7 @@ make a pointer type
 */
 Type *new_type_pointer(Type *base)
 {
-    Type *type = new_type(TY_PTR);
+    Type *type = new_type(TY_PTR, TQ_NONE);
     type->size = SIZEOF_PTR;
     type->align = ALIGNOF_PTR;
     type->complete = true;
@@ -278,7 +360,7 @@ make an array type
 */
 Type *new_type_array(Type *base, size_t len)
 {
-    Type *type = new_type(TY_ARRAY);
+    Type *type = new_type(TY_ARRAY, TQ_NONE);
     type->size = base->size * len;
     type->align = base->align;
     type->complete = true;
@@ -294,7 +376,7 @@ make a function type
 */
 Type *new_type_function(Type *base, Type *args)
 {
-    Type *type = new_type(TY_FUNC);
+    Type *type = new_type(TY_FUNC, TQ_NONE);
     type->complete = true;
     type->base = base;
     type->args = args;
