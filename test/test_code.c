@@ -4,17 +4,17 @@ test code for 9cc compiler
 
 
 // function declaration
-int printf(char *format, ...);
-void exit(int code);
+extern int printf(char *format, ...);
+extern void exit(int code);
 
-int func_call_return0();
-int func_call_return1();
-int func_call_return2();
-int func_call_add(int x, int y);
-int func_call_arg6(int a0, int a1, int a2, int a3, int a4, int a5);
-int func_call_arg7(int a0, int a1, int a2, int a3, int a4, int a5, int a6);
-int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
-void alloc4(int **p, int a0, int a1, int a2, int a3);
+extern int func_call_return0();
+extern int func_call_return1();
+extern int func_call_return2();
+extern int func_call_add(int x, int y);
+extern int func_call_arg6(int a0, int a1, int a2, int a3, int a4, int a5);
+extern int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
+extern int func_call_arg7(int a0, int a1, int a2, int a3, int a4, int a5, int a6);
+extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 
 
 /*
@@ -1170,7 +1170,6 @@ int test_storage_class(void)
     put_title("storage_class");
 
     int_type t = 0; assert_int(0, t);
-    extern int e = 1; assert_int(1, e);
     static int s = 2; assert_int(2, s);
     auto int a = 3; assert_int(3, a);
     register int r = 4; assert_int(4, r);

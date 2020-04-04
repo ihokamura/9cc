@@ -4,12 +4,12 @@
 pushd ./test
 
 # compile test code
-../9cc test_code > test_code.s
-gcc test_code.s function_call.c -o test_bin -g -static
+../9cc test_code.c > test_code.s
+gcc test_code.s function_call.c -o test_bin_9cc -g -static
 
 if [ "$?" == 0 ]; then
     # execute test
-    ./test_bin
+    ./test_bin_9cc
     if [ "$?" == 0 ]; then
         echo "passed tests"
         exit 0
