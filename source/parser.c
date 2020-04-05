@@ -76,16 +76,16 @@ static void program(void);
 static void function_def(void);
 static Type *declaration_specifiers(StorageClassSpecifier *sclass);
 static Type *specifier_qualifier_list(void);
-static Type *declarator(Type *type, Token **token, bool need_arg_token);
-static Type *direct_declarator(Type *type, Token **token, bool need_arg_token);
+static Type *declarator(Type *type, Token **token, Variable **arg_vars);
+static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars);
 static Type *pointer(Type *base);
-static Type *parameter_type_list(Variable **arg_vars, bool need_arg_token);
-static Type *parameter_list(Variable **arg_vars, bool need_arg_token);
-static Type *parameter_declaration(Variable **arg_var, bool need_arg_token);
+static Type *parameter_type_list(Variable **arg_vars);
+static Type *parameter_list(Variable **arg_vars);
+static Type *parameter_declaration(Variable **arg_var);
 static Type *type_name(void);
 static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
-static Type *declarator_suffixes(Type *type, bool need_arg_token);
+static Type *declarator_suffixes(Type *type, Variable **arg_vars);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static TypeQualifier type_qualifier(void);
@@ -130,7 +130,7 @@ static Variable *new_var(const char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
-static Function *new_function(const Token *token, Type *type, Node *body);
+static Function *new_function(const Token *token, Type *type, Variable *args, Node *body);
 static Enumerator *new_enumerator(const char *name, int val);
 static Identifier *push_identifier_scope(const char *name);
 static Tag *push_tag_scope(const char *name);
@@ -166,7 +166,6 @@ static bool can_determine_type(const int *spec_list);
 static int str_number = 0; // label number of string-literal
 static Function *function_list = NULL; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
-static Variable *args_list = NULL; // list of arguments of currently constructing function
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
 static Node *current_switch = NULL; // currently parsing switch statement
 static Scope current_scope = {NULL, NULL, 0}; // current scope
@@ -266,20 +265,26 @@ static void function_def(void)
     // clear list of local variables
     lvar_list = NULL;
 
+    // save the current scope
+    Scope scope = enter_scope();
+
     // parse declaration specifier and declarator
     StorageClassSpecifier sclass;
     Type *type = declaration_specifiers(&sclass);
     Token *token;
-    type = declarator(type, &token, true);
-
-    // make a function declarator
-    new_gvar(token, new_type_function(type->base, type->args), false);
+    Variable args_head = {};
+    Variable *args = &args_head;
+    type = declarator(type, &token, &args);
+    args = args_head.next;
 
     // parse body
     Node *body = compound_statement();
 
+    // restore the scope
+    leave_scope(scope);
+
     // make a new function
-    new_function(token, type, body);
+    new_function(token, type, args, body);
 }
 
 
@@ -375,14 +380,14 @@ make a declarator
 declarator ::= pointer? direct-declarator
 ```
 */
-static Type *declarator(Type *type, Token **token, bool need_arg_token)
+static Type *declarator(Type *type, Token **token, Variable **arg_vars)
 {
     if(peek_pointer())
     {
         type = pointer(type);
     }
 
-    type = direct_declarator(type, token, need_arg_token);
+    type = direct_declarator(type, token, arg_vars);
 
     return type;
 }
@@ -403,7 +408,7 @@ declarator-suffixes ::= declarator-suffix*
 declarator-suffix ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")
 ```
 */
-static Type *direct_declarator(Type *type, Token **token, bool need_arg_token)
+static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars)
 {
     Token *saved_token = get_token();
     if(consume_reserved("("))
@@ -412,11 +417,11 @@ static Type *direct_declarator(Type *type, Token **token, bool need_arg_token)
         {
             // parse declarator
             Type *placeholder = new_type(TY_VOID, TQ_NONE);
-            Type *whole_type = declarator(placeholder, token, need_arg_token);
+            Type *whole_type = declarator(placeholder, token, arg_vars);
             expect_reserved(")");
 
             // parse declarator-suffixes
-            type = declarator_suffixes(type, need_arg_token);
+            type = declarator_suffixes(type, arg_vars);
 
             // overwrite the placeholder to fix the type
             *placeholder = *type;
@@ -436,7 +441,7 @@ static Type *direct_declarator(Type *type, Token **token, bool need_arg_token)
         // note that an identifier may be omitted in a parameter-declaration
     }
 
-    type = declarator_suffixes(type, need_arg_token);
+    type = declarator_suffixes(type, arg_vars);
 
 direct_declarator_end:
     return type;
@@ -478,9 +483,9 @@ make a parameter-type-list
 parameter-type-list ::= parameter-list ("," "...")?
 ```
 */
-static Type *parameter_type_list(Variable **arg_vars, bool need_arg_token)
+static Type *parameter_type_list(Variable **arg_vars)
 {
-    Type *arg_types = parameter_list(arg_vars, need_arg_token);
+    Type *arg_types = parameter_list(arg_vars);
 
     if(consume_reserved(","))
     {
@@ -497,17 +502,27 @@ make a parameter-list
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
 */
-static Type *parameter_list(Variable **arg_vars, bool need_arg_token)
+static Type *parameter_list(Variable **arg_vars)
 {
-    Type *arg_types;
     Type arg_types_head = {};
     Type *arg_types_cursor = &arg_types_head;
-    Variable arg_vars_head = {};
-    Variable *arg_vars_cursor = &arg_vars_head;
+    Variable *arg_var;
+    Variable *arg_vars_cursor = (arg_vars != NULL) ? *arg_vars : NULL;
 
-    arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next, need_arg_token);
+    arg_types_cursor->next = parameter_declaration(&arg_var);
     arg_types_cursor = arg_types_cursor->next;
-    arg_vars_cursor = arg_vars_cursor->next;
+    if(arg_vars != NULL)
+    {
+        if(arg_var == NULL)
+        {
+            report_error(NULL, "parameter name omitted");
+        }
+        else
+        {
+            arg_vars_cursor->next = arg_var;
+            arg_vars_cursor = arg_vars_cursor->next;
+        }
+    }
 
     while(true)
     {
@@ -516,9 +531,20 @@ static Type *parameter_list(Variable **arg_vars, bool need_arg_token)
         {
             if(!consume_reserved("..."))
             {
-                arg_types_cursor->next = parameter_declaration(&arg_vars_cursor->next, need_arg_token);
+                arg_types_cursor->next = parameter_declaration(&arg_var);
                 arg_types_cursor = arg_types_cursor->next;
-                arg_vars_cursor = arg_vars_cursor->next;
+                if(arg_vars != NULL)
+                {
+                    if(arg_var == NULL)
+                    {
+                        report_error(NULL, "parameter name omitted");
+                    }
+                    else
+                    {
+                        arg_vars_cursor->next = arg_var;
+                        arg_vars_cursor = arg_vars_cursor->next;
+                    }
+                }
                 continue;
             }
             else
@@ -529,10 +555,7 @@ static Type *parameter_list(Variable **arg_vars, bool need_arg_token)
         break;
     }
 
-    arg_types = arg_types_head.next;
-    *arg_vars = arg_vars_head.next;
-
-    return arg_types;
+    return arg_types_head.next;
 }
 
 
@@ -542,7 +565,7 @@ make a parameter declaration
 parameter-declaration ::= declaration-specifiers (declarator | abstract-declarator?)
 ```
 */
-static Type *parameter_declaration(Variable **arg_var, bool need_arg_token)
+static Type *parameter_declaration(Variable **arg_var)
 {
     StorageClassSpecifier sclass;
     Type *arg_type = declaration_specifiers(&sclass);
@@ -552,10 +575,10 @@ static Type *parameter_declaration(Variable **arg_var, bool need_arg_token)
         report_error(NULL, "invalid storage class specified for parameter");
     }
 
-    // The function 'declarator()' can also handle abstract-declarator (declarator with no identifier).
+    // The function 'declarator()' can also handle abstract-declarator (declarator without identifier).
     // In this case, the argument 'arg_token' is not modified.
     Token *arg_token = NULL;
-    arg_type = declarator(arg_type, &arg_token, need_arg_token);
+    arg_type = declarator(arg_type, &arg_token, NULL);
 
     if(arg_token != NULL)
     {
@@ -563,8 +586,7 @@ static Type *parameter_declaration(Variable **arg_var, bool need_arg_token)
     }
     else
     {
-        static Variable dummy_variable;
-        *arg_var = &dummy_variable;
+        *arg_var = NULL;
     }
 
     return arg_type;
@@ -673,7 +695,7 @@ make a declarator-suffixes
 declarator-suffixes ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")*
 ```
 */
-static Type *declarator_suffixes(Type *type, bool need_arg_token)
+static Type *declarator_suffixes(Type *type, Variable **arg_vars)
 {
     if(consume_reserved("["))
     {
@@ -699,28 +721,23 @@ static Type *declarator_suffixes(Type *type, bool need_arg_token)
             break;
         }
         expect_reserved("]");
-        type = declarator_suffixes(type, need_arg_token);
+        type = declarator_suffixes(type, arg_vars);
         type = new_type_array(type, len_val);
     }
     else if(consume_reserved("("))
     {
         // parse parameter declarators
         Type *arg_types = new_type(TY_VOID, TQ_NONE);
-        Variable *arg_vars = NULL;
         if(!consume_reserved(")"))
         {
             if(!consume_reserved("void"))
             {
-                arg_types = parameter_type_list(&arg_vars, need_arg_token);
+                arg_types = parameter_type_list(arg_vars);
             }
             expect_reserved(")");
         }
-        type = declarator_suffixes(type, need_arg_token);
+        type = declarator_suffixes(type, arg_vars);
         type = new_type_function(type, arg_types);
-        if(need_arg_token)
-        {
-            args_list = arg_vars;
-        }
     }
 
     return type;
@@ -1232,8 +1249,14 @@ static Node *statement(void)
 
     if(peek_reserved("{"))
     {
+        // save the current scope
+        Scope scope = enter_scope();
+
         node = new_node(ND_BLOCK);
         node->body = compound_statement();
+
+        // restore the scope
+        leave_scope(scope);
     }
     else if(consume_reserved("break"))
     {
@@ -1430,9 +1453,6 @@ static Node *compound_statement(void)
 {
     expect_reserved("{");
 
-    // save the current scope
-    Scope scope = enter_scope();
-
     // parse declaration and/or statement until reaching '}'
     Node head = {};
     Node *cursor = &head;
@@ -1450,9 +1470,6 @@ static Node *compound_statement(void)
         }
         cursor = cursor->next;
     }
-
-    // restore the scope
-    leave_scope(scope);
 
     return head.next;
 }
@@ -2827,7 +2844,7 @@ static Variable *new_lvar(const Token *token, Type *type)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, Node *body)
+static Function *new_function(const Token *token, Type *type, Variable *args, Node *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
@@ -2838,7 +2855,7 @@ static Function *new_function(const Token *token, Type *type, Node *body)
     size_t offset = 0;
     if(type->args->kind != TY_VOID)
     {
-        for(Variable *arg = args_list; arg != NULL; arg = arg->next)
+        for(Variable *arg = args; arg != NULL; arg = arg->next)
         {
             offset = adjust_alignment(offset, arg->type->align);
             offset += arg->type->size;
@@ -2854,7 +2871,7 @@ static Function *new_function(const Token *token, Type *type, Node *body)
     new_func->stack_size = adjust_alignment(offset, STACK_ALIGNMENT);;
 
     // save list of arguments and list of local variables
-    new_func->args = args_list;
+    new_func->args = args;
     new_func->locals = lvar_list;
 
     // update list of functions
@@ -3176,9 +3193,9 @@ static bool peek_func(void)
 
     // parse declaration specifier and declarator
     StorageClassSpecifier sclass;
-    Type *base = declaration_specifiers(&sclass);
+    Type *type = declaration_specifiers(&sclass);
     Token *token;
-    base = declarator(base, &token, true);
+    type = declarator(type, &token, NULL);
 
     // check if a compound statement follows
     bool is_func = consume_reserved("{");
@@ -3186,6 +3203,12 @@ static bool peek_func(void)
     // restore the saved token and scope
     set_token(saved_token);
     current_scope = scope;
+
+    if(is_func)
+    {
+        // make a function declarator
+        new_gvar(token, new_type_function(type->base, type->args), false);
+    }
 
     return is_func;
 }
