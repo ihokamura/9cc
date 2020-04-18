@@ -328,6 +328,24 @@ bool is_pointer_or_array(const Type *type)
 
 
 /*
+check if a given type is a structure type
+*/
+bool is_struct(const Type *type)
+{
+    return (type->kind == TY_STRUCT);
+}
+
+
+/*
+check if a given type is an union type
+*/
+bool is_union(const Type *type)
+{
+    return (type->kind == TY_UNION);
+}
+
+
+/*
 make an enumeration type
 */
 Type *new_type_enum(void)

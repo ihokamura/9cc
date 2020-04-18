@@ -1107,6 +1107,17 @@ int test_initializer()
     assert_int(11, gvar_int_init1);
     assert_int(12, gvar_int_init2);
 
+    int a0 = {1}; assert_int(1, a0);
+    int a1[3] = {1, 2, 3}; assert_int(1, a1[0]); assert_int(2, a1[1]); assert_int(3, a1[2]);
+    int a2[2][3] = {{1, 2, 3}, {4, 5, 6}}; assert_int(1, a2[0][0]); assert_int(2, a2[0][1]); assert_int(3, a2[0][2]); assert_int(4, a2[1][0]); assert_int(5, a2[1][1]); assert_int(6, a2[1][2]);
+    int a3[2][2][2] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}; int idx1, idx2, idx3; for(idx1 = 0; idx1 < 2; idx1++) for(idx2 = 0; idx2 < 2; idx2++) for(idx3 = 0; idx3 < 2; idx3++)  assert_int(4 * idx1 + 2 * idx2 + 1 * idx3 + 1, a3[idx1][idx2][idx3]);
+
+    typedef struct {int m1; int m2;} st_type;
+    st_type st1 = {1, 2}; assert_int(1, st1.m1); assert_int(2, st1.m2);
+    st_type st2[3] = {{1, 2}, {3, 4}, {5, 6}}; assert_int(1, st2[0].m1); assert_int(2, st2[0].m2); assert_int(3, st2[1].m1); assert_int(4, st2[1].m2); assert_int(5, st2[2].m1); assert_int(6, st2[2].m2);
+    typedef union {int m1; int m2;} un_type;
+    un_type un1 = {1}; assert_int(1, un1.m1);
+
     return 0;
 }
 

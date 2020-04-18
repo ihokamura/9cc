@@ -463,9 +463,7 @@ static void generate_node(const Node *node)
         {
             if(n->var->init != NULL)
             {
-                generate_lvalue(n);
                 generate_node(n->var->init);
-                generate_store(n->type);
             }
         }
         return;

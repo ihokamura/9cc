@@ -71,6 +71,13 @@ typedef struct {
     int depth;              // depth of the current scope
 } Scope;
 
+typedef struct Initializer Initializer;
+struct Initializer {
+    Initializer *next; // next element
+    Initializer *list; // initializer-list
+    Node *assign;      // assignment expression
+};
+
 // function prototype
 static void program(void);
 static void function_def(void);
@@ -101,7 +108,9 @@ static Node *compound_statement(void);
 static Node *declaration(bool is_local);
 static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
-static Node *initializer(void);
+static Initializer *initializer(void);
+static Initializer *initializer_list(void);
+static Node *assign_initializer(Node *node, const Initializer *init);
 static Node *expression(void);
 static Node *assign(void);
 static Node *conditional(void);
@@ -1560,7 +1569,7 @@ static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_l
             // parse initializer
             if(consume_reserved("="))
             {
-                node->var->init = initializer();
+                node->var->init = assign_initializer(node, initializer());
             }
         }
         else
@@ -1571,7 +1580,7 @@ static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_l
             // parse initializer
             if(consume_reserved("="))
             {
-                node->var->init = initializer();
+                node->var->init = assign();
             }
         }
 
@@ -1584,11 +1593,138 @@ static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_l
 make an initializer
 ```
 initializer ::= assign
+              | "{" initializer-list ","? "}"
 ```
 */
-static Node *initializer(void)
+static Initializer *initializer(void)
 {
-    return assign();
+    Initializer *init = calloc(1, sizeof(Initializer));
+
+    if(consume_reserved("{"))
+    {
+        init->list = initializer_list();
+        if(consume_reserved(","))
+        {
+            // do nothing (only consume the trailing ",")
+        }
+        expect_reserved("}");
+    }
+    else
+    {
+        init->assign = assign();
+    }
+
+    return init;
+}
+
+
+/*
+make an initializer-list
+```
+initializer-list ::= initializer ("," initializer)*
+```
+*/
+static Initializer *initializer_list(void)
+{
+    Initializer head = {};
+    Initializer *cursor = &head;
+
+    cursor->next = initializer();
+    cursor = cursor->next;
+
+    while(true)
+    {
+        Token *token = get_token();
+        if(consume_reserved(","))
+        {
+            if(!consume_reserved("}"))
+            {
+                cursor->next = initializer();
+                cursor = cursor->next;
+                continue;
+            }
+            else
+            {
+                set_token(token);
+            }
+        }
+        break;
+    }
+
+    return head.next;
+}
+
+
+/*
+assign initial value to object
+*/
+static Node *assign_initializer(Node *node, const Initializer *init)
+{
+    Node *init_node = new_node(ND_BLOCK);
+
+    if(is_array(node->type))
+    {
+        Node node_head = {};
+        Node *node_cursor = &node_head;
+        const Initializer *init_cursor = init->list;
+        for(size_t i = 0; i < node->type->len; i++)
+        {
+            Node *index = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = i});
+            Node *addr = new_node_binary(ND_PTR_ADD, node, index);
+            Node *dest = new_node_unary(ND_DEREF, addr);
+            node_cursor->next = assign_initializer(dest, init_cursor);
+            node_cursor = node_cursor->next;
+            init_cursor = init_cursor->next;
+        }
+        init_node->body = node_head.next;
+    }
+    else if(is_struct(node->type))
+    {
+        Node node_head = {};
+        Node *node_cursor = &node_head;
+        const Initializer *init_cursor = init->list;
+        for(Member *m = node->type->member; m != NULL; m = m->next)
+        {
+            Node *dest = new_node_unary(ND_MEMBER, node);
+            dest->member = m;
+            dest->type = m->type;
+            node_cursor->next = assign_initializer(dest, init_cursor);
+            node_cursor = node_cursor->next;
+            init_cursor = init_cursor->next;
+        }
+        init_node->body = node_head.next;
+    }
+    else if(is_union(node->type))
+    {
+        Node node_head = {};
+        Node *node_cursor = &node_head;
+        const Initializer *init_cursor = init->list;
+        Node *dest = new_node_unary(ND_MEMBER, node);
+        dest->member = node->type->member;
+        dest->type = node->type->member->type;
+        node_cursor->next = assign_initializer(dest, init_cursor);
+        node_cursor = node_cursor->next;
+        init_cursor = init_cursor->next;
+        init_node->body = node_head.next;
+    }
+    else
+    {
+        if(init->assign != NULL)
+        {
+            init_node->body = new_node_binary(ND_ASSIGN, node, init->assign);
+        }
+        else if(init->list->assign != NULL)
+        {
+            // The initializer for a scalar may be enclosed in braces.
+            init_node->body = new_node_binary(ND_ASSIGN, node, init->list->assign);
+        }
+        else
+        {
+            report_error(NULL, "invalid initializer");
+        }
+    }
+
+    return init_node;
 }
 
 

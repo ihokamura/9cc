@@ -102,6 +102,8 @@ parameter-type-list ::= parameter-list ("," "...")?
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 parameter-declaration ::= declaration-specifiers (declarator | abstract-declarator?)
 initializer ::= assign
+              | "{" initializer-list ","? "}"
+initializer-list ::= initializer ("," initializer)*
 type-name ::= specifier-qualifier-list abstract-declarator?
 abstract-declarator ::= pointer | pointer? direct-abstract-declarator
 direct-abstract-declarator ::= "(" abstract-declarator ")"
