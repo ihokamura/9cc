@@ -381,7 +381,7 @@ Type *new_type_array(Type *base, size_t len)
     Type *type = new_type(TY_ARRAY, TQ_NONE);
     type->size = base->size * len;
     type->align = base->align;
-    type->complete = true;
+    type->complete = (len > 0);
     type->base = base;
     type->len = len;
 

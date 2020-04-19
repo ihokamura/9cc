@@ -412,14 +412,14 @@ make a direct declarator
 ```
 direct-declarator ::= identifier
                     | "(" declarator ")"
-                    | direct-declarator "[" const-expression "]"
+                    | direct-declarator "[" const-expression* "]"
                     | direct-declarator "(" ("void" | parameter-type-list)? ")"
 ```
 * This is equivalent to the following.
 ```
 direct-declarator ::= (identifier | "(" declarator ")") declarator-suffixes
 declarator-suffixes ::= declarator-suffix*
-declarator-suffix ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")
+declarator-suffix ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-list)? ")")
 ```
 */
 static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars)
@@ -706,7 +706,7 @@ direct_abstract_declarator_end:
 /*
 make a declarator-suffixes
 ```
-declarator-suffixes ::= ("[" const-expression "]" | "(" ("void" | parameter-type-list)? ")")*
+declarator-suffixes ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-list)? ")")*
 ```
 */
 static Type *declarator_suffixes(Type *type, Variable **arg_vars)
@@ -714,29 +714,33 @@ static Type *declarator_suffixes(Type *type, Variable **arg_vars)
     if(consume_reserved("["))
     {
         // parse array declarator
-        IntegerConstant len = const_expression();
-        size_t len_val;
-        switch(len.kind)
+        size_t len = 0;
+        if(!consume_reserved("]"))
         {
-        case TY_ULONG:
-            len_val = len.ulong_val;
-            break;
+            IntegerConstant array_size = const_expression();
+            switch(array_size.kind)
+            {
+            case TY_ULONG:
+                len = array_size.ulong_val;
+                break;
 
-        case TY_LONG:
-            len_val = len.long_val;
-            break;
+            case TY_LONG:
+                len = array_size.long_val;
+                break;
 
-        case TY_UINT:
-            len_val = len.uint_val;
-            break;
+            case TY_UINT:
+                len = array_size.uint_val;
+                break;
 
-        default:
-            len_val = len.int_val;
-            break;
+            default:
+                len = array_size.int_val;
+                break;
+            }
+            expect_reserved("]");
         }
-        expect_reserved("]");
+
         type = declarator_suffixes(type, arg_vars);
-        type = new_type_array(type, len_val);
+        type = new_type_array(type, len);
     }
     else if(consume_reserved("("))
     {
@@ -1674,24 +1678,43 @@ static Node *assign_initializer(Node *node, const Initializer *init)
             Node node_head = {};
             Node *node_cursor = &node_head;
             const Initializer *init_cursor = init->list;
-            size_t i = 0;
 
-            while((init_cursor != NULL) && (i < node->type->len))
+            if(node->type->complete)
             {
-                Node *dest = new_node_subscript(node, i);
-                node_cursor->next = assign_initializer(dest, init_cursor);
-                node_cursor = node_cursor->next;
-                init_cursor = init_cursor->next;
-                i++;
+                size_t index = 0;
+                while((init_cursor != NULL) && (index < node->type->len))
+                {
+                    Node *dest = new_node_subscript(node, index);
+                    node_cursor->next = assign_initializer(dest, init_cursor);
+                    node_cursor = node_cursor->next;
+                    init_cursor = init_cursor->next;
+                    index++;
+                }
+
+                while(index < node->type->len)
+                {
+                    // handle the remainder
+                    Node *dest = new_node_subscript(node, index);
+                    node_cursor->next = assign_zero_initializer(dest);
+                    node_cursor = node_cursor->next;
+                    index++;
+                }
             }
-
-            while(i < node->type->len)
+            else
             {
-                // handle the remainder
-                Node *dest = new_node_subscript(node, i);
-                node_cursor->next = assign_zero_initializer(dest);
-                node_cursor = node_cursor->next;
-                i++;
+                // determine length of array by initializer-list
+                size_t len = 0;
+                while(init_cursor != NULL)
+                {
+                    Node *dest = new_node_subscript(node, len);
+                    node_cursor->next = assign_initializer(dest, init_cursor);
+                    node_cursor = node_cursor->next;
+                    init_cursor = init_cursor->next;
+                    len++;
+                }
+                node->type->size = node->type->base->size * len;
+                node->type->len = len;
+                node->type->complete = true;
             }
 
             init_node->body = node_head.next;
@@ -1759,9 +1782,9 @@ static Node *assign_zero_initializer(Node *node)
     {
         Node node_head = {};
         Node *node_cursor = &node_head;
-        for(size_t i = 0; i < node->type->len; i++)
+        for(size_t index = 0; index < node->type->len; index++)
         {
-            Node *dest = new_node_subscript(node, i);
+            Node *dest = new_node_subscript(node, index);
             node_cursor->next = assign_zero_initializer(dest);
             node_cursor = node_cursor->next;
         }

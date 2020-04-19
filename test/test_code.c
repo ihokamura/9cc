@@ -1122,6 +1122,8 @@ int test_initializer()
     int a3[2][2][2] = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}; int idx1, idx2, idx3; for(idx1 = 0; idx1 < 2; idx1++) for(idx2 = 0; idx2 < 2; idx2++) for(idx3 = 0; idx3 < 2; idx3++)  assert_int(4 * idx1 + 2 * idx2 + 1 * idx3 + 1, a3[idx1][idx2][idx3]);
     int a4[3] = {1, 2, }; assert_int(1, a4[0]); assert_int(2, a4[1]); assert_int(0, a4[2]);
     int a5[2][3] = {{1}, {4, 5}}; assert_int(1, a5[0][0]); assert_int(0, a5[0][1]); assert_int(0, a5[0][2]); assert_int(4, a5[1][0]); assert_int(5, a5[1][1]); assert_int(0, a5[1][2]);
+    int a6[] = {1, 2, 3}; assert_int(1, a6[0]); assert_int(2, a6[1]); assert_int(3, a6[2]); assert_int(3, sizeof(a6) / sizeof(a6[0]));
+    int a7[][3] = {{1, 2, }, {4, 5, }}; assert_int(1, a7[0][0]); assert_int(2, a7[0][1]); assert_int(0, a7[0][2]); assert_int(4, a7[1][0]); assert_int(5, a7[1][1]); assert_int(0, a7[1][2]); assert_int(2, sizeof(a7) / sizeof(a7[0]));
 
     typedef struct {int m1; int m2;} st_type;
     st_type st1 = {1, 2}; assert_int(1, st1.m1); assert_int(2, st1.m2);
