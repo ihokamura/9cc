@@ -168,6 +168,7 @@ static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_func(void);
 static char *new_string_label(void);
+static bool is_string(const Node *node);
 static IntegerConstant const_expression(void);
 static IntegerConstant evaluate(Node *node);
 static bool is_zero(IntegerConstant val);
@@ -1764,7 +1765,27 @@ static Node *assign_initializer(Node *node, const Initializer *init)
     }
     else
     {
-        init_node->body = new_node_binary(ND_ASSIGN, node, init->assign);
+        if(is_array(node->type) && (node->type->base->kind == TY_CHAR) && is_string(init->assign))
+        {
+            // initialize array of char type by string-literal
+            Initializer head = {};
+            Initializer *cursor = &head;
+            char *content = init->assign->var->content;
+            for(size_t i = 0; i < strlen(content) + 1; i++)
+            {
+                cursor->next = new_initializer();
+                cursor = cursor->next;
+                cursor->assign = new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = content[i]});
+            }
+
+            Initializer *init_string = new_initializer();
+            init_string->list = head.next;
+            init_node->body = assign_initializer(node, init_string);
+        }
+        else
+        {
+            init_node->body = new_node_binary(ND_ASSIGN, node, init->assign);
+        }
     }
 
     return init_node;
@@ -3199,6 +3220,15 @@ static char *new_string_label(void)
     str_number++;
 
     return label;
+}
+
+
+/*
+check if a given node is a string-literal
+*/
+static bool is_string(const Node *node)
+{
+    return (node->var != NULL) && (node->var->content != NULL);
 }
 
 
