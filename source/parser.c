@@ -132,6 +132,9 @@ static Node *primary(void);
 static Node *new_node(NodeKind kind);
 static Node *new_node_unary(NodeKind kind, Node *lhs);
 static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
+static Node *new_node_subscript(Node *base, size_t index);
+static Node *new_node_member(Node *node, Member *member);
+static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member);
 static Node *new_node_integer(IntegerConstant val);
 static Node *apply_integer_promotion(Node *node);
 static void apply_arithmetic_conversion(Node *lhs, Node *rhs);
@@ -1669,9 +1672,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
         const Initializer *init_cursor = init->list;
         for(size_t i = 0; i < node->type->len; i++)
         {
-            Node *index = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = i});
-            Node *addr = new_node_binary(ND_PTR_ADD, node, index);
-            Node *dest = new_node_unary(ND_DEREF, addr);
+            Node *dest = new_node_subscript(node, i);
             node_cursor->next = assign_initializer(dest, init_cursor);
             node_cursor = node_cursor->next;
             init_cursor = init_cursor->next;
@@ -1683,11 +1684,9 @@ static Node *assign_initializer(Node *node, const Initializer *init)
         Node node_head = {};
         Node *node_cursor = &node_head;
         const Initializer *init_cursor = init->list;
-        for(Member *m = node->type->member; m != NULL; m = m->next)
+        for(Member *member = node->type->member; member != NULL; member = member->next)
         {
-            Node *dest = new_node_unary(ND_MEMBER, node);
-            dest->member = m;
-            dest->type = m->type;
+            Node *dest = new_node_member(node, member);
             node_cursor->next = assign_initializer(dest, init_cursor);
             node_cursor = node_cursor->next;
             init_cursor = init_cursor->next;
@@ -1699,9 +1698,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
         Node node_head = {};
         Node *node_cursor = &node_head;
         const Initializer *init_cursor = init->list;
-        Node *dest = new_node_unary(ND_MEMBER, node);
-        dest->member = node->type->member;
-        dest->type = node->type->member->type;
+        Node *dest = new_node_member(node, node->type->member);
         node_cursor->next = assign_initializer(dest, init_cursor);
         node_cursor = node_cursor->next;
         init_cursor = init_cursor->next;
@@ -2492,20 +2489,14 @@ static Node *postfix(void)
             // access to member (by value)
             Token *token = expect_identifier();
             Node *struct_node = node;
-            Node *member_node = new_node_unary(ND_MEMBER, struct_node);
-            member_node->member = find_member(token, struct_node->type);
-            member_node->type = member_node->member->type;
-            node = member_node;
+            node = new_node_member(struct_node, find_member(token, struct_node->type));
         }
         else if(consume_reserved("->"))
         {
             // access to member (by pointer)
             Token *token = expect_identifier();
             Node *struct_node = new_node_unary(ND_DEREF, node);
-            Node *member_node = new_node_unary(ND_MEMBER, struct_node);
-            member_node->member = find_member(token, struct_node->type);
-            member_node->type = member_node->member->type;
-            node = member_node;
+            node = new_node_member(struct_node, find_member(token, struct_node->type));
         }
         else if(consume_reserved("++"))
         {
@@ -2755,6 +2746,34 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
             // convert from array to pointer
             node->type = new_type_pointer(rhs->type->base);
         }
+        else if(is_struct(rhs->type))
+        {
+            // assign each members of structure
+            Node head = {};
+            Node *cursor = &head;
+            for(Member *member = rhs->type->member; member != NULL; member = member->next)
+            {
+                cursor->next = new_node_member_assignment(lhs, rhs, member);
+                cursor = cursor->next;
+            }
+
+            node->kind = ND_BLOCK;
+            node->body = head.next;
+        }
+        else if(is_union(rhs->type))
+        {
+            // assign the largest member of union
+            Member *member = rhs->type->member;
+            for(Member *m = rhs->type->member; m != NULL; m = m->next)
+            {
+                if(m->type->size > member->type->size)
+                {
+                    member = m;
+                }
+            }
+
+            node = new_node_member_assignment(lhs, rhs, member);
+        }
         else
         {
             node->type = lhs->type;
@@ -2789,6 +2808,66 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 
     node->lhs = lhs;
     node->rhs = rhs;
+
+    return node;
+}
+
+
+/*
+make a new node for subscripting
+*/
+static Node *new_node_subscript(Node *base, size_t index)
+{
+    Node *addr = new_node_binary(ND_PTR_ADD, base, new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = index}));
+    Node *dest = new_node_unary(ND_DEREF, addr);
+
+    return dest;
+}
+
+
+/*
+make a new node for members of structure or union
+*/
+static Node *new_node_member(Node *lhs, Member *member)
+{
+    Node *node = new_node(ND_MEMBER);
+    node->member = member;
+    node->type = member->type;
+    node->lhs = lhs;
+
+    return node;
+}
+
+
+/*
+make a new node for member-wise assignment
+* 'lhs' must be a structure or union type compatible with 'd'.
+*/
+static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member)
+{
+    Node *lhs_member = new_node_member(lhs, member);
+    Node *rhs_member = new_node_member(rhs, member);
+
+    Node *node;
+    if(is_array(member->type))
+    {
+        Node head = {};
+        Node *cursor = &head;
+        for(size_t i = 0; i < member->type->len; i++)
+        {
+            Node *lhs_array = new_node_subscript(lhs_member, i);
+            Node *rhs_array = new_node_subscript(rhs_member, i);
+            cursor->next = new_node_binary(ND_ASSIGN, lhs_array, rhs_array);
+            cursor = cursor->next;
+        }
+
+        node = new_node(ND_BLOCK);
+        node->body = head.next;
+    }
+    else
+    {
+        node = new_node_binary(ND_ASSIGN, lhs_member, rhs_member);
+    }
 
     return node;
 }

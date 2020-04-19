@@ -92,6 +92,7 @@ int assert_long(long expected, long actual)
     else
     {
         printf("%ld expected, but got %ld\n", expected, actual);
+        exit(1);
         return 1;
     }
 }
@@ -982,16 +983,20 @@ int test_struct()
     st2.m2 = 2; assert_int(2, st2.m2);
     st2.m3 = 3; assert_int(3, st2.m3);
 
-    struct {char m1; struct {char mm1; int mm2; short mm3;} m2; short m3;} st3;
+    struct {char m1; struct {char mm1; int mm2; short mm3;} m2; short m3;} st3, st3_copy;
     st3.m1 = 1; assert_char(1, st3.m1);
     st3.m2.mm1 = 11; assert_char(11, st3.m2.mm1);
     st3.m2.mm2 = 22; assert_int(22, st3.m2.mm2);
     st3.m2.mm3 = 33; assert_short(33, st3.m2.mm3);
     st3.m3 = 3; assert_char(3, st3.m3);
+    st3_copy = st3; assert_char(1, st3_copy.m1); assert_char(11, st3_copy.m2.mm1); assert_int(22, st3_copy.m2.mm2); assert_short(33, st3_copy.m2.mm3); assert_char(3, st3_copy.m3);
 
     struct {char m1, *m2; int *m3, m4, **m5;} st4;
     st4.m1 = 1; st4.m2 = &st4.m1; assert_char(1, *st4.m2);
     st4.m4 = 2; st4.m3 = &st4.m4; st4.m5 = &st4.m3; assert_int(2, *st4.m3); assert_int(2, **st4.m5);
+
+    struct {int a1[5];} st5, st5_copy;
+    int i; for(i = 0; i < 5; i++) st5.a1[i] = i; st5_copy = st5; for(i = 0; i < 5; i++) assert_int(i, st5_copy.a1[i]);
 
     return 0;
 }
@@ -1022,6 +1027,10 @@ int test_union()
     un3.m2.mm2 = 22; assert_int(22, un3.m2.mm2);
     un3.m2.mm3 = 33; assert_short(33, un3.m2.mm3);
     un3.m3 = 3; assert_char(3, un3.m3);
+
+    union {struct {long mm1; long mm2;} m1; int m2[3];} un4, un4_copy;
+    un4.m1.mm1 = 1; un4.m1.mm2 = 2; un4_copy = un4; assert_long(1, un4_copy.m1.mm1); assert_long(2, un4_copy.m1.mm2);
+    int i; for(i = 0; i < 3; i++) un4.m2[i] = 10 * i; un4_copy = un4; for(i = 0; i < 3; i++) assert_int(10 * i, un4_copy.m2[i]);
 
     return 0;
 }
