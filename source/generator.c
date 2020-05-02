@@ -188,39 +188,47 @@ static void generate_gvar(const Variable *gvar)
     // put label
     put_instruction(".global %s", gvar->name);
     put_instruction("%s:", gvar->name);
+
     if(gvar->content != NULL)
     {
-        // allocate memory with string-literal
-        put_instruction("  .string \"%s\"\n", gvar->content);
-    }
-    else if(gvar->init != NULL)
-    {
-        Type *type = gvar->init->type;
-        if(is_integer(type))
-        {
-            // allocate memory with an integer
-            if(type->size == 1)
-            {
-                put_instruction("  .byte %d\n", gvar->init->val.int_val);
-            }
-            else if(type->size == 2)
-            {
-                put_instruction("  .value %d\n", gvar->init->val.int_val);
-            }
-            else if(type->size == 4)
-            {
-                put_instruction("  .long %d\n", gvar->init->val.int_val);
-            }
-            else
-            {
-                put_instruction("  .quad %d\n", gvar->init->val.long_val);
-            }
-        }
+        // allocate memory for string-literal
+        put_instruction("  .string \"%s\"", gvar->content);
     }
     else
     {
-        // allocate memory with zero
-        put_instruction("  .zero %ld\n", gvar->type->size);
+        for(DataSegment *data = gvar->data; data != NULL; data = data->next)
+        {
+            if(data->label != NULL)
+            {
+                // allocate memory with label
+                put_instruction("  .quad %s", data->label);
+            }
+            else if(data->zero)
+            {
+                // allocate memory with zero
+                put_instruction("  .zero %ld", data->size);
+            }
+            else
+            {
+                // allocate memory with an integer
+                if(data->size == 1)
+                {
+                    put_instruction("  .byte %d", data->val.int_val);
+                }
+                else if(data->size == 2)
+                {
+                    put_instruction("  .value %d", data->val.int_val);
+                }
+                else if(data->size == 4)
+                {
+                    put_instruction("  .long %d", data->val.int_val);
+                }
+                else
+                {
+                    put_instruction("  .quad %d", data->val.long_val);
+                }
+            }
+        }
     }
 }
 

@@ -156,6 +156,16 @@ typedef struct {
     };
 } IntegerConstant;
 
+// structure for contents in data segment
+typedef struct DataSegment DataSegment;
+struct DataSegment {
+    DataSegment *next;   // next element
+    const char *label;   // label (symbol)
+    size_t size;         // size of data
+    bool zero;           // flag indicating that data is zero or non-zero
+    IntegerConstant val; // value of data
+};
+
 // structure for type (forward declaration)
 typedef struct Type Type;
 
@@ -188,14 +198,15 @@ typedef struct Node Node;
 // structure for variable
 typedef struct Variable Variable;
 struct Variable {
-    Variable *next;   // next element
-    const char *name; // name of variable
-    Type *type;       // type of variable
-    Node *init;       // initializer
-    bool local;       // flag indicating that the variable is local or global
-    size_t offset;    // offset from base pointer (rbp) (only for local variable)
-    char *content;    // content of string-literal including '\0' (only for string-literal)
-    bool entity;      // flag indicating that the variable has an entity in the current translation unit (only for global variable)
+    Variable *next;    // next element
+    const char *name;  // name of variable
+    Type *type;        // type of variable
+    Node *init;        // initializer
+    bool local;        // flag indicating that the variable is local or global
+    size_t offset;     // offset from base pointer (rbp) (only for local variable)
+    char *content;     // content of string-literal including '\0' (only for string-literal)
+    bool entity;       // flag indicating that the variable has an entity in the current translation unit (only for global variable)
+    DataSegment *data; // contents of data segment (only for global variable)
 };
 
 // structure for enumerator

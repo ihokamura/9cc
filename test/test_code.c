@@ -1091,6 +1091,14 @@ short gvar_short_init = 2;
 int gvar_int_init = 3;
 long gvar_long_init = 4;
 int gvar_int_uninit1, gvar_int_init1 = 11, gvar_int_init2 = 12, gvar_int_uninit2;
+int gvar_a1[3] = {11, 22, 11 + 22};
+int gvar_a2[2][2] = {{11, 22}, {33, 44}};
+int gvar_a3[][3] = {{11, 22, }, {44, }};
+struct {int m1; int m2;} gvar_st1 = {111, 222};
+struct {char m1; struct {int mm1; short mm2;} m2;} gvar_st2 = {111, {222, 333}};
+char gvar_c1[] = "foo";
+char *gvar_str = "foo";
+
 int test_initializer()
 {
     put_title("initializer");
@@ -1115,6 +1123,14 @@ int test_initializer()
     assert_int(2, gvar_int_uninit2);
     assert_int(11, gvar_int_init1);
     assert_int(12, gvar_int_init2);
+
+    assert_int(11, gvar_a1[0]); assert_int(22, gvar_a1[1]); assert_int(33, gvar_a1[2]);
+    assert_int(11, gvar_a2[0][0]); assert_int(22, gvar_a2[0][1]); assert_int(33, gvar_a2[1][0]); assert_int(44, gvar_a2[1][1]);
+    assert_int(11, gvar_a3[0][0]); assert_int(22, gvar_a3[0][1]); assert_int(0, gvar_a3[0][2]); assert_int(44, gvar_a3[1][0]); assert_int(0, gvar_a3[1][1]); assert_int(0, gvar_a3[1][2]);
+    assert_int(111, gvar_st1.m1); assert_int(222, gvar_st1.m2);
+    assert_int(111, gvar_st2.m1); assert_int(222, gvar_st2.m2.mm1); assert_int(333, gvar_st2.m2.mm2);
+    assert_char(111, gvar_c1[1]);
+    assert_char(111, gvar_str[1]);
 
     int a0 = {1}; assert_int(1, a0);
     int a1[3] = {1, 2, 3}; assert_int(1, a1[0]); assert_int(2, a1[1]); assert_int(3, a1[2]);
