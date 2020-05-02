@@ -137,7 +137,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
 static Node *new_node_subscript(Node *base, size_t index);
 static Node *new_node_member(Node *node, Member *member);
 static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member);
-static Node *new_node_integer(IntegerConstant val);
+static Node *new_node_integer(TypeKind kind, long value);
 static Node *apply_integer_promotion(Node *node);
 static void apply_arithmetic_conversion(Node *lhs, Node *rhs);
 static Variable *new_var(const char *name, Type *type, bool local);
@@ -145,7 +145,7 @@ static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
 static Function *new_function(const Token *token, Type *type, Variable *args, Node *body);
-static Enumerator *new_enumerator(const char *name, int val);
+static Enumerator *new_enumerator(const char *name, int value);
 static Identifier *push_identifier_scope(const char *name);
 static Tag *push_tag_scope(const char *name);
 static Scope enter_scope(void);
@@ -155,7 +155,7 @@ static Tag *find_tag(const Token *token);
 static Initializer *new_initializer(void);
 static DataSegment *new_data_segment(void);
 static DataSegment *new_zero_data_segment(size_t size);
-static IntegerConstant parse_integer_constant(const Token *token);
+static long parse_integer_constant(const Token *token, TypeKind *kind);
 static bool peek_declaration_specifiers(void);
 static bool peek_storage_class_specifier(void);
 static bool peek_type_specifier(void);
@@ -172,9 +172,8 @@ static bool peek_declarator_suffix(void);
 static bool peek_func(void);
 static char *new_string_label(void);
 static bool is_string(const Node *node);
-static IntegerConstant const_expression(void);
-static IntegerConstant evaluate(Node *node);
-static bool is_zero(IntegerConstant val);
+static long const_expression(void);
+static long evaluate(Node *node);
 static size_t adjust_alignment(size_t target, size_t alignment);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
@@ -721,25 +720,7 @@ static Type *declarator_suffixes(Type *type, Variable **arg_vars)
         size_t len = 0;
         if(!consume_reserved("]"))
         {
-            IntegerConstant array_size = const_expression();
-            switch(array_size.kind)
-            {
-            case TY_ULONG:
-                len = array_size.ulong_val;
-                break;
-
-            case TY_LONG:
-                len = array_size.long_val;
-                break;
-
-            case TY_UINT:
-                len = array_size.uint_val;
-                break;
-
-            default:
-                len = array_size.int_val;
-                break;
-            }
+            len = const_expression();
             expect_reserved("]");
         }
 
@@ -1215,34 +1196,16 @@ make an enumerator
 enumerator ::= identifier ("=" const-expression)?
 ```
 */
-static int enumerator(int val)
+static int enumerator(int value)
 {
     Token *token = expect_identifier();
     if(consume_reserved("="))
     {
-        IntegerConstant const_val = const_expression();
-        switch(const_val.kind)
-        {
-        case TY_ULONG:
-            val = const_val.ulong_val;
-            break;
-
-        case TY_LONG:
-            val = const_val.long_val;
-            break;
-
-        case TY_UINT:
-            val = const_val.uint_val;
-            break;
-
-        default:
-            val = const_val.int_val;
-            break;
-        }
+        value = const_expression();
     }
-    new_enumerator(make_identifier(token), val);
+    new_enumerator(make_identifier(token), value);
 
-    return val + 1;
+    return value + 1;
 }
 
 
@@ -1288,7 +1251,7 @@ static Node *statement(void)
     else if(consume_reserved("case"))
     {
         // parse label expression
-        IntegerConstant val = const_expression();
+        long value = const_expression();
         expect_reserved(":");
 
         // parse statement for the case label
@@ -1296,7 +1259,7 @@ static Node *statement(void)
         node->lhs = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
-        node->val = val;
+        node->value = value;
         node->next_case = current_switch->next_case;
         current_switch->next_case = node;
     }
@@ -1782,7 +1745,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
             {
                 cursor->next = new_initializer();
                 cursor = cursor->next;
-                cursor->assign = new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = content[i]});
+                cursor->assign = new_node_integer(TY_INT, content[i]);
             }
 
             Initializer *init_string = new_initializer();
@@ -1836,7 +1799,7 @@ static Node *assign_zero_initializer(Node *node)
     }
     else
     {
-        init_node->body = new_node_binary(ND_ASSIGN, node, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 0}));
+        init_node->body = new_node_binary(ND_ASSIGN, node, new_node_integer(TY_INT, 0));
     }
 
     return init_node;
@@ -1971,7 +1934,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             {
                 cursor->next = new_initializer();
                 cursor = cursor->next;
-                cursor->assign = new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = content[i]});
+                cursor->assign = new_node_integer(TY_INT, content[i]);
             }
 
             Initializer *init_string = new_initializer();
@@ -1989,7 +1952,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
         {
             data = new_data_segment();
             data->size = type->size;
-            data->val = evaluate(init->assign);
+            data->value = evaluate(init->assign);
         }
     }
 
@@ -2616,7 +2579,7 @@ static Node *unary(void)
             if(peek_type_name())
             {
                 Type *type = type_name();
-                node = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = type->size});
+                node = new_node_integer(TY_ULONG, type->size);
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -2627,7 +2590,7 @@ static Node *unary(void)
         }
 
         Node *operand = unary();
-        node = new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = operand->type->size});
+        node = new_node_integer(TY_ULONG, operand->type->size);
     }
     else if(consume_reserved("++"))
     {
@@ -2635,11 +2598,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
+            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
+            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else
         {
@@ -2652,11 +2615,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
+            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 1}));
+            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else
         {
@@ -2677,7 +2640,7 @@ static Node *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = 0}), apply_integer_promotion(unary()));
+        node = new_node_binary(ND_SUB, new_node_integer(TY_INT, 0), apply_integer_promotion(unary()));
     }
     else if (consume_reserved("~"))
     {
@@ -2874,7 +2837,7 @@ static Node *primary(void)
             else if(ident->en != NULL)
             {
                 // enumeration
-                return new_node_integer((IntegerConstant){.kind = TY_INT, .int_val = ident->en->val});
+                return new_node_integer(TY_INT, ident->en->value);
             }
         }
 
@@ -2904,7 +2867,9 @@ static Node *primary(void)
 
     // integer-constant
     token = expect_integer_constant();
-    return new_node_integer(parse_integer_constant(token));
+    TypeKind kind;
+    long value = parse_integer_constant(token, &kind);
+    return new_node_integer(kind, value);
 }
 
 
@@ -2919,7 +2884,7 @@ static Node *new_node(NodeKind kind)
     node->lhs = NULL;
     node->rhs = NULL;
     node->type = NULL;
-    node->val = (IntegerConstant){.kind = TY_INT, .int_val = 0};
+    node->value = 0;
     node->var = NULL;
     node->cond = NULL;
     node->preexpr = NULL;
@@ -3090,7 +3055,7 @@ make a new node for subscripting
 */
 static Node *new_node_subscript(Node *base, size_t index)
 {
-    Node *addr = new_node_binary(ND_PTR_ADD, base, new_node_integer((IntegerConstant){.kind = TY_ULONG, .ulong_val = index}));
+    Node *addr = new_node_binary(ND_PTR_ADD, base, new_node_integer(TY_ULONG, index));
     Node *dest = new_node_unary(ND_DEREF, addr);
 
     return dest;
@@ -3148,27 +3113,11 @@ static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member)
 /*
 make a new node for integer-constant
 */
-static Node *new_node_integer(IntegerConstant val)
+static Node *new_node_integer(TypeKind kind, long value)
 {
     Node *node = new_node(ND_CONST);
-    node->val = val;
-
-    switch(val.kind)
-    {
-    case TY_INT:
-    case TY_UINT:
-        node->type = new_type(TY_INT, TQ_NONE);
-        break;
-
-    case TY_LONG:
-    case TY_ULONG:
-        node->type = new_type(TY_LONG, TQ_NONE);
-        break;
-
-    default:
-        node->type = new_type(TY_INT, TQ_NONE);
-        break;
-    }
+    node->type = new_type(kind, TQ_NONE);
+    node->value = value;
 
     return node;
 }
@@ -3399,11 +3348,11 @@ static bool is_string(const Node *node)
 /*
 make a new enumerator
 */
-static Enumerator *new_enumerator(const char *name, int val)
+static Enumerator *new_enumerator(const char *name, int value)
 {
     Enumerator *en = calloc(1, sizeof(Enumerator));
     en->name = name;
-    en->val = val;
+    en->value = value;
 
     push_identifier_scope(en->name)->en = en;
 
@@ -3527,7 +3476,7 @@ static DataSegment *new_data_segment(void)
     data->next = NULL;
     data->label = NULL;
     data->size = 0;
-    data->val = (IntegerConstant){.kind = TY_INT, .int_val = 0};
+    data->value = 0;
     data->zero = false;
 
     return data;
@@ -3550,25 +3499,27 @@ static DataSegment *new_zero_data_segment(size_t size)
 /*
 parse an integer-constant
 */
-static IntegerConstant parse_integer_constant(const Token *token)
+static long parse_integer_constant(const Token *token, TypeKind *kind)
 {
-    long long_val = strtol(token->str, NULL, 10);
+    long value = strtol(token->str, NULL, 10);
     if(errno != ERANGE)
     {
-        if((INT_MIN <= long_val) && (long_val <= INT_MAX))
+        if((INT_MIN <= value) && (value <= INT_MAX))
         {
-            return (IntegerConstant){.kind = TY_INT, .int_val = long_val};
+            *kind = TY_INT;
         }
         else
         {
-            return (IntegerConstant){.kind = TY_LONG, .long_val = long_val};
+            *kind = TY_LONG;
         }
     }
     else
     {
         report_warning(token->str, "integer constant is too large");
-        return (IntegerConstant){.kind = TY_LONG, .long_val = long_val};
+        *kind = TY_LONG;
     }
+
+    return value;
 }
 
 
@@ -3762,7 +3713,7 @@ make a constant expression
 const-expression ::= conditional
 ```
 */
-static IntegerConstant const_expression(void)
+static long const_expression(void)
 {
     return evaluate(conditional());
 }
@@ -3771,572 +3722,86 @@ static IntegerConstant const_expression(void)
 /*
 evaluate a node
 */
-static IntegerConstant evaluate(Node *node)
+static long evaluate(Node *node)
 {
-    IntegerConstant result = {.kind = TY_INT, .int_val = 0};
+    long result = 0;
 
     switch(node->kind)
     {
     case ND_COMPL:
-    {
-        node = apply_integer_promotion(node);
-        result.kind = node->type->kind;
-        IntegerConstant operand = evaluate(node);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = ~operand.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = ~operand.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = ~operand.uint_val;
-            break;
-
-        default:
-            result.int_val = ~operand.int_val;
-            break;
-        }
+        result = ~evaluate(node);
         break;
-    }
 
     case ND_NEG:
-    {
-        node = apply_integer_promotion(node);
-        result.kind = TY_INT;
-        result.int_val = !is_zero(evaluate(node));
+        result = !evaluate(node);
         break;
-    }
 
     case ND_ADD:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val + rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val + rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val + rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val + rhs.int_val;
-            break;
-        }
+        result = evaluate(node->lhs) + evaluate(node->rhs);
         break;
-    }
 
     case ND_SUB:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val - rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val - rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val - rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val - rhs.int_val;
-            break;
-        }
+        result = evaluate(node->lhs) - evaluate(node->rhs);
         break;
-    }
 
     case ND_MUL:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val * rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val * rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val * rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val * rhs.int_val;
-            break;
-        }
+        result = evaluate(node->lhs) * evaluate(node->rhs);
         break;
-    }
 
     case ND_DIV:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val / rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val / rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val / rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val / rhs.int_val;
-            break;
-        }
+        result = evaluate(node->lhs) / evaluate(node->rhs);
         break;
-    }
 
     case ND_MOD:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val % rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val % rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val % rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val % rhs.int_val;
-            break;
-        }
+        result = evaluate(node->lhs) % evaluate(node->rhs);
         break;
-    }
 
     case ND_LSHIFT:
-    {
-        node->lhs = apply_integer_promotion(node->lhs);
-        node->rhs = apply_integer_promotion(node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.ulong_val = lhs.ulong_val << rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.ulong_val = lhs.ulong_val << rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.ulong_val = lhs.ulong_val << rhs.uint_val;
-                break;
-
-            default:
-                result.ulong_val = lhs.ulong_val << rhs.int_val;
-                break;
-            }
-            break;
-
-        case TY_LONG:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.long_val = lhs.long_val << rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.long_val = lhs.long_val << rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.long_val = lhs.long_val << rhs.uint_val;
-                break;
-
-            default:
-                result.long_val = lhs.long_val << rhs.int_val;
-                break;
-            }
-            break;
-
-        case TY_UINT:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.uint_val = lhs.uint_val << rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.uint_val = lhs.uint_val << rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.uint_val = lhs.uint_val << rhs.uint_val;
-                break;
-
-            default:
-                result.uint_val = lhs.uint_val << rhs.int_val;
-                break;
-            }
-            break;
-
-        default:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.int_val = lhs.int_val << rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.int_val = lhs.int_val << rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.int_val = lhs.int_val << rhs.uint_val;
-                break;
-
-            default:
-                result.int_val = lhs.int_val << rhs.int_val;
-                break;
-            }
-            break;
-        }
-    }
+        result = evaluate(node->lhs) << evaluate(node->rhs);
+        break;
 
     case ND_RSHIFT:
-    {
-        node->lhs = apply_integer_promotion(node->lhs);
-        node->rhs = apply_integer_promotion(node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.ulong_val = lhs.ulong_val >> rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.ulong_val = lhs.ulong_val >> rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.ulong_val = lhs.ulong_val >> rhs.uint_val;
-                break;
-
-            default:
-                result.ulong_val = lhs.ulong_val >> rhs.int_val;
-                break;
-            }
-            break;
-
-        case TY_LONG:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.long_val = lhs.long_val >> rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.long_val = lhs.long_val >> rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.long_val = lhs.long_val >> rhs.uint_val;
-                break;
-
-            default:
-                result.long_val = lhs.long_val >> rhs.int_val;
-                break;
-            }
-            break;
-
-        case TY_UINT:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.uint_val = lhs.uint_val >> rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.uint_val = lhs.uint_val >> rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.uint_val = lhs.uint_val >> rhs.uint_val;
-                break;
-
-            default:
-                result.uint_val = lhs.uint_val >> rhs.int_val;
-                break;
-            }
-            break;
-
-        default:
-            switch(rhs.kind)
-            {
-            case TY_ULONG:
-                result.int_val = lhs.int_val >> rhs.ulong_val;
-                break;
-
-            case TY_LONG:
-                result.int_val = lhs.int_val >> rhs.long_val;
-                break;
-
-            case TY_UINT:
-                result.int_val = lhs.int_val >> rhs.uint_val;
-                break;
-
-            default:
-                result.int_val = lhs.int_val >> rhs.int_val;
-                break;
-            }
-            break;
-        }
-    }
+        result = evaluate(node->lhs) >> evaluate(node->rhs);
+        break;
 
     case ND_EQ:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = TY_INT;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            result.int_val = (lhs.ulong_val == rhs.ulong_val);
-            break;
-
-        case TY_LONG:
-            result.int_val = (lhs.long_val == rhs.long_val);
-            break;
-
-        case TY_UINT:
-            result.int_val = (lhs.uint_val == rhs.uint_val);
-            break;
-
-        default:
-            result.int_val = (lhs.int_val == rhs.int_val);
-            break;
-        }
+        result = (evaluate(node->lhs) == evaluate(node->rhs));
         break;
-    }
 
     case ND_NEQ:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = TY_INT;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            result.int_val = (lhs.ulong_val != rhs.ulong_val);
-            break;
-
-        case TY_LONG:
-            result.int_val = (lhs.long_val != rhs.long_val);
-            break;
-
-        case TY_UINT:
-            result.int_val = (lhs.uint_val != rhs.uint_val);
-            break;
-
-        default:
-            result.int_val = (lhs.int_val != rhs.int_val);
-            break;
-        }
+        result = (evaluate(node->lhs) != evaluate(node->rhs));
         break;
-    }
 
     case ND_L:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = TY_INT;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            result.int_val = (lhs.ulong_val < rhs.ulong_val);
-            break;
-
-        case TY_LONG:
-            result.int_val = (lhs.long_val < rhs.long_val);
-            break;
-
-        case TY_UINT:
-            result.int_val = (lhs.uint_val < rhs.uint_val);
-            break;
-
-        default:
-            result.int_val = (lhs.int_val < rhs.int_val);
-            break;
-        }
+        result = (evaluate(node->lhs) < evaluate(node->rhs));
         break;
-    }
 
     case ND_LEQ:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = TY_INT;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(lhs.kind)
-        {
-        case TY_ULONG:
-            result.int_val = (lhs.ulong_val <= rhs.ulong_val);
-            break;
-
-        case TY_LONG:
-            result.int_val = (lhs.long_val <= rhs.long_val);
-            break;
-
-        case TY_UINT:
-            result.int_val = (lhs.uint_val <= rhs.uint_val);
-            break;
-
-        default:
-            result.int_val = (lhs.int_val <= rhs.int_val);
-            break;
-        }
+        result = (evaluate(node->lhs) <= evaluate(node->rhs));
         break;
-    }
 
     case ND_BIT_AND:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val & rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val & rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val & rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val & rhs.int_val;
-            break;
-        }
+        result = (evaluate(node->lhs) & evaluate(node->rhs));
         break;
-    }
 
     case ND_BIT_XOR:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val ^ rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val ^ rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val ^ rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val ^ rhs.int_val;
-            break;
-        }
+        result = (evaluate(node->lhs) ^ evaluate(node->rhs));
         break;
-    }
 
     case ND_BIT_OR:
-    {
-        apply_arithmetic_conversion(node->lhs, node->rhs);
-        result.kind = node->lhs->type->kind;
-        IntegerConstant lhs = evaluate(node->lhs);
-        IntegerConstant rhs = evaluate(node->rhs);
-        switch(result.kind)
-        {
-        case TY_ULONG:
-            result.ulong_val = lhs.ulong_val | rhs.ulong_val;
-            break;
-
-        case TY_LONG:
-            result.long_val = lhs.long_val | rhs.long_val;
-            break;
-
-        case TY_UINT:
-            result.uint_val = lhs.uint_val | rhs.uint_val;
-            break;
-
-        default:
-            result.int_val = lhs.int_val | rhs.int_val;
-            break;
-        }
+        result = (evaluate(node->lhs) | evaluate(node->rhs));
         break;
-    }
 
     case ND_LOG_AND:
-        result.kind = TY_INT;
-        result.int_val = !is_zero(evaluate(node->lhs)) && !is_zero(evaluate(node->rhs));
+        result = (evaluate(node->lhs) && evaluate(node->rhs));
         break;
 
     case ND_LOG_OR:
-        result.kind = TY_INT;
-        result.int_val = !is_zero(evaluate(node->lhs)) || !is_zero(evaluate(node->rhs));
+        result = (evaluate(node->lhs) || evaluate(node->rhs));
         break;
 
     case ND_CONST:
-        result = node->val;
+        result = node->value;
         break;
 
     default:
@@ -4345,28 +3810,6 @@ static IntegerConstant evaluate(Node *node)
     }
 
     return result;
-}
-
-
-/*
-check if a given integer-constant is equal to zero
-*/
-static bool is_zero(IntegerConstant val)
-{
-    switch(val.kind)
-    {
-    case TY_ULONG:
-        return (val.ulong_val == 0);
-
-    case TY_LONG:
-        return (val.long_val == 0);
-
-    case TY_UINT:
-        return (val.uint_val == 0);
-
-    default:
-        return (val.int_val == 0);
-    }
 }
 
 

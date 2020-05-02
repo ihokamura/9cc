@@ -145,17 +145,6 @@ struct Token {
     size_t len;     // length of token string
 };
 
-// structure for integer-constant
-typedef struct {
-    TypeKind kind;               // type of integer-constant
-    union {
-        int int_val;             // value for 'int' type
-        unsigned int uint_val;   // value for 'unsigned int' type
-        long long_val;           // value for 'long' type
-        unsigned long ulong_val; // value for 'unsigned long' type
-    };
-} IntegerConstant;
-
 // structure for contents in data segment
 typedef struct DataSegment DataSegment;
 struct DataSegment {
@@ -163,7 +152,7 @@ struct DataSegment {
     const char *label;   // label (symbol)
     size_t size;         // size of data
     bool zero;           // flag indicating that data is zero or non-zero
-    IntegerConstant val; // value of data
+    long value;          // value of data
 };
 
 // structure for type (forward declaration)
@@ -212,7 +201,7 @@ struct Variable {
 // structure for enumerator
 typedef struct {
     const char *name; // name of enumerator
-    int val;          // value of enumerator
+    int value;        // value of enumerator
 } Enumerator;
 
 // structure for node in AST
@@ -222,7 +211,7 @@ struct Node {
     Node *lhs;           // left hand side
     Node *rhs;           // right hand side
     Type *type;          // type of node
-    IntegerConstant val; // value of node (only for ND_CONST, ND_CASE)
+    long value;          // value of node (only for ND_CONST, ND_CASE)
     Variable *var;       // information of variable (only for ND_GVAR, ND_LVAR)
     Node *cond;          // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
     Node *preexpr;       // pre-expression (only for ND_FOR)

@@ -213,19 +213,19 @@ static void generate_gvar(const Variable *gvar)
                 // allocate memory with an integer
                 if(data->size == 1)
                 {
-                    put_instruction("  .byte %d", data->val.int_val);
+                    put_instruction("  .byte %d", data->value);
                 }
                 else if(data->size == 2)
                 {
-                    put_instruction("  .value %d", data->val.int_val);
+                    put_instruction("  .value %d", data->value);
                 }
                 else if(data->size == 4)
                 {
-                    put_instruction("  .long %d", data->val.int_val);
+                    put_instruction("  .long %d", data->value);
                 }
                 else
                 {
-                    put_instruction("  .quad %d", data->val.long_val);
+                    put_instruction("  .quad %d", data->value);
                 }
             }
         }
@@ -443,27 +443,7 @@ static void generate_node(const Node *node)
         return;
 
     case ND_CONST:
-        switch(node->type->kind)
-        {
-        case TY_INT:
-            put_instruction("  push %d", node->val.int_val);
-            break;
-
-        case TY_UINT:
-            put_instruction("  push %d", node->val.uint_val);
-            break;
-
-        case TY_LONG:
-            put_instruction("  push %d", node->val.long_val);
-            break;
-
-        case TY_ULONG:
-            put_instruction("  push %d", node->val.ulong_val);
-            break;
-
-        default:
-            break;
-        }
+        put_instruction("  push %d", node->value);
         return;
 
     case ND_DECL:
@@ -804,24 +784,7 @@ static void generate_node(const Node *node)
             lab_number++;
 
             case_node->case_label = case_label;
-            switch(case_node->val.kind)
-            {
-            case TY_ULONG:
-                put_instruction("  cmp rax, %d", case_node->val.ulong_val);
-                break;
-
-            case TY_LONG:
-                put_instruction("  cmp rax, %d", case_node->val.long_val);
-                break;
-
-            case TY_UINT:
-                put_instruction("  cmp rax, %d", case_node->val.uint_val);
-                break;
-
-            default:
-                put_instruction("  cmp rax, %d", case_node->val.int_val);
-                break;
-            }
+            put_instruction("  cmp rax, %d", case_node->value);
             put_instruction("  je .Lcase%d", case_label);
         }
         if(node->default_case != NULL)
