@@ -147,8 +147,8 @@ static void generate_lvalue(const Node *node)
 {
     switch(node->kind)
     {
-    case ND_DECL:
-    case ND_VAR:
+    case STMT_DECL:
+    case EXPR_VAR:
         if(node->var->local)
         {
             put_instruction("  mov rax, rbp");
@@ -162,11 +162,11 @@ static void generate_lvalue(const Node *node)
         }
         break;
 
-    case ND_DEREF:
+    case EXPR_DEREF:
         generate_node(node->lhs);
         break;
 
-    case ND_MEMBER:
+    case EXPR_MEMBER:
         generate_lvalue(node->lhs);
         put_instruction("  pop rax");
         put_instruction("  add rax, %lu", node->member->offset);
@@ -439,10 +439,10 @@ static void generate_node(const Node *node)
     // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
     switch(node->kind)
     {
-    case ND_NULL:
+    case STMT_NULL:
         return;
 
-    case ND_CONST:
+    case EXPR_CONST:
         // note that push instruction cannot take a 64-bit immediate value
         if(node->value == (int)node->value)
         {
@@ -455,7 +455,7 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_DECL:
+    case STMT_DECL:
         for(const Node *n = node->body; n != NULL; n = n->next)
         {
             if(n->var->init != NULL)
@@ -465,7 +465,7 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_VAR:
+    case EXPR_VAR:
         generate_lvalue(node);
         if(!is_array(node->var->type))
         {
@@ -473,11 +473,11 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_ADDR:
+    case EXPR_ADDR:
         generate_lvalue(node->lhs);
         return;
 
-    case ND_DEREF:
+    case EXPR_DEREF:
         generate_node(node->lhs);
         if(!is_array(node->type))
         {
@@ -485,7 +485,7 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_MEMBER:
+    case EXPR_MEMBER:
         generate_lvalue(node);
         if(!is_array(node->type))
         {
@@ -493,14 +493,14 @@ static void generate_node(const Node *node)
         }
         return;
 
-    case ND_COMPL:
+    case EXPR_COMPL:
         generate_node(node->lhs);
         put_instruction("  pop rax");
         put_instruction("  not rax");
         put_instruction("  push rax");
         return;
 
-    case ND_NEG:
+    case EXPR_NEG:
         generate_node(node->lhs);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
@@ -509,7 +509,7 @@ static void generate_node(const Node *node)
         put_instruction("  push rax");
         return;
 
-    case ND_POST_INC:
+    case EXPR_POST_INC:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -523,7 +523,7 @@ static void generate_node(const Node *node)
         put_instruction("  push rbx");
         return;
 
-    case ND_POST_DEC:
+    case EXPR_POST_DEC:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -537,7 +537,7 @@ static void generate_node(const Node *node)
         put_instruction("  push rbx");
         return;
 
-    case ND_CAST:
+    case EXPR_CAST:
         generate_node(node->lhs);
         put_instruction("  pop rax");
         if(node->type->size == 1)
@@ -555,7 +555,7 @@ static void generate_node(const Node *node)
         put_instruction("  push rax");
         return;
 
-    case ND_LOG_AND:
+    case EXPR_LOG_AND:
     {
         // note that RHS is not evaluated if LHS is equal to 0
         int lab = lab_number;
@@ -577,7 +577,7 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_LOG_OR:
+    case EXPR_LOG_OR:
     {
         // note that RHS is not evaluated if LHS is not equal to 0
         int lab = lab_number;
@@ -599,7 +599,7 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_COND:
+    case EXPR_COND:
     {
         // note that either second operand or third operand is evaluated
         int lab = lab_number;
@@ -617,13 +617,13 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_ASSIGN:
+    case EXPR_ASSIGN:
         generate_lvalue(node->lhs);
         generate_node(node->rhs);
         generate_store(node->type);
         return;
 
-    case ND_ADD_EQ:
+    case EXPR_ADD_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -632,7 +632,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_PTR_ADD_EQ:
+    case EXPR_PTR_ADD_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -641,7 +641,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_SUB_EQ:
+    case EXPR_SUB_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -650,7 +650,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_PTR_SUB_EQ:
+    case EXPR_PTR_SUB_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -659,7 +659,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_MUL_EQ:
+    case EXPR_MUL_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -668,7 +668,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_DIV_EQ:
+    case EXPR_DIV_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -677,7 +677,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_MOD_EQ:
+    case EXPR_MOD_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -686,7 +686,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_LSHIFT_EQ:
+    case EXPR_LSHIFT_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -695,7 +695,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_RSHIFT_EQ:
+    case EXPR_RSHIFT_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -704,7 +704,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_AND_EQ:
+    case EXPR_AND_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -713,7 +713,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_XOR_EQ:
+    case EXPR_XOR_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -722,7 +722,7 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_OR_EQ:
+    case EXPR_OR_EQ:
         generate_lvalue(node->lhs);
         put_instruction("  push [rsp]");
         generate_load(node->lhs->type);
@@ -731,13 +731,13 @@ static void generate_node(const Node *node)
         generate_store(node->type);
         return;
 
-    case ND_COMMA:
+    case EXPR_COMMA:
         generate_node(node->lhs);
         put_instruction("  pop rax");
         generate_node(node->rhs);
         return;
 
-    case ND_RETURN:
+    case STMT_RETURN:
         if(node->lhs != NULL)
         {
             // return value
@@ -749,7 +749,7 @@ static void generate_node(const Node *node)
         put_instruction("  ret");
         return;
 
-    case ND_IF:
+    case STMT_IF:
     {
         int lab = lab_number;
         lab_number++;
@@ -777,7 +777,7 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_SWITCH:
+    case STMT_SWITCH:
     {
         int lab = lab_number;
         int brk = brk_number;
@@ -812,17 +812,17 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_CASE:
+    case STMT_CASE:
         put_instruction(".Lcase%d:", node->case_label);
         generate_node(node->lhs);
         return;
 
-    case ND_LABEL:
+    case STMT_LABEL:
         put_instruction(".L%s:", node->ident);
         generate_node(node->lhs);
         return;
 
-    case ND_WHILE:
+    case STMT_WHILE:
     {
         int lab = lab_number;
         int brk = brk_number;
@@ -846,7 +846,7 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_DO:
+    case STMT_DO:
     {
         int lab = lab_number;
         int brk = brk_number;
@@ -869,7 +869,7 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_FOR:
+    case STMT_FOR:
     {
         int lab = lab_number;
         int brk = brk_number;
@@ -904,26 +904,26 @@ static void generate_node(const Node *node)
         return;
     }
 
-    case ND_GOTO:
+    case STMT_GOTO:
         put_instruction("  jmp .L%s", node->ident);
         return;
 
-    case ND_BREAK:
+    case STMT_BREAK:
         put_instruction("  jmp .Lbreak%d", brk_number);
         return;
 
-    case ND_CONTINUE:
+    case STMT_CONTINUE:
         put_instruction("  jmp .Lcontinue%d", cnt_number);
         return;
 
-    case ND_BLOCK:
+    case STMT_COMPOUND:
         for(Node *n = node->body; n != NULL; n = n->next)
         {
             generate_node(n);
         }
         return;
 
-    case ND_FUNC:
+    case EXPR_FUNC:
     {
         int lab = lab_number;
         lab_number++;
@@ -968,67 +968,67 @@ static void generate_node(const Node *node)
     // execute operation
     switch(node->kind)
     {
-    case ND_ADD:
+    case EXPR_ADD:
         generate_binary(node, BINOP_ADD);
         return;
 
-    case ND_PTR_ADD:
+    case EXPR_PTR_ADD:
         generate_binary(node, BINOP_PTR_ADD);
         return;
 
-    case ND_SUB:
+    case EXPR_SUB:
         generate_binary(node, BINOP_SUB);
         return;
 
-    case ND_PTR_SUB:
+    case EXPR_PTR_SUB:
         generate_binary(node, BINOP_PTR_SUB);
         return;
 
-    case ND_MUL:
+    case EXPR_MUL:
         generate_binary(node, BINOP_MUL);
         return;
 
-    case ND_DIV:
+    case EXPR_DIV:
         generate_binary(node, BINOP_DIV);
         return;
 
-    case ND_MOD:
+    case EXPR_MOD:
         generate_binary(node, BINOP_MOD);
         return;
 
-    case ND_LSHIFT:
+    case EXPR_LSHIFT:
         generate_binary(node, BINOP_LSHIFT);
         return;
 
-    case ND_RSHIFT:
+    case EXPR_RSHIFT:
         generate_binary(node, BINOP_RSHIFT);
         return;
 
-    case ND_EQ:
+    case EXPR_EQ:
         generate_binary(node, BINOP_EQ);
         return;
 
-    case ND_NEQ:
+    case EXPR_NEQ:
         generate_binary(node, BINOP_NEQ);
         return;
 
-    case ND_L:
+    case EXPR_L:
         generate_binary(node, BINOP_L);
         return;
 
-    case ND_LEQ:
+    case EXPR_LEQ:
         generate_binary(node, BINOP_LEQ);
         return;
 
-    case ND_BIT_AND:
+    case EXPR_BIT_AND:
         generate_binary(node, BINOP_AND);
         return;
 
-    case ND_BIT_XOR:
+    case EXPR_BIT_XOR:
         generate_binary(node, BINOP_XOR);
         return;
 
-    case ND_BIT_OR:
+    case EXPR_BIT_OR:
         generate_binary(node, BINOP_OR);
         return;
 

@@ -75,64 +75,64 @@ typedef enum {
 
 // kind of node in AST(abstract syntax tree)
 typedef enum {
-    ND_COMPL,      // bitwise complement (~)
-    ND_NEG,        // logical negation (!)
-    ND_CAST,       // cast operator
-    ND_ADD,        // addition (num + num)
-    ND_PTR_ADD,    // pointer addition (ptr + num | num + ptr)
-    ND_SUB,        // subtraction (num - num)
-    ND_PTR_SUB,    // pointer subtraction (ptr - num)
-    ND_MUL,        // multiplication (*)
-    ND_DIV,        // division (/)
-    ND_MOD,        // remainder (%)
-    ND_LSHIFT,     // left shift (<<)
-    ND_RSHIFT,     // right shift (>>)
-    ND_EQ,         // equality comparision (==)
-    ND_NEQ,        // inequality comparision (!=)
-    ND_L,          // strict order comparision (<)
-    ND_LEQ,        // order comparision (<=)
-    ND_BIT_AND,    // bitwise AND (&)
-    ND_BIT_XOR,    // exclusive OR (^)
-    ND_BIT_OR,     // inclusive OR (|)
-    ND_LOG_AND,    // logical AND (&&)
-    ND_LOG_OR,     // logical OR (||)
-    ND_COND,       // conditional expression
-    ND_ASSIGN,     // assignment expression (=)
-    ND_ADD_EQ,     // compound assignment expression for addition (+=)
-    ND_PTR_ADD_EQ, // compound assignment expression for pointer addition (+=)
-    ND_SUB_EQ,     // compound assignment expression for subtraction (-=)
-    ND_PTR_SUB_EQ, // compound assignment expression for pointer subtraction (-=)
-    ND_MUL_EQ,     // compound assignment expression for multiplication (*=)
-    ND_DIV_EQ,     // compound assignment expression for division (/=)
-    ND_MOD_EQ,     // compound assignment expression for remainder (%=)
-    ND_LSHIFT_EQ,  // compound assignment expression for left shift (<<=)
-    ND_RSHIFT_EQ,  // compound assignment expression for right shift (>>=)
-    ND_AND_EQ,     // compound assignment expression for bitwise AND (&=)
-    ND_XOR_EQ,     // compound assignment expression for bitwise exclusive OR (^=)
-    ND_OR_EQ,      // compound assignment expression for bitwise inclusive OR (|=)
-    ND_COMMA,      // comma operator (,)
-    ND_POST_INC,   // post increment operator
-    ND_POST_DEC,   // post decrement operator
-    ND_GOTO,       // goto statement
-    ND_BREAK,      // break statement
-    ND_CONTINUE,   // continue statement
-    ND_RETURN,     // return statement
-    ND_IF,         // if statement
-    ND_SWITCH,     // switch statement
-    ND_CASE,       // case label of switch statement
-    ND_LABEL,      // labeled statement
-    ND_WHILE,      // while statement
-    ND_DO,         // do statement
-    ND_FOR,        // for statement
-    ND_BLOCK,      // block (compound statement)
-    ND_NULL,       // null statement
-    ND_FUNC,       // function call
-    ND_DECL,       // declaration
-    ND_VAR,        // variable
-    ND_MEMBER,     // member
-    ND_ADDR,       // address (&)
-    ND_DEREF,      // dereference (*)
-    ND_CONST,      // integer-constant
+    EXPR_CONST,      // integer-constant
+    EXPR_VAR,        // variable
+    EXPR_FUNC,       // function call
+    EXPR_MEMBER,     // member
+    EXPR_POST_INC,   // post increment operator
+    EXPR_POST_DEC,   // post decrement operator
+    EXPR_ADDR,       // address (&)
+    EXPR_DEREF,      // dereference (*)
+    EXPR_COMPL,      // bitwise complement (~)
+    EXPR_NEG,        // logical negation (!)
+    EXPR_CAST,       // cast operator
+    EXPR_ADD,        // addition (num + num)
+    EXPR_PTR_ADD,    // pointer addition (ptr + num | num + ptr)
+    EXPR_SUB,        // subtraction (num - num)
+    EXPR_PTR_SUB,    // pointer subtraction (ptr - num)
+    EXPR_MUL,        // multiplication (*)
+    EXPR_DIV,        // division (/)
+    EXPR_MOD,        // remainder (%)
+    EXPR_LSHIFT,     // left shift (<<)
+    EXPR_RSHIFT,     // right shift (>>)
+    EXPR_EQ,         // equality comparision (==)
+    EXPR_NEQ,        // inequality comparision (!=)
+    EXPR_L,          // strict order comparision (<)
+    EXPR_LEQ,        // order comparision (<=)
+    EXPR_BIT_AND,    // bitwise AND (&)
+    EXPR_BIT_XOR,    // exclusive OR (^)
+    EXPR_BIT_OR,     // inclusive OR (|)
+    EXPR_LOG_AND,    // logical AND (&&)
+    EXPR_LOG_OR,     // logical OR (||)
+    EXPR_COND,       // conditional expression
+    EXPR_ASSIGN,     // assignment expression (=)
+    EXPR_ADD_EQ,     // compound assignment expression for addition (+=)
+    EXPR_PTR_ADD_EQ, // compound assignment expression for pointer addition (+=)
+    EXPR_SUB_EQ,     // compound assignment expression for subtraction (-=)
+    EXPR_PTR_SUB_EQ, // compound assignment expression for pointer subtraction (-=)
+    EXPR_MUL_EQ,     // compound assignment expression for multiplication (*=)
+    EXPR_DIV_EQ,     // compound assignment expression for division (/=)
+    EXPR_MOD_EQ,     // compound assignment expression for remainder (%=)
+    EXPR_LSHIFT_EQ,  // compound assignment expression for left shift (<<=)
+    EXPR_RSHIFT_EQ,  // compound assignment expression for right shift (>>=)
+    EXPR_AND_EQ,     // compound assignment expression for bitwise AND (&=)
+    EXPR_XOR_EQ,     // compound assignment expression for bitwise exclusive OR (^=)
+    EXPR_OR_EQ,      // compound assignment expression for bitwise inclusive OR (|=)
+    EXPR_COMMA,      // comma operator (,)
+    STMT_LABEL,      // labeled statement
+    STMT_CASE,       // case label of switch statement
+    STMT_COMPOUND,   // compound statement
+    STMT_DECL,       // declaration
+    STMT_NULL,       // null statement
+    STMT_IF,         // if statement
+    STMT_SWITCH,     // switch statement
+    STMT_WHILE,      // while statement
+    STMT_DO,         // do statement
+    STMT_FOR,        // for statement
+    STMT_GOTO,       // goto statement
+    STMT_CONTINUE,   // continue statement
+    STMT_BREAK,      // break statement
+    STMT_RETURN,     // return statement
 } NodeKind;
 
 

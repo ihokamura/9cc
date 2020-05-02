@@ -1237,7 +1237,7 @@ static Node *statement(void)
         // save the current scope
         Scope scope = enter_scope();
 
-        node = new_node(ND_BLOCK);
+        node = new_node(STMT_COMPOUND);
         node->body = compound_statement();
 
         // restore the scope
@@ -1245,7 +1245,7 @@ static Node *statement(void)
     }
     else if(consume_reserved("break"))
     {
-        node = new_node(ND_BREAK);
+        node = new_node(STMT_BREAK);
         expect_reserved(";");
     }
     else if(consume_reserved("case"))
@@ -1255,7 +1255,7 @@ static Node *statement(void)
         expect_reserved(":");
 
         // parse statement for the case label
-        node = new_node(ND_CASE);
+        node = new_node(STMT_CASE);
         node->lhs = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
@@ -1265,7 +1265,7 @@ static Node *statement(void)
     }
     else if(consume_reserved("continue"))
     {
-        node = new_node(ND_CONTINUE);
+        node = new_node(STMT_CONTINUE);
         expect_reserved(";");
     }
     else if(consume_reserved("default"))
@@ -1273,7 +1273,7 @@ static Node *statement(void)
         expect_reserved(":");
 
         // parse statement for the default label
-        node = new_node(ND_CASE);
+        node = new_node(STMT_CASE);
         node->lhs = statement();
 
         // update node of currently parsing switch statement
@@ -1281,7 +1281,7 @@ static Node *statement(void)
     }
     else if(consume_reserved("do"))
     {
-        node = new_node(ND_DO);
+        node = new_node(STMT_DO);
 
         // parse loop body
         node->lhs = statement();
@@ -1299,7 +1299,7 @@ static Node *statement(void)
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
-        node = new_node(ND_FOR);
+        node = new_node(STMT_FOR);
         expect_reserved("(");
 
         // parse clause-1
@@ -1328,13 +1328,13 @@ static Node *statement(void)
     }
     else if(consume_reserved("goto"))
     {
-        node = new_node(ND_GOTO);
+        node = new_node(STMT_GOTO);
         node->ident = make_identifier(expect_identifier());
         expect_reserved(";");
     }
     else if(consume_reserved("if"))
     {
-        node = new_node(ND_IF);
+        node = new_node(STMT_IF);
         expect_reserved("(");
 
         // parse condition
@@ -1353,7 +1353,7 @@ static Node *statement(void)
     }
     else if(consume_reserved("return"))
     {
-        node = new_node(ND_RETURN);
+        node = new_node(STMT_RETURN);
         if(!consume_reserved(";"))
         {
             // return statement with an expression
@@ -1367,7 +1367,7 @@ static Node *statement(void)
         Node *prev_switch = current_switch;
 
         // parse controlling expression
-        node = new_node(ND_SWITCH);
+        node = new_node(STMT_SWITCH);
         expect_reserved("(");
         node->cond = expression();
         expect_reserved(")");
@@ -1381,7 +1381,7 @@ static Node *statement(void)
     }
     else if(consume_reserved("while"))
     {
-        node = new_node(ND_WHILE);
+        node = new_node(STMT_WHILE);
         expect_reserved("(");
 
         // parse loop condition
@@ -1395,7 +1395,7 @@ static Node *statement(void)
     else if(consume_reserved(";"))
     {
         // null statement
-        node = new_node(ND_NULL);
+        node = new_node(STMT_NULL);
     }
     else
     {
@@ -1406,7 +1406,7 @@ static Node *statement(void)
             if(consume_reserved(":"))
             {
                 // labeled statement
-                node = new_node(ND_LABEL);
+                node = new_node(STMT_LABEL);
                 node->lhs = statement();
                 node->ident = make_identifier(token);
                 goto statement_end;
@@ -1473,7 +1473,7 @@ static Node *declaration(bool is_local)
     Type *type = declaration_specifiers(&sclass);
 
     // parse init-declarator-list
-    Node *node = new_node((sclass == SC_TYPEDEF) ? ND_NULL : ND_DECL);
+    Node *node = new_node((sclass == SC_TYPEDEF) ? STMT_NULL : STMT_DECL);
     if(peek_declarator())
     {
         node->body = init_declarator_list(type, sclass, is_local);
@@ -1535,7 +1535,7 @@ static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_l
     else
     {
         // make a new node for variable
-        Node *node = new_node(ND_VAR);
+        Node *node = new_node(EXPR_VAR);
         node->type = type;
 
         if(is_local)
@@ -1640,7 +1640,7 @@ assign initial value to object
 */
 static Node *assign_initializer(Node *node, const Initializer *init)
 {
-    Node *init_node = new_node(ND_BLOCK);
+    Node *init_node = new_node(STMT_COMPOUND);
 
     if(init->assign == NULL)
     {
@@ -1726,7 +1726,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
         else if(init->list->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            init_node->body = new_node_binary(ND_ASSIGN, node, init->list->assign);
+            init_node->body = new_node_binary(EXPR_ASSIGN, node, init->list->assign);
         }
         else
         {
@@ -1754,7 +1754,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
         }
         else
         {
-            init_node->body = new_node_binary(ND_ASSIGN, node, init->assign);
+            init_node->body = new_node_binary(EXPR_ASSIGN, node, init->assign);
         }
     }
 
@@ -1767,7 +1767,7 @@ assign zero to object
 */
 static Node *assign_zero_initializer(Node *node)
 {
-    Node *init_node = new_node(ND_BLOCK);
+    Node *init_node = new_node(STMT_COMPOUND);
 
     if(is_array(node->type))
     {
@@ -1799,7 +1799,7 @@ static Node *assign_zero_initializer(Node *node)
     }
     else
     {
-        init_node->body = new_node_binary(ND_ASSIGN, node, new_node_integer(TY_INT, 0));
+        init_node->body = new_node_binary(EXPR_ASSIGN, node, new_node_integer(TY_INT, 0));
     }
 
     return init_node;
@@ -1975,7 +1975,7 @@ static Node *expression(void)
     {
         if(consume_reserved(","))
         {
-            node = new_node_binary(ND_COMMA, node, assign());
+            node = new_node_binary(EXPR_COMMA, node, assign());
         }
         else
         {
@@ -1999,7 +1999,7 @@ static Node *assign(void)
     // parse assignment
     if(consume_reserved("="))
     {
-        node = new_node_binary(ND_ASSIGN, node, assign());
+        node = new_node_binary(EXPR_ASSIGN, node, assign());
     }
     else if(consume_reserved("*="))
     {
@@ -2011,7 +2011,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment *=");
         }
 
-        node = new_node_binary(ND_MUL_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_MUL_EQ, lhs, rhs);
     }
     else if(consume_reserved("/="))
     {
@@ -2023,7 +2023,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment /=");
         }
 
-        node = new_node_binary(ND_DIV_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_DIV_EQ, lhs, rhs);
     }
     else if(consume_reserved("%="))
     {
@@ -2035,7 +2035,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment %=");
         }
 
-        node = new_node_binary(ND_MOD_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_MOD_EQ, lhs, rhs);
     }
     else if(consume_reserved("+="))
     {
@@ -2049,11 +2049,11 @@ static Node *assign(void)
 
         if(is_integer(lhs->type))
         {
-            node = new_node_binary(ND_ADD_EQ, lhs, rhs);
+            node = new_node_binary(EXPR_ADD_EQ, lhs, rhs);
         }
         else if(is_pointer(lhs->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, lhs, rhs);
+            node = new_node_binary(EXPR_PTR_ADD_EQ, lhs, rhs);
         }
         else
         {
@@ -2072,11 +2072,11 @@ static Node *assign(void)
 
         if(is_integer(lhs->type))
         {
-            node = new_node_binary(ND_SUB_EQ, lhs, rhs);
+            node = new_node_binary(EXPR_SUB_EQ, lhs, rhs);
         }
         else if(is_pointer(lhs->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, lhs, rhs);
+            node = new_node_binary(EXPR_PTR_SUB_EQ, lhs, rhs);
         }
         else
         {
@@ -2093,7 +2093,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment <<=");
         }
 
-        node = new_node_binary(ND_LSHIFT_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_LSHIFT_EQ, lhs, rhs);
     }
     else if(consume_reserved(">>="))
     {
@@ -2105,7 +2105,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment >>=");
         }
 
-        node = new_node_binary(ND_RSHIFT_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_RSHIFT_EQ, lhs, rhs);
     }
     else if(consume_reserved("&="))
     {
@@ -2117,7 +2117,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment &=");
         }
 
-        node = new_node_binary(ND_AND_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_AND_EQ, lhs, rhs);
     }
     else if(consume_reserved("^="))
     {
@@ -2129,7 +2129,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment ^=");
         }
 
-        node = new_node_binary(ND_XOR_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_XOR_EQ, lhs, rhs);
     }
     else if(consume_reserved("|="))
     {
@@ -2141,7 +2141,7 @@ static Node *assign(void)
             report_error(NULL, "bad operand for compound assignment |=");
         }
 
-        node = new_node_binary(ND_OR_EQ, lhs, rhs);
+        node = new_node_binary(EXPR_OR_EQ, lhs, rhs);
     }
 
     return node;
@@ -2160,7 +2160,7 @@ static Node *conditional(void)
 
     if(consume_reserved("?"))
     {
-        Node *ternary = new_node(ND_COND);
+        Node *ternary = new_node(EXPR_COND);
 
         ternary->cond = node;
         ternary->lhs = expression();
@@ -2200,7 +2200,7 @@ static Node *logical_or(void)
     {
         if(consume_reserved("||"))
         {
-            node = new_node_binary(ND_LOG_OR, node, logical_and());
+            node = new_node_binary(EXPR_LOG_OR, node, logical_and());
         }
         else
         {
@@ -2225,7 +2225,7 @@ static Node *logical_and(void)
     {
         if(consume_reserved("&&"))
         {
-            node = new_node_binary(ND_LOG_AND, node, bitwise_or());
+            node = new_node_binary(EXPR_LOG_AND, node, bitwise_or());
         }
         else
         {
@@ -2250,7 +2250,7 @@ static Node *bitwise_or(void)
     {
         if(consume_reserved("|"))
         {
-            node = new_node_binary(ND_BIT_OR, node, bitwise_xor());
+            node = new_node_binary(EXPR_BIT_OR, node, bitwise_xor());
         }
         else
         {
@@ -2275,7 +2275,7 @@ static Node *bitwise_xor(void)
     {
         if(consume_reserved("^"))
         {
-            node = new_node_binary(ND_BIT_XOR, node, bitwise_and());
+            node = new_node_binary(EXPR_BIT_XOR, node, bitwise_and());
         }
         else
         {
@@ -2300,7 +2300,7 @@ static Node *bitwise_and(void)
     {
         if(consume_reserved("&"))
         {
-            node = new_node_binary(ND_BIT_AND, node, equality());
+            node = new_node_binary(EXPR_BIT_AND, node, equality());
         }
         else
         {
@@ -2325,11 +2325,11 @@ static Node *equality(void)
     {
         if(consume_reserved("=="))
         {
-            node = new_node_binary(ND_EQ, node, relational());
+            node = new_node_binary(EXPR_EQ, node, relational());
         }
         else if(consume_reserved("!="))
         {
-            node = new_node_binary(ND_NEQ, node, relational());
+            node = new_node_binary(EXPR_NEQ, node, relational());
         }
         else
         {
@@ -2354,19 +2354,19 @@ static Node *relational(void)
     {
         if(consume_reserved("<"))
         {
-            node = new_node_binary(ND_L, node, shift());
+            node = new_node_binary(EXPR_L, node, shift());
         }
         else if(consume_reserved("<="))
         {
-            node = new_node_binary(ND_LEQ, node, shift());
+            node = new_node_binary(EXPR_LEQ, node, shift());
         }
         else if(consume_reserved(">"))
         {
-            node = new_node_binary(ND_L, shift(), node);
+            node = new_node_binary(EXPR_L, shift(), node);
         }
         else if(consume_reserved(">="))
         {
-            node = new_node_binary(ND_LEQ, shift(), node);
+            node = new_node_binary(EXPR_LEQ, shift(), node);
         }
         else
         {
@@ -2396,7 +2396,7 @@ static Node *shift(void)
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_LSHIFT, lhs, rhs);
+                node = new_node_binary(EXPR_LSHIFT, lhs, rhs);
             }
             else
             {
@@ -2410,7 +2410,7 @@ static Node *shift(void)
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_RSHIFT, lhs, rhs);
+                node = new_node_binary(EXPR_RSHIFT, lhs, rhs);
             }
             else
             {
@@ -2445,15 +2445,15 @@ static Node *additive(void)
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_ADD, lhs, rhs);
+                node = new_node_binary(EXPR_ADD, lhs, rhs);
             }
             else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_PTR_ADD, lhs, rhs);
+                node = new_node_binary(EXPR_PTR_ADD, lhs, rhs);
             }
             else if(is_integer(lhs->type) && is_pointer_or_array(rhs->type))
             {
-                node = new_node_binary(ND_PTR_ADD, rhs, lhs);
+                node = new_node_binary(EXPR_PTR_ADD, rhs, lhs);
             }
             else
             {
@@ -2467,11 +2467,11 @@ static Node *additive(void)
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_SUB, lhs, rhs);
+                node = new_node_binary(EXPR_SUB, lhs, rhs);
             }
             else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
             {
-                node = new_node_binary(ND_PTR_SUB, lhs, rhs);
+                node = new_node_binary(EXPR_PTR_SUB, lhs, rhs);
             }
             else
             {
@@ -2501,15 +2501,15 @@ static Node *multiplicative(void)
     {
         if(consume_reserved("*"))
         {
-            node = new_node_binary(ND_MUL, node, cast());
+            node = new_node_binary(EXPR_MUL, node, cast());
         }
         else if(consume_reserved("/"))
         {
-            node = new_node_binary(ND_DIV, node, cast());
+            node = new_node_binary(EXPR_DIV, node, cast());
         }
         else if(consume_reserved("%"))
         {
-            node = new_node_binary(ND_MOD, node, cast());
+            node = new_node_binary(EXPR_MOD, node, cast());
         }
         else
         {
@@ -2536,7 +2536,7 @@ static Node *cast(void)
         {
             Type *type = type_name();
             expect_reserved(")");
-            node = new_node(ND_CAST);
+            node = new_node(EXPR_CAST);
             node->lhs = unary();
             node->type = type;
             goto cast_end;
@@ -2598,11 +2598,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_ADD_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else
         {
@@ -2615,11 +2615,11 @@ static Node *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(ND_SUB_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(ND_PTR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
         }
         else
         {
@@ -2628,11 +2628,11 @@ static Node *unary(void)
     }
     else if(consume_reserved("&"))
     {
-        node = new_node_unary(ND_ADDR, unary());
+        node = new_node_unary(EXPR_ADDR, unary());
     }
     else if (consume_reserved("*"))
     {
-        node = new_node_unary(ND_DEREF, unary());
+        node = new_node_unary(EXPR_DEREF, unary());
     }
     else if(consume_reserved("+"))
     {
@@ -2640,15 +2640,15 @@ static Node *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(ND_SUB, new_node_integer(TY_INT, 0), apply_integer_promotion(unary()));
+        node = new_node_binary(EXPR_SUB, new_node_integer(TY_INT, 0), apply_integer_promotion(unary()));
     }
     else if (consume_reserved("~"))
     {
-        node = new_node_unary(ND_COMPL, apply_integer_promotion(unary()));
+        node = new_node_unary(EXPR_COMPL, apply_integer_promotion(unary()));
     }
     else if (consume_reserved("!"))
     {
-        node = new_node_unary(ND_NEG, unary());
+        node = new_node_unary(EXPR_NEG, unary());
     }
     else
     {
@@ -2687,18 +2687,18 @@ static Node *postfix(void)
 
             if(is_pointer_or_array(node->type) && is_integer(index->type))
             {
-                lhs = new_node_binary(ND_PTR_ADD, node, index);
+                lhs = new_node_binary(EXPR_PTR_ADD, node, index);
             }
             else if(is_integer(node->type) && is_pointer_or_array(index->type))
             {
-                lhs = new_node_binary(ND_PTR_ADD, index, node);
+                lhs = new_node_binary(EXPR_PTR_ADD, index, node);
             }
             else
             {
                 report_error(NULL, "bad operand for [] operator\n");
             }
 
-            node = new_node_unary(ND_DEREF, lhs);
+            node = new_node_unary(EXPR_DEREF, lhs);
             expect_reserved("]");
         }
         else if(consume_reserved("("))
@@ -2709,7 +2709,7 @@ static Node *postfix(void)
                 report_error(NULL, "expected function");
             }
 
-            Node *func_node = new_node(ND_FUNC);
+            Node *func_node = new_node(EXPR_FUNC);
             if(!consume_reserved(")"))
             {
                 func_node->args = arg_expr_list();
@@ -2730,7 +2730,7 @@ static Node *postfix(void)
         {
             // access to member (by pointer)
             Token *token = expect_identifier();
-            Node *struct_node = new_node_unary(ND_DEREF, node);
+            Node *struct_node = new_node_unary(EXPR_DEREF, node);
             node = new_node_member(struct_node, find_member(token, struct_node->type));
         }
         else if(consume_reserved("++"))
@@ -2740,7 +2740,7 @@ static Node *postfix(void)
             {
                 report_error(NULL, "bad operand for postfix increment operator ++\n");
             }
-            node = new_node_unary(ND_POST_INC, node);
+            node = new_node_unary(EXPR_POST_INC, node);
         }
         else if(consume_reserved("--"))
         {
@@ -2749,7 +2749,7 @@ static Node *postfix(void)
             {
                 report_error(NULL, "bad operand for postfix decrement operator --\n");
             }
-            node = new_node_unary(ND_POST_DEC, node);
+            node = new_node_unary(EXPR_POST_DEC, node);
         }
         else
         {
@@ -2821,14 +2821,14 @@ static Node *primary(void)
                 Variable *var = ident->var;
                 if(var->type->kind == TY_FUNC)
                 {
-                    Node *node = new_node(ND_FUNC);
+                    Node *node = new_node(EXPR_FUNC);
                     node->type = new_type_pointer(var->type);
                     node->ident = make_identifier(token);
                     return node;
                 }
                 else
                 {
-                    Node *node = new_node(ND_VAR);
+                    Node *node = new_node(EXPR_VAR);
                     node->type = var->type;
                     node->var = var;
                     return node;
@@ -2844,7 +2844,7 @@ static Node *primary(void)
         if(peek_reserved("("))
         {
             // implicitly assume that the token denotes a function which returns int
-            Node *node = new_node(ND_FUNC);
+            Node *node = new_node(EXPR_FUNC);
             node->type = new_type_pointer(new_type_function(new_type(TY_INT, TQ_NONE), new_type(TY_VOID, TQ_NONE)));
             node->ident = make_identifier(token);
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
@@ -2859,7 +2859,7 @@ static Node *primary(void)
     // string-literal
     if(consume_token(TK_STR, &token))
     {
-        Node *node = new_node(ND_VAR);
+        Node *node = new_node(EXPR_VAR);
         node->var = new_string(token);
         node->type = node->var->type;
         return node;
@@ -2907,24 +2907,24 @@ static Node *new_node_unary(NodeKind kind, Node *lhs)
 
     switch(kind)
     {
-    case ND_ADDR:
+    case EXPR_ADDR:
         node->type = new_type_pointer(lhs->type);
         break;
 
-    case ND_DEREF:
+    case EXPR_DEREF:
         node->type = lhs->type->base;
         break;
 
-    case ND_POST_INC:
-    case ND_POST_DEC:
+    case EXPR_POST_INC:
+    case EXPR_POST_DEC:
         node->type = lhs->type;
         break;
 
-    case ND_NEG:
+    case EXPR_NEG:
         node->type = new_type(TY_INT, TQ_NONE);
         break;
 
-    case ND_COMPL:
+    case EXPR_COMPL:
     default:
         break;
     }
@@ -2942,29 +2942,29 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 
     switch(kind)
     {
-    case ND_ADD:
-    case ND_SUB:
-    case ND_MUL:
-    case ND_DIV:
-    case ND_MOD:
-    case ND_L:
-    case ND_LEQ:
-    case ND_BIT_AND:
-    case ND_BIT_XOR:
-    case ND_BIT_OR:
+    case EXPR_ADD:
+    case EXPR_SUB:
+    case EXPR_MUL:
+    case EXPR_DIV:
+    case EXPR_MOD:
+    case EXPR_L:
+    case EXPR_LEQ:
+    case EXPR_BIT_AND:
+    case EXPR_BIT_XOR:
+    case EXPR_BIT_OR:
         apply_arithmetic_conversion(lhs, rhs);
         node->type = lhs->type;
         break;
 
-    case ND_LSHIFT:
-    case ND_RSHIFT:
+    case EXPR_LSHIFT:
+    case EXPR_RSHIFT:
         lhs = apply_integer_promotion(lhs);
         rhs = apply_integer_promotion(rhs);
         node->type = lhs->type;
         break;
 
-    case ND_EQ:
-    case ND_NEQ:
+    case EXPR_EQ:
+    case EXPR_NEQ:
         if(is_integer(lhs->type) && is_integer(rhs->type))
         {
             apply_arithmetic_conversion(lhs, rhs);
@@ -2972,12 +2972,12 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         node->type = new_type(TY_INT, TQ_NONE);
         break;
 
-    case ND_PTR_ADD:
-    case ND_PTR_SUB:
+    case EXPR_PTR_ADD:
+    case EXPR_PTR_SUB:
         node->type = lhs->type;
         break;
 
-    case ND_ASSIGN:
+    case EXPR_ASSIGN:
         if(is_array(rhs->type))
         {
             // convert from array to pointer
@@ -2994,7 +2994,7 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
                 cursor = cursor->next;
             }
 
-            node->kind = ND_BLOCK;
+            node->kind = STMT_COMPOUND;
             node->body = head.next;
         }
         else if(is_union(rhs->type))
@@ -3017,27 +3017,27 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
         }
         break;
 
-    case ND_ADD_EQ:
-    case ND_PTR_ADD_EQ:
-    case ND_SUB_EQ:
-    case ND_PTR_SUB_EQ:
-    case ND_MUL_EQ:
-    case ND_DIV_EQ:
-    case ND_MOD_EQ:
-    case ND_LSHIFT_EQ:
-    case ND_RSHIFT_EQ:
-    case ND_AND_EQ:
-    case ND_XOR_EQ:
-    case ND_OR_EQ:
+    case EXPR_ADD_EQ:
+    case EXPR_PTR_ADD_EQ:
+    case EXPR_SUB_EQ:
+    case EXPR_PTR_SUB_EQ:
+    case EXPR_MUL_EQ:
+    case EXPR_DIV_EQ:
+    case EXPR_MOD_EQ:
+    case EXPR_LSHIFT_EQ:
+    case EXPR_RSHIFT_EQ:
+    case EXPR_AND_EQ:
+    case EXPR_XOR_EQ:
+    case EXPR_OR_EQ:
         node->type = lhs->type;
         break;
 
-    case ND_COMMA:
+    case EXPR_COMMA:
         node->type = rhs->type;
         break;
 
-    case ND_LOG_AND:
-    case ND_LOG_OR:
+    case EXPR_LOG_AND:
+    case EXPR_LOG_OR:
     default:
         node->type = new_type(TY_INT, TQ_NONE);
         break;
@@ -3055,8 +3055,8 @@ make a new node for subscripting
 */
 static Node *new_node_subscript(Node *base, size_t index)
 {
-    Node *addr = new_node_binary(ND_PTR_ADD, base, new_node_integer(TY_ULONG, index));
-    Node *dest = new_node_unary(ND_DEREF, addr);
+    Node *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_integer(TY_ULONG, index));
+    Node *dest = new_node_unary(EXPR_DEREF, addr);
 
     return dest;
 }
@@ -3067,7 +3067,7 @@ make a new node for members of structure or union
 */
 static Node *new_node_member(Node *lhs, Member *member)
 {
-    Node *node = new_node(ND_MEMBER);
+    Node *node = new_node(EXPR_MEMBER);
     node->member = member;
     node->type = member->type;
     node->lhs = lhs;
@@ -3094,16 +3094,16 @@ static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member)
         {
             Node *lhs_array = new_node_subscript(lhs_member, i);
             Node *rhs_array = new_node_subscript(rhs_member, i);
-            cursor->next = new_node_binary(ND_ASSIGN, lhs_array, rhs_array);
+            cursor->next = new_node_binary(EXPR_ASSIGN, lhs_array, rhs_array);
             cursor = cursor->next;
         }
 
-        node = new_node(ND_BLOCK);
+        node = new_node(STMT_COMPOUND);
         node->body = head.next;
     }
     else
     {
-        node = new_node_binary(ND_ASSIGN, lhs_member, rhs_member);
+        node = new_node_binary(EXPR_ASSIGN, lhs_member, rhs_member);
     }
 
     return node;
@@ -3115,7 +3115,7 @@ make a new node for integer-constant
 */
 static Node *new_node_integer(TypeKind kind, long value)
 {
-    Node *node = new_node(ND_CONST);
+    Node *node = new_node(EXPR_CONST);
     node->type = new_type(kind, TQ_NONE);
     node->value = value;
 
@@ -3728,79 +3728,79 @@ static long evaluate(Node *node)
 
     switch(node->kind)
     {
-    case ND_COMPL:
+    case EXPR_COMPL:
         result = ~evaluate(node);
         break;
 
-    case ND_NEG:
+    case EXPR_NEG:
         result = !evaluate(node);
         break;
 
-    case ND_ADD:
+    case EXPR_ADD:
         result = evaluate(node->lhs) + evaluate(node->rhs);
         break;
 
-    case ND_SUB:
+    case EXPR_SUB:
         result = evaluate(node->lhs) - evaluate(node->rhs);
         break;
 
-    case ND_MUL:
+    case EXPR_MUL:
         result = evaluate(node->lhs) * evaluate(node->rhs);
         break;
 
-    case ND_DIV:
+    case EXPR_DIV:
         result = evaluate(node->lhs) / evaluate(node->rhs);
         break;
 
-    case ND_MOD:
+    case EXPR_MOD:
         result = evaluate(node->lhs) % evaluate(node->rhs);
         break;
 
-    case ND_LSHIFT:
+    case EXPR_LSHIFT:
         result = evaluate(node->lhs) << evaluate(node->rhs);
         break;
 
-    case ND_RSHIFT:
+    case EXPR_RSHIFT:
         result = evaluate(node->lhs) >> evaluate(node->rhs);
         break;
 
-    case ND_EQ:
+    case EXPR_EQ:
         result = (evaluate(node->lhs) == evaluate(node->rhs));
         break;
 
-    case ND_NEQ:
+    case EXPR_NEQ:
         result = (evaluate(node->lhs) != evaluate(node->rhs));
         break;
 
-    case ND_L:
+    case EXPR_L:
         result = (evaluate(node->lhs) < evaluate(node->rhs));
         break;
 
-    case ND_LEQ:
+    case EXPR_LEQ:
         result = (evaluate(node->lhs) <= evaluate(node->rhs));
         break;
 
-    case ND_BIT_AND:
+    case EXPR_BIT_AND:
         result = (evaluate(node->lhs) & evaluate(node->rhs));
         break;
 
-    case ND_BIT_XOR:
+    case EXPR_BIT_XOR:
         result = (evaluate(node->lhs) ^ evaluate(node->rhs));
         break;
 
-    case ND_BIT_OR:
+    case EXPR_BIT_OR:
         result = (evaluate(node->lhs) | evaluate(node->rhs));
         break;
 
-    case ND_LOG_AND:
+    case EXPR_LOG_AND:
         result = (evaluate(node->lhs) && evaluate(node->rhs));
         break;
 
-    case ND_LOG_OR:
+    case EXPR_LOG_OR:
         result = (evaluate(node->lhs) || evaluate(node->rhs));
         break;
 
-    case ND_CONST:
+    case EXPR_CONST:
         result = node->value;
         break;
 
