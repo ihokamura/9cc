@@ -152,7 +152,7 @@ static void generate_lvalue(const Node *node)
         if(node->var->local)
         {
             put_instruction("  mov rax, rbp");
-            put_instruction("  sub rax, %d", node->var->offset);
+            put_instruction("  sub rax, %lu", node->var->offset);
             put_instruction("  push rax");
         }
         else
@@ -169,7 +169,7 @@ static void generate_lvalue(const Node *node)
     case ND_MEMBER:
         generate_lvalue(node->lhs);
         put_instruction("  pop rax");
-        put_instruction("  add rax, %d", node->member->offset);
+        put_instruction("  add rax, %lu", node->member->offset);
         put_instruction("  push rax");
         break;
 
@@ -206,26 +206,26 @@ static void generate_gvar(const Variable *gvar)
             else if(data->zero)
             {
                 // allocate memory with zero
-                put_instruction("  .zero %ld", data->size);
+                put_instruction("  .zero %lu", data->size);
             }
             else
             {
                 // allocate memory with an integer
                 if(data->size == 1)
                 {
-                    put_instruction("  .byte %d", data->value);
+                    put_instruction("  .byte %ld", data->value);
                 }
                 else if(data->size == 2)
                 {
-                    put_instruction("  .value %d", data->value);
+                    put_instruction("  .value %ld", data->value);
                 }
                 else if(data->size == 4)
                 {
-                    put_instruction("  .long %d", data->value);
+                    put_instruction("  .long %ld", data->value);
                 }
                 else
                 {
-                    put_instruction("  .quad %d", data->value);
+                    put_instruction("  .quad %ld", data->value);
                 }
             }
         }
@@ -245,14 +245,14 @@ static void generate_func(const Function *func)
     // prologue: allocate stack for arguments and local variables and copy arguments
     put_instruction("  push rbp");
     put_instruction("  mov rbp, rsp");
-    put_instruction("  sub rsp, %ld", func->stack_size);
+    put_instruction("  sub rsp, %lu", func->stack_size);
 
     // arguments
     size_t argc = 0;
     for(Variable *arg = func->args; arg != NULL; arg = arg->next)
     {
         put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %d", arg->offset);
+        put_instruction("  sub rax, %lu", arg->offset);
 
         if(argc < ARG_REGISTERS_SIZE)
         {
@@ -279,7 +279,7 @@ static void generate_func(const Function *func)
             // load argument from the stack
             put_instruction("  push rax");
             put_instruction("  mov rax, rbp");
-            put_instruction("  add rax, %d", (argc - ARG_REGISTERS_SIZE + 2) * 8);
+            put_instruction("  add rax, %lu", (argc - ARG_REGISTERS_SIZE + 2) * 8);
             put_instruction("  push rax");
             generate_load(arg->type);
             generate_store(arg->type);
@@ -346,7 +346,7 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         break;
 
     case BINOP_PTR_ADD:
-        put_instruction("  imul rdi, %ld", node->type->base->size);
+        put_instruction("  imul rdi, %lu", node->type->base->size);
         put_instruction("  add rax, rdi");
         break;
 
@@ -355,7 +355,7 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         break;
 
     case BINOP_PTR_SUB:
-        put_instruction("  imul rdi, %ld", node->type->base->size);
+        put_instruction("  imul rdi, %lu", node->type->base->size);
         put_instruction("  sub rax, rdi");
         break;
 
@@ -443,7 +443,16 @@ static void generate_node(const Node *node)
         return;
 
     case ND_CONST:
-        put_instruction("  push %d", node->value);
+        // note that push instruction cannot take a 64-bit immediate value
+        if(node->value == (int)node->value)
+        {
+            put_instruction("  push %d", node->value);
+        }
+        else
+        {
+            put_instruction("  mov rax, %ld", node->value);
+            put_instruction("  push rax", node->value);
+        }
         return;
 
     case ND_DECL:
