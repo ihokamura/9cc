@@ -424,10 +424,10 @@ report a warning
 */
 void report_warning(const char *loc, const char *fmt, ...)
 {
-    if(loc != NULL)
+    // report the position where an error is detected
+    if(loc == NULL)
     {
-        // report the position where a warning is detected
-        report_position(loc);
+        loc = get_token()->str;
     }
 
     // print the warning message
@@ -444,11 +444,12 @@ report an error
 */
 void report_error(const char *loc, const char *fmt, ...)
 {
-    if(loc != NULL)
+    // report the position where an error is detected
+    if(loc == NULL)
     {
-        // report the position where an error is detected
-        report_position(loc);
+        loc = get_token()->str;
     }
+    report_position(loc);
 
     // print the error message
     va_list ap;
