@@ -73,9 +73,9 @@ typedef struct {
 
 typedef struct Initializer Initializer;
 struct Initializer {
-    Initializer *next; // next element
-    Initializer *list; // initializer-list
-    Node *assign;      // assignment expression
+    Initializer *next;  // next element
+    Initializer *list;  // initializer-list
+    Expression *assign; // assignment expression
 };
 
 // function prototype
@@ -103,48 +103,48 @@ static Member *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
 static void enumerator_list(void);
 static int enumerator(int val);
-static Node *statement(void);
-static Node *compound_statement(void);
-static Node *declaration(bool is_local);
-static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
-static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
+static Statement *statement(void);
+static Statement *compound_statement(void);
+static Statement *declaration(bool is_local);
+static Statement *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
+static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Initializer *initializer(void);
 static Initializer *initializer_list(void);
-static Node *assign_initializer(Node *node, const Initializer *init);
-static Node *assign_zero_initializer(Node *node);
+static Statement *assign_initializer(Expression *expr, const Initializer *init);
+static Statement *assign_zero_initializer(Expression *expr);
 static DataSegment *make_data_segment(Type *type, const Initializer *init);
-static Node *expression(void);
-static Node *assign(void);
-static Node *conditional(void);
-static Node *logical_or(void);
-static Node *logical_and(void);
-static Node *bitwise_or(void);
-static Node *bitwise_xor(void);
-static Node *bitwise_and(void);
-static Node *equality(void);
-static Node *relational(void);
-static Node *shift(void);
-static Node *additive(void);
-static Node *multiplicative(void);
-static Node *cast(void);
-static Node *unary(void);
-static Node *postfix(void);
-static Node *arg_expr_list(void);
-static Node *primary(void);
-static Node *new_node(NodeKind kind);
-static Node *new_node_unary(NodeKind kind, Node *lhs);
-static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs);
-static Node *new_node_subscript(Node *base, size_t index);
-static Node *new_node_member(Node *node, Member *member);
-static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member);
-static Node *new_node_integer(TypeKind kind, long value);
-static Node *apply_integer_promotion(Node *node);
-static void apply_arithmetic_conversion(Node *lhs, Node *rhs);
+static Expression *expression(void);
+static Expression *assign(void);
+static Expression *conditional(void);
+static Expression *logical_or(void);
+static Expression *logical_and(void);
+static Expression *bitwise_or(void);
+static Expression *bitwise_xor(void);
+static Expression *bitwise_and(void);
+static Expression *equality(void);
+static Expression *relational(void);
+static Expression *shift(void);
+static Expression *additive(void);
+static Expression *multiplicative(void);
+static Expression *cast(void);
+static Expression *unary(void);
+static Expression *postfix(void);
+static Expression *arg_expr_list(void);
+static Expression *primary(void);
+static Expression *new_expression(ExpressionKind kind);
+static Statement *new_statement(StatementKind kind);
+static Expression *new_node_unary(ExpressionKind kind, Expression *lhs);
+static Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs);
+static Expression *new_node_subscript(Expression *base, size_t index);
+static Expression *new_node_member(Expression *expr, Member *member);
+static Expression *new_node_integer(TypeKind kind, long value);
+static Expression *apply_integer_promotion(Expression *expr);
+static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
 static Variable *new_var(const char *name, Type *type, bool local);
 static Variable *new_gvar(const Token *token, Type *type, bool entity);
 static Variable *new_string(const Token *token);
 static Variable *new_lvar(const Token *token, Type *type);
-static Function *new_function(const Token *token, Type *type, Variable *args, Node *body);
+static Function *new_function(const Token *token, Type *type, Variable *args, Statement *body);
 static Enumerator *new_enumerator(const char *name, int value);
 static Identifier *push_identifier_scope(const char *name);
 static Tag *push_tag_scope(const char *name);
@@ -171,9 +171,9 @@ static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_func(void);
 static char *new_string_label(void);
-static bool is_string(const Node *node);
+static bool is_string(const Expression *expr);
 static long const_expression(void);
-static long evaluate(Node *node);
+static long evaluate(Expression *expr);
 static size_t adjust_alignment(size_t target, size_t alignment);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
@@ -184,7 +184,7 @@ static int str_number = 0; // label number of string-literal
 static Function *function_list = NULL; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
-static Node *current_switch = NULL; // currently parsing switch statement
+static Statement *current_switch = NULL; // currently parsing switch statement
 static Scope current_scope = {NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
@@ -295,7 +295,7 @@ static void function_def(void)
     args = args_head.next;
 
     // parse body
-    Node *body = compound_statement();
+    Statement *body = compound_statement();
 
     // restore the scope
     leave_scope(scope);
@@ -1228,24 +1228,24 @@ statement ::= identifier ":" statement
             | "return" expression ";"
 ```
 */
-static Node *statement(void)
+static Statement *statement(void)
 {
-    Node *node;
+    Statement *stmt;
 
     if(peek_reserved("{"))
     {
         // save the current scope
         Scope scope = enter_scope();
 
-        node = new_node(STMT_COMPOUND);
-        node->body = compound_statement();
+        stmt = new_statement(STMT_COMPOUND);
+        stmt->body = compound_statement();
 
         // restore the scope
         leave_scope(scope);
     }
     else if(consume_reserved("break"))
     {
-        node = new_node(STMT_BREAK);
+        stmt = new_statement(STMT_BREAK);
         expect_reserved(";");
     }
     else if(consume_reserved("case"))
@@ -1255,17 +1255,17 @@ static Node *statement(void)
         expect_reserved(":");
 
         // parse statement for the case label
-        node = new_node(STMT_CASE);
-        node->lhs = statement();
+        stmt = new_statement(STMT_CASE);
+        stmt->body = statement();
 
         // save the value of label expression and update node of currently parsing switch statement
-        node->value = value;
-        node->next_case = current_switch->next_case;
-        current_switch->next_case = node;
+        stmt->value = value;
+        stmt->next_case = current_switch->next_case;
+        current_switch->next_case = stmt;
     }
     else if(consume_reserved("continue"))
     {
-        node = new_node(STMT_CONTINUE);
+        stmt = new_statement(STMT_CONTINUE);
         expect_reserved(";");
     }
     else if(consume_reserved("default"))
@@ -1273,24 +1273,24 @@ static Node *statement(void)
         expect_reserved(":");
 
         // parse statement for the default label
-        node = new_node(STMT_CASE);
-        node->lhs = statement();
+        stmt = new_statement(STMT_CASE);
+        stmt->body = statement();
 
         // update node of currently parsing switch statement
-        current_switch->default_case = node;
+        current_switch->default_case = stmt;
     }
     else if(consume_reserved("do"))
     {
-        node = new_node(STMT_DO);
+        stmt = new_statement(STMT_DO);
 
         // parse loop body
-        node->lhs = statement();
+        stmt->body = statement();
 
         expect_reserved("while");
         expect_reserved("(");
 
         // parse loop condition
-        node->cond = expression();
+        stmt->cond = expression();
 
         expect_reserved(")");
         expect_reserved(";");
@@ -1299,103 +1299,103 @@ static Node *statement(void)
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
-        node = new_node(STMT_FOR);
+        stmt = new_statement(STMT_FOR);
         expect_reserved("(");
 
         // parse clause-1
         if(!consume_reserved(";"))
         {
-            node->preexpr = expression();
+            stmt->preexpr = expression();
             expect_reserved(";");
         }
 
         // parse expression-2
         if(!consume_reserved(";"))
         {
-            node->cond = expression();
+            stmt->cond = expression();
             expect_reserved(";");
         }
 
         // parse expression-3
         if(!consume_reserved(")"))
         {
-            node->postexpr = expression();
+            stmt->postexpr = expression();
             expect_reserved(")");
         }
 
         // parse loop body
-        node->lhs = statement();
+        stmt->body = statement();
     }
     else if(consume_reserved("goto"))
     {
-        node = new_node(STMT_GOTO);
-        node->ident = make_identifier(expect_identifier());
+        stmt = new_statement(STMT_GOTO);
+        stmt->ident = make_identifier(expect_identifier());
         expect_reserved(";");
     }
     else if(consume_reserved("if"))
     {
-        node = new_node(STMT_IF);
+        stmt = new_statement(STMT_IF);
         expect_reserved("(");
 
         // parse condition
-        node->cond = expression();
+        stmt->cond = expression();
 
         expect_reserved(")");
 
         // parse statement in case of condition being true
-        node->lhs = statement();
+        stmt->true_case = statement();
 
         // parse statement in case of condition being false
         if(consume_reserved("else"))
         {
-            node->rhs = statement();
+            stmt->false_case = statement();
         }
     }
     else if(consume_reserved("return"))
     {
-        node = new_node(STMT_RETURN);
+        stmt = new_statement(STMT_RETURN);
         if(!consume_reserved(";"))
         {
             // return statement with an expression
-            node->lhs = expression();
+            stmt->expr = expression();
             expect_reserved(";");
         }
     }
     else if(consume_reserved("switch"))
     {
         // save node of previous switch statement
-        Node *prev_switch = current_switch;
+        Statement *prev_switch = current_switch;
 
         // parse controlling expression
-        node = new_node(STMT_SWITCH);
+        stmt = new_statement(STMT_SWITCH);
         expect_reserved("(");
-        node->cond = expression();
+        stmt->cond = expression();
         expect_reserved(")");
 
         // update node of currently parsing switch statement and parse body
-        current_switch = node;
-        node->lhs = statement();
+        current_switch = stmt;
+        stmt->body = statement();
 
         // restore node of previous switch statement
         current_switch = prev_switch;
     }
     else if(consume_reserved("while"))
     {
-        node = new_node(STMT_WHILE);
+        stmt = new_statement(STMT_WHILE);
         expect_reserved("(");
 
         // parse loop condition
-        node->cond = expression();
+        stmt->cond = expression();
 
         expect_reserved(")");
 
         // parse loop body
-        node->lhs = statement();
+        stmt->body = statement();
     }
     else if(consume_reserved(";"))
     {
         // null statement
-        node = new_node(STMT_NULL);
+        stmt = new_statement(STMT_NULL);
     }
     else
     {
@@ -1406,9 +1406,9 @@ static Node *statement(void)
             if(consume_reserved(":"))
             {
                 // labeled statement
-                node = new_node(STMT_LABEL);
-                node->lhs = statement();
-                node->ident = make_identifier(token);
+                stmt = new_statement(STMT_LABEL);
+                stmt->body = statement();
+                stmt->ident = make_identifier(token);
                 goto statement_end;
             }
             else
@@ -1419,12 +1419,13 @@ static Node *statement(void)
         }
 
         // expression statement
-        node = expression();
+        stmt = new_statement(STMT_EXPR);
+        stmt->expr = expression();
         expect_reserved(";");
     }
 
 statement_end:
-    return node;
+    return stmt;
 }
 
 
@@ -1434,13 +1435,13 @@ make a compound statement
 compound-statement ::= "{" (declaration | statement)* "}"
 ```
 */
-static Node *compound_statement(void)
+static Statement *compound_statement(void)
 {
     expect_reserved("{");
 
     // parse declaration and/or statement until reaching '}'
-    Node head = {};
-    Node *cursor = &head;
+    Statement head = {};
+    Statement *cursor = &head;
     while(!consume_reserved("}"))
     {
         if(peek_declaration_specifiers())
@@ -1466,22 +1467,22 @@ make a declaration
 declaration ::= declaration-specifiers init-declarator-list? ";"
 ```
 */
-static Node *declaration(bool is_local)
+static Statement *declaration(bool is_local)
 {
     // parse declaration specifier
     StorageClassSpecifier sclass;
     Type *type = declaration_specifiers(&sclass);
 
     // parse init-declarator-list
-    Node *node = new_node((sclass == SC_TYPEDEF) ? STMT_NULL : STMT_DECL);
+    Statement *stmt = new_statement((sclass == SC_TYPEDEF) ? STMT_NULL : STMT_DECL);
     if(peek_declarator())
     {
-        node->body = init_declarator_list(type, sclass, is_local);
+        stmt->body = init_declarator_list(type, sclass, is_local);
     }
 
     expect_reserved(";");
 
-    return node;
+    return stmt;
 }
 
 
@@ -1491,10 +1492,10 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
+static Statement *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
-    Node *node = init_declarator(type, sclass, is_local);
-    Node *cursor = node;
+    Statement *stmt = init_declarator(type, sclass, is_local);
+    Statement *cursor = stmt;
 
     while(consume_reserved(","))
     {
@@ -1502,7 +1503,7 @@ static Node *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool
         cursor = cursor->next;
     }
 
-    return node;
+    return stmt;
 }
 
 
@@ -1512,7 +1513,7 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
+static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
     // parse declarator
     Token *token;
@@ -1529,42 +1530,44 @@ static Node *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_l
     {
         push_identifier_scope(make_identifier(token))->type_def = type;
 
-        static Node dummy_node;
-        return &dummy_node;
+        static Statement dummy_stmt;
+        return &dummy_stmt;
     }
     else
     {
         // make a new node for variable
-        Node *node = new_node(EXPR_VAR);
-        node->type = type;
+        Expression *expr = new_expression(EXPR_VAR);
+        expr->type = type;
 
         if(is_local)
         {
-            node->var = new_lvar(token, type);
+            expr->var = new_lvar(token, type);
 
             // parse initializer
             if(consume_reserved("="))
             {
-                node->var->init = assign_initializer(node, initializer());
+                expr->var->init = assign_initializer(expr, initializer());
             }
         }
         else
         {
             bool emit = (type->kind != TY_FUNC);
-            node->var = new_gvar(token, type, emit);
+            expr->var = new_gvar(token, type, emit);
 
             // parse initializer
             if(consume_reserved("="))
             {
-                node->var->data = make_data_segment(node->var->type, initializer());
+                expr->var->data = make_data_segment(expr->var->type, initializer());
             }
             else
             {
-                node->var->data = new_zero_data_segment(type->size);
+                expr->var->data = new_zero_data_segment(type->size);
             }
         }
 
-        return node;
+        Statement *stmt = new_statement(STMT_DECL);
+        stmt->var = expr->var;
+        return stmt;
     }
 }
 
@@ -1638,36 +1641,36 @@ static Initializer *initializer_list(void)
 /*
 assign initial value to object
 */
-static Node *assign_initializer(Node *node, const Initializer *init)
+static Statement *assign_initializer(Expression *expr, const Initializer *init)
 {
-    Node *init_node = new_node(STMT_COMPOUND);
+    Statement *init_stmt = new_statement(STMT_COMPOUND);
 
     if(init->assign == NULL)
     {
-        if(is_array(node->type))
+        if(is_array(expr->type))
         {
-            Node node_head = {};
-            Node *node_cursor = &node_head;
+            Statement stmt_head = {};
+            Statement *stmt_cursor = &stmt_head;
             const Initializer *init_cursor = init->list;
 
-            if(node->type->complete)
+            if(expr->type->complete)
             {
                 size_t index = 0;
-                while((init_cursor != NULL) && (index < node->type->len))
+                while((init_cursor != NULL) && (index < expr->type->len))
                 {
-                    Node *dest = new_node_subscript(node, index);
-                    node_cursor->next = assign_initializer(dest, init_cursor);
-                    node_cursor = node_cursor->next;
+                    Expression *dest = new_node_subscript(expr, index);
+                    stmt_cursor->next = assign_initializer(dest, init_cursor);
+                    stmt_cursor = stmt_cursor->next;
                     init_cursor = init_cursor->next;
                     index++;
                 }
 
-                while(index < node->type->len)
+                while(index < expr->type->len)
                 {
                     // handle the remainder
-                    Node *dest = new_node_subscript(node, index);
-                    node_cursor->next = assign_zero_initializer(dest);
-                    node_cursor = node_cursor->next;
+                    Expression *dest = new_node_subscript(expr, index);
+                    stmt_cursor->next = assign_zero_initializer(dest);
+                    stmt_cursor = stmt_cursor->next;
                     index++;
                 }
             }
@@ -1677,31 +1680,31 @@ static Node *assign_initializer(Node *node, const Initializer *init)
                 size_t len = 0;
                 while(init_cursor != NULL)
                 {
-                    Node *dest = new_node_subscript(node, len);
-                    node_cursor->next = assign_initializer(dest, init_cursor);
-                    node_cursor = node_cursor->next;
+                    Expression *dest = new_node_subscript(expr, len);
+                    stmt_cursor->next = assign_initializer(dest, init_cursor);
+                    stmt_cursor = stmt_cursor->next;
                     init_cursor = init_cursor->next;
                     len++;
                 }
-                node->type->size = node->type->base->size * len;
-                node->type->len = len;
-                node->type->complete = true;
+                expr->type->size = expr->type->base->size * len;
+                expr->type->len = len;
+                expr->type->complete = true;
             }
 
-            init_node->body = node_head.next;
+            init_stmt->body = stmt_head.next;
         }
-        else if(is_struct(node->type))
+        else if(is_struct(expr->type))
         {
-            Node node_head = {};
-            Node *node_cursor = &node_head;
+            Statement stmt_head = {};
+            Statement *stmt_cursor = &stmt_head;
             const Initializer *init_cursor = init->list;
-            Member *member = node->type->member;
+            Member *member = expr->type->member;
 
             while((init_cursor != NULL) && (member != NULL))
             {
-                Node *dest = new_node_member(node, member);
-                node_cursor->next = assign_initializer(dest, init_cursor);
-                node_cursor = node_cursor->next;
+                Expression *dest = new_node_member(expr, member);
+                stmt_cursor->next = assign_initializer(dest, init_cursor);
+                stmt_cursor = stmt_cursor->next;
                 init_cursor = init_cursor->next;
                 member = member->next;
             }
@@ -1709,24 +1712,25 @@ static Node *assign_initializer(Node *node, const Initializer *init)
             while(member != NULL)
             {
                 // handle the remainder
-                Node *dest = new_node_member(node, member);
-                node_cursor->next = assign_zero_initializer(dest);
-                node_cursor = node_cursor->next;
+                Expression *dest = new_node_member(expr, member);
+                stmt_cursor->next = assign_zero_initializer(dest);
+                stmt_cursor = stmt_cursor->next;
                 member = member->next;
             }
 
-            init_node->body = node_head.next;
+            init_stmt->body = stmt_head.next;
         }
-        else if(is_union(node->type))
+        else if(is_union(expr->type))
         {
             const Initializer *init_cursor = init->list;
-            Node *dest = new_node_member(node, node->type->member);
-            init_node->body = assign_initializer(dest, init_cursor);
+            Expression *dest = new_node_member(expr, expr->type->member);
+            init_stmt->body = assign_initializer(dest, init_cursor);
         }
         else if(init->list->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            init_node->body = new_node_binary(EXPR_ASSIGN, node, init->list->assign);
+            init_stmt->body = new_statement(STMT_EXPR);
+            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, init->list->assign);
         }
         else
         {
@@ -1735,7 +1739,7 @@ static Node *assign_initializer(Node *node, const Initializer *init)
     }
     else
     {
-        if(is_array(node->type) && (node->type->base->kind == TY_CHAR) && is_string(init->assign))
+        if(is_array(expr->type) && (expr->type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize array of char type by string-literal
             Initializer head = {};
@@ -1750,59 +1754,61 @@ static Node *assign_initializer(Node *node, const Initializer *init)
 
             Initializer *init_string = new_initializer();
             init_string->list = head.next;
-            init_node->body = assign_initializer(node, init_string);
+            init_stmt->body = assign_initializer(expr, init_string);
         }
         else
         {
-            init_node->body = new_node_binary(EXPR_ASSIGN, node, init->assign);
+            init_stmt->body = new_statement(STMT_EXPR);
+            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, init->assign);
         }
     }
 
-    return init_node;
+    return init_stmt;
 }
 
 
 /*
 assign zero to object
 */
-static Node *assign_zero_initializer(Node *node)
+static Statement *assign_zero_initializer(Expression *expr)
 {
-    Node *init_node = new_node(STMT_COMPOUND);
+    Statement *init_stmt = new_statement(STMT_COMPOUND);
 
-    if(is_array(node->type))
+    if(is_array(expr->type))
     {
-        Node node_head = {};
-        Node *node_cursor = &node_head;
-        for(size_t index = 0; index < node->type->len; index++)
+        Statement stmt_head = {};
+        Statement *stmt_cursor = &stmt_head;
+        for(size_t index = 0; index < expr->type->len; index++)
         {
-            Node *dest = new_node_subscript(node, index);
-            node_cursor->next = assign_zero_initializer(dest);
-            node_cursor = node_cursor->next;
+            Expression *dest = new_node_subscript(expr, index);
+            stmt_cursor->next = assign_zero_initializer(dest);
+            stmt_cursor = stmt_cursor->next;
         }
     }
-    else if(is_struct(node->type))
+    else if(is_struct(expr->type))
     {
-        Node node_head = {};
-        Node *node_cursor = &node_head;
-        for(Member *member = node->type->member; member != NULL; member = member->next)
+        Statement stmt_head = {};
+        Statement *stmt_cursor = &stmt_head;
+        for(Member *member = expr->type->member; member != NULL; member = member->next)
         {
-            Node *dest = new_node_member(node, member);
-            node_cursor->next = assign_zero_initializer(dest);
-            node_cursor = node_cursor->next;
+            Expression *dest = new_node_member(expr, member);
+            stmt_cursor->next = assign_zero_initializer(dest);
+            stmt_cursor = stmt_cursor->next;
         }
-        init_node->body = node_head.next;
+        init_stmt->body = stmt_head.next;
     }
-    else if(is_union(node->type))
+    else if(is_union(expr->type))
     {
-        Node *dest = new_node_member(node, node->type->member);
-        init_node->body = assign_zero_initializer(dest);
+        Expression *dest = new_node_member(expr, expr->type->member);
+        init_stmt->body = assign_zero_initializer(dest);
     }
     else
     {
-        init_node->body = new_node_binary(EXPR_ASSIGN, node, new_node_integer(TY_INT, 0));
+        init_stmt->body = new_statement(STMT_EXPR);
+        init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, new_node_integer(TY_INT, 0));
     }
 
-    return init_node;
+    return init_stmt;
 }
 
 
@@ -1966,9 +1972,9 @@ make an expression
 expression ::= assign ("," assign)*
 ```
 */
-static Node *expression(void)
+static Expression *expression(void)
 {
-    Node *node = assign();
+    Expression *node = assign();
 
     // parse tokens while finding an assignment expression
     while(true)
@@ -1992,9 +1998,9 @@ assign ::= conditional (assign-op assign)?
 assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^=" | "|="
 ```
 */
-static Node *assign(void)
+static Expression *assign(void)
 {
-    Node *node = conditional();
+    Expression *node = conditional();
 
     // parse assignment
     if(consume_reserved("="))
@@ -2003,8 +2009,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("*="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2015,8 +2021,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("/="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2027,8 +2033,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("%="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2039,8 +2045,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("+="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(rhs->type))
         {
@@ -2062,8 +2068,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("-="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(rhs->type))
         {
@@ -2085,8 +2091,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("<<="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2097,8 +2103,8 @@ static Node *assign(void)
     }
     else if(consume_reserved(">>="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2109,8 +2115,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("&="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2121,8 +2127,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("^="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2133,8 +2139,8 @@ static Node *assign(void)
     }
     else if(consume_reserved("|="))
     {
-        Node *lhs = node;
-        Node *rhs = assign();
+        Expression *lhs = node;
+        Expression *rhs = assign();
 
         if(!is_integer(lhs->type) || !is_integer(rhs->type))
         {
@@ -2154,13 +2160,13 @@ make a conditional expression
 conditional ::= logical-or ("?" expression ":" conditional)?
 ```
 */
-static Node *conditional(void)
+static Expression *conditional(void)
 {
-    Node *node = logical_or();
+    Expression *node = logical_or();
 
     if(consume_reserved("?"))
     {
-        Node *ternary = new_node(EXPR_COND);
+        Expression *ternary = new_expression(EXPR_COND);
 
         ternary->cond = node;
         ternary->lhs = expression();
@@ -2168,8 +2174,8 @@ static Node *conditional(void)
         ternary->rhs = conditional();
 
         // copy LHS and RHS since their types may not be modified
-        Node lhs = *ternary->lhs;
-        Node rhs = *ternary->rhs;
+        Expression lhs = *ternary->lhs;
+        Expression rhs = *ternary->rhs;
         if(is_integer(lhs.type) && is_integer(rhs.type))
         {
             apply_arithmetic_conversion(&lhs, &rhs);
@@ -2191,9 +2197,9 @@ make a logical OR expression
 logical-or ::= logical-and (|| logical-and)*
 ```
 */
-static Node *logical_or(void)
+static Expression *logical_or(void)
 {
-    Node *node = logical_and();
+    Expression *node = logical_and();
 
     // parse tokens while finding a bitwise logical AND expression
     while(true)
@@ -2216,9 +2222,9 @@ make a logical AND expression
 logical-and ::= bitwise-or (&& bitwise-or)*
 ```
 */
-static Node *logical_and(void)
+static Expression *logical_and(void)
 {
-    Node *node = bitwise_or();
+    Expression *node = bitwise_or();
 
     // parse tokens while finding a bitwise inclusive OR expression
     while(true)
@@ -2241,9 +2247,9 @@ make a bitwise inclusive OR expression
 bitwise-or ::= bitwise-xor (| bitwise-xor)*
 ```
 */
-static Node *bitwise_or(void)
+static Expression *bitwise_or(void)
 {
-    Node *node = bitwise_xor();
+    Expression *node = bitwise_xor();
 
     // parse tokens while finding a bitwise exclusive OR expression
     while(true)
@@ -2266,9 +2272,9 @@ make a bitwise exclusive OR expression
 bitwise-xor ::= bitwise-and (^ bitwise-and)*
 ```
 */
-static Node *bitwise_xor(void)
+static Expression *bitwise_xor(void)
 {
-    Node *node = bitwise_and();
+    Expression *node = bitwise_and();
 
     // parse tokens while finding a bitwise AND expression
     while(true)
@@ -2291,9 +2297,9 @@ make a bitwise AND expression
 bitwise-and ::= equality (& equality)*
 ```
 */
-static Node *bitwise_and(void)
+static Expression *bitwise_and(void)
 {
-    Node *node = equality();
+    Expression *node = equality();
 
     // parse tokens while finding a equality expression
     while(true)
@@ -2316,9 +2322,9 @@ make an equality expression
 equality ::= relational ("==" relational | "!=" relational)*
 ```
 */
-static Node *equality(void)
+static Expression *equality(void)
 {
-    Node *node = relational();
+    Expression *node = relational();
 
     // parse tokens while finding a relational expression
     while(true)
@@ -2345,9 +2351,9 @@ make a relational expression
 relational ::= shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
 ```
 */
-static Node *relational(void)
+static Expression *relational(void)
 {
-    Node *node = shift();
+    Expression *node = shift();
 
     // parse tokens while finding a shift expression
     while(true)
@@ -2382,17 +2388,17 @@ make a shift expression
 shift ::=  additive ("<<" additive | ">>" additive)*
 ```
 */
-static Node *shift(void)
+static Expression *shift(void)
 {
-    Node *node = additive();
+    Expression *node = additive();
 
     // parse tokens while finding an additive expression
     while(true)
     {
         if(consume_reserved("<<"))
         {
-            Node *lhs = node;
-            Node *rhs = additive();
+            Expression *lhs = node;
+            Expression *rhs = additive();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -2405,8 +2411,8 @@ static Node *shift(void)
         }
         else if(consume_reserved(">>"))
         {
-            Node *lhs = node;
-            Node *rhs = additive();
+            Expression *lhs = node;
+            Expression *rhs = additive();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -2431,17 +2437,17 @@ make an additive expression
 additive ::= multiplicative ("+" multiplicative | "-" multiplicative)*
 ```
 */
-static Node *additive(void)
+static Expression *additive(void)
 {
-    Node *node = multiplicative();
+    Expression *node = multiplicative();
 
     // parse tokens while finding a multiplicative expression
     while(true)
     {
         if(consume_reserved("+"))
         {
-            Node *lhs = node;
-            Node *rhs = multiplicative();
+            Expression *lhs = node;
+            Expression *rhs = multiplicative();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -2462,8 +2468,8 @@ static Node *additive(void)
         }
         else if(consume_reserved("-"))
         {
-            Node *lhs = node;
-            Node *rhs = multiplicative();
+            Expression *lhs = node;
+            Expression *rhs = multiplicative();
 
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
@@ -2492,9 +2498,9 @@ make a multiplicative expression
 multiplicative ::= cast ("*" cast | "/" cast | "%" cast)*
 ```
 */
-static Node *multiplicative(void)
+static Expression *multiplicative(void)
 {
-    Node *node = cast();
+    Expression *node = cast();
 
     // parse tokens while finding a cast expression
     while(true)
@@ -2525,9 +2531,9 @@ make a cast expression
 cast ::= ("(" type-name ")")? unary
 ```
 */
-static Node *cast(void)
+static Expression *cast(void)
 {
-    Node *node;
+    Expression *node;
 
     Token *saved_token = get_token();
     if(consume_reserved("("))
@@ -2536,7 +2542,7 @@ static Node *cast(void)
         {
             Type *type = type_name();
             expect_reserved(")");
-            node = new_node(EXPR_CAST);
+            node = new_expression(EXPR_CAST);
             node->lhs = unary();
             node->type = type;
             goto cast_end;
@@ -2565,9 +2571,9 @@ unary ::= postfix
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 ```
 */
-static Node *unary(void)
+static Expression *unary(void)
 {
-    Node *node;
+    Expression *node;
 
     if(consume_reserved("sizeof"))
     {
@@ -2589,12 +2595,12 @@ static Node *unary(void)
             }
         }
 
-        Node *operand = unary();
+        Expression *operand = unary();
         node = new_node_integer(TY_ULONG, operand->type->size);
     }
     else if(consume_reserved("++"))
     {
-        Node *operand = unary();
+        Expression *operand = unary();
 
         if(is_integer(operand->type))
         {
@@ -2611,7 +2617,7 @@ static Node *unary(void)
     }
     else if(consume_reserved("--"))
     {
-        Node *operand = unary();
+        Expression *operand = unary();
 
         if(is_integer(operand->type))
         {
@@ -2672,9 +2678,9 @@ postfix ::= primary
           | postfix "--"
 ```
 */
-static Node *postfix(void)
+static Expression *postfix(void)
 {
-    Node *node = primary();
+    Expression *node = primary();
 
     // parse tokens while finding a postfix operator
     while(true)
@@ -2682,8 +2688,8 @@ static Node *postfix(void)
         if(consume_reserved("["))
         {
             // array subscripting
-            Node *lhs;
-            Node *index = expression();
+            Expression *lhs;
+            Expression *index = expression();
 
             if(is_pointer_or_array(node->type) && is_integer(index->type))
             {
@@ -2709,7 +2715,7 @@ static Node *postfix(void)
                 report_error(NULL, "expected function");
             }
 
-            Node *func_node = new_node(EXPR_FUNC);
+            Expression *func_node = new_expression(EXPR_FUNC);
             if(!consume_reserved(")"))
             {
                 func_node->args = arg_expr_list();
@@ -2723,14 +2729,14 @@ static Node *postfix(void)
         {
             // access to member (by value)
             Token *token = expect_identifier();
-            Node *struct_node = node;
+            Expression *struct_node = node;
             node = new_node_member(struct_node, find_member(token, struct_node->type));
         }
         else if(consume_reserved("->"))
         {
             // access to member (by pointer)
             Token *token = expect_identifier();
-            Node *struct_node = new_node_unary(EXPR_DEREF, node);
+            Expression *struct_node = new_node_unary(EXPR_DEREF, node);
             node = new_node_member(struct_node, find_member(token, struct_node->type));
         }
         else if(consume_reserved("++"))
@@ -2765,10 +2771,10 @@ make an argument expression list
 arg-expr-list ::= assign ("," assign)*
 ```
 */
-static Node *arg_expr_list(void)
+static Expression *arg_expr_list(void)
 {
-    Node *arg;
-    Node *cursor = NULL;
+    Expression *arg;
+    Expression *cursor = NULL;
 
     arg = assign();
     arg->next = cursor;
@@ -2796,12 +2802,12 @@ primary ::= identifier
           | "(" expression ")"
 ```
 */
-static Node *primary(void)
+static Expression *primary(void)
 {
     // expression in brackets
     if(consume_reserved("("))
     {
-        Node *node = expression();
+        Expression *node = expression();
  
         expect_reserved(")");
  
@@ -2821,14 +2827,14 @@ static Node *primary(void)
                 Variable *var = ident->var;
                 if(var->type->kind == TY_FUNC)
                 {
-                    Node *node = new_node(EXPR_FUNC);
+                    Expression *node = new_expression(EXPR_FUNC);
                     node->type = new_type_pointer(var->type);
                     node->ident = make_identifier(token);
                     return node;
                 }
                 else
                 {
-                    Node *node = new_node(EXPR_VAR);
+                    Expression *node = new_expression(EXPR_VAR);
                     node->type = var->type;
                     node->var = var;
                     return node;
@@ -2844,7 +2850,7 @@ static Node *primary(void)
         if(peek_reserved("("))
         {
             // implicitly assume that the token denotes a function which returns int
-            Node *node = new_node(EXPR_FUNC);
+            Expression *node = new_expression(EXPR_FUNC);
             node->type = new_type_pointer(new_type_function(new_type(TY_INT, TQ_NONE), new_type(TY_VOID, TQ_NONE)));
             node->ident = make_identifier(token);
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
@@ -2859,7 +2865,7 @@ static Node *primary(void)
     // string-literal
     if(consume_token(TK_STR, &token))
     {
-        Node *node = new_node(EXPR_VAR);
+        Expression *node = new_expression(EXPR_VAR);
         node->var = new_string(token);
         node->type = node->var->type;
         return node;
@@ -2874,11 +2880,11 @@ static Node *primary(void)
 
 
 /*
-make a new node
+make a new expression
 */
-static Node *new_node(NodeKind kind)
+static Expression *new_expression(ExpressionKind kind)
 {
-    Node *node = calloc(1, sizeof(Node));
+    Expression *node = calloc(1, sizeof(Expression));
     node->next = NULL;
     node->kind = kind;
     node->lhs = NULL;
@@ -2887,9 +2893,6 @@ static Node *new_node(NodeKind kind)
     node->value = 0;
     node->var = NULL;
     node->cond = NULL;
-    node->preexpr = NULL;
-    node->postexpr = NULL;
-    node->body = NULL;
     node->ident = NULL;
     node->args = NULL;
 
@@ -2898,11 +2901,30 @@ static Node *new_node(NodeKind kind)
 
 
 /*
+make a new statement
+*/
+static Statement *new_statement(StatementKind kind)
+{
+    Statement *node = calloc(1, sizeof(Statement));
+    node->next = NULL;
+    node->kind = kind;
+    node->value = 0;
+    node->cond = NULL;
+    node->preexpr = NULL;
+    node->postexpr = NULL;
+    node->body = NULL;
+    node->ident = NULL;
+
+    return node;
+}
+
+
+/*
 make a new node for unary operations
 */
-static Node *new_node_unary(NodeKind kind, Node *lhs)
+static Expression *new_node_unary(ExpressionKind kind, Expression *lhs)
 {
-    Node *node = new_node(kind);
+    Expression *node = new_expression(kind);
     node->lhs = lhs;
 
     switch(kind)
@@ -2936,9 +2958,9 @@ static Node *new_node_unary(NodeKind kind, Node *lhs)
 /*
 make a new node for binary operations
 */
-static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
+static Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs)
 {
-    Node *node = new_node(kind);
+    Expression *node = new_expression(kind);
 
     switch(kind)
     {
@@ -2983,34 +3005,6 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
             // convert from array to pointer
             node->type = new_type_pointer(rhs->type->base);
         }
-        else if(is_struct(rhs->type))
-        {
-            // assign each members of structure
-            Node head = {};
-            Node *cursor = &head;
-            for(Member *member = rhs->type->member; member != NULL; member = member->next)
-            {
-                cursor->next = new_node_member_assignment(lhs, rhs, member);
-                cursor = cursor->next;
-            }
-
-            node->kind = STMT_COMPOUND;
-            node->body = head.next;
-        }
-        else if(is_union(rhs->type))
-        {
-            // assign the largest member of union
-            Member *member = rhs->type->member;
-            for(Member *m = rhs->type->member; m != NULL; m = m->next)
-            {
-                if(m->type->size > member->type->size)
-                {
-                    member = m;
-                }
-            }
-
-            node = new_node_member_assignment(lhs, rhs, member);
-        }
         else
         {
             node->type = lhs->type;
@@ -3053,10 +3047,10 @@ static Node *new_node_binary(NodeKind kind, Node *lhs, Node *rhs)
 /*
 make a new node for subscripting
 */
-static Node *new_node_subscript(Node *base, size_t index)
+static Expression *new_node_subscript(Expression *base, size_t index)
 {
-    Node *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_integer(TY_ULONG, index));
-    Node *dest = new_node_unary(EXPR_DEREF, addr);
+    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_integer(TY_ULONG, index));
+    Expression *dest = new_node_unary(EXPR_DEREF, addr);
 
     return dest;
 }
@@ -3065,9 +3059,9 @@ static Node *new_node_subscript(Node *base, size_t index)
 /*
 make a new node for members of structure or union
 */
-static Node *new_node_member(Node *lhs, Member *member)
+static Expression *new_node_member(Expression *lhs, Member *member)
 {
-    Node *node = new_node(EXPR_MEMBER);
+    Expression *node = new_expression(EXPR_MEMBER);
     node->member = member;
     node->type = member->type;
     node->lhs = lhs;
@@ -3077,45 +3071,11 @@ static Node *new_node_member(Node *lhs, Member *member)
 
 
 /*
-make a new node for member-wise assignment
-* 'lhs' must be a structure or union type compatible with 'd'.
-*/
-static Node *new_node_member_assignment(Node *lhs, Node *rhs, Member *member)
-{
-    Node *lhs_member = new_node_member(lhs, member);
-    Node *rhs_member = new_node_member(rhs, member);
-
-    Node *node;
-    if(is_array(member->type))
-    {
-        Node head = {};
-        Node *cursor = &head;
-        for(size_t i = 0; i < member->type->len; i++)
-        {
-            Node *lhs_array = new_node_subscript(lhs_member, i);
-            Node *rhs_array = new_node_subscript(rhs_member, i);
-            cursor->next = new_node_binary(EXPR_ASSIGN, lhs_array, rhs_array);
-            cursor = cursor->next;
-        }
-
-        node = new_node(STMT_COMPOUND);
-        node->body = head.next;
-    }
-    else
-    {
-        node = new_node_binary(EXPR_ASSIGN, lhs_member, rhs_member);
-    }
-
-    return node;
-}
-
-
-/*
 make a new node for integer-constant
 */
-static Node *new_node_integer(TypeKind kind, long value)
+static Expression *new_node_integer(TypeKind kind, long value)
 {
-    Node *node = new_node(EXPR_CONST);
+    Expression *node = new_expression(EXPR_CONST);
     node->type = new_type(kind, TQ_NONE);
     node->value = value;
 
@@ -3131,24 +3091,24 @@ apply integer promotion
     * The size of 'int' is 4 bytes.
     * Therefore, 'int' can represent 'char', 'unsigned char', 'short' and 'unsigned short'.
 */
-static Node *apply_integer_promotion(Node *node)
+static Expression *apply_integer_promotion(Expression *expr)
 {
-    if((node->type->kind == TY_CHAR)
-    || (node->type->kind == TY_UCHAR)
-    || (node->type->kind == TY_SHORT)
-    || (node->type->kind == TY_USHORT))
+    if((expr->type->kind == TY_CHAR)
+    || (expr->type->kind == TY_UCHAR)
+    || (expr->type->kind == TY_SHORT)
+    || (expr->type->kind == TY_USHORT))
     {
-        node->type = new_type(TY_INT, TQ_NONE);
+        expr->type = new_type(TY_INT, TQ_NONE);
     }
 
-    return node;
+    return expr;
 }
 
 
 /*
 apply usual arithmetic conversion
 */
-static void apply_arithmetic_conversion(Node *lhs, Node *rhs)
+static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
 {
     // perform integer promotions on both operands at first
     lhs = apply_integer_promotion(lhs);
@@ -3283,7 +3243,7 @@ static Variable *new_lvar(const Token *token, Type *type)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, Variable *args, Node *body)
+static Function *new_function(const Token *token, Type *type, Variable *args, Statement *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
@@ -3339,9 +3299,9 @@ static char *new_string_label(void)
 /*
 check if a given node is a string-literal
 */
-static bool is_string(const Node *node)
+static bool is_string(const Expression *expr)
 {
-    return (node->var != NULL) && (node->var->content != NULL);
+    return (expr->var != NULL) && (expr->var->content != NULL);
 }
 
 
@@ -3722,86 +3682,86 @@ static long const_expression(void)
 /*
 evaluate a node
 */
-static long evaluate(Node *node)
+static long evaluate(Expression *expr)
 {
     long result = 0;
 
-    switch(node->kind)
+    switch(expr->kind)
     {
     case EXPR_COMPL:
-        result = ~evaluate(node);
+        result = ~evaluate(expr);
         break;
 
     case EXPR_NEG:
-        result = !evaluate(node);
+        result = !evaluate(expr);
         break;
 
     case EXPR_ADD:
-        result = evaluate(node->lhs) + evaluate(node->rhs);
+        result = evaluate(expr->lhs) + evaluate(expr->rhs);
         break;
 
     case EXPR_SUB:
-        result = evaluate(node->lhs) - evaluate(node->rhs);
+        result = evaluate(expr->lhs) - evaluate(expr->rhs);
         break;
 
     case EXPR_MUL:
-        result = evaluate(node->lhs) * evaluate(node->rhs);
+        result = evaluate(expr->lhs) * evaluate(expr->rhs);
         break;
 
     case EXPR_DIV:
-        result = evaluate(node->lhs) / evaluate(node->rhs);
+        result = evaluate(expr->lhs) / evaluate(expr->rhs);
         break;
 
     case EXPR_MOD:
-        result = evaluate(node->lhs) % evaluate(node->rhs);
+        result = evaluate(expr->lhs) % evaluate(expr->rhs);
         break;
 
     case EXPR_LSHIFT:
-        result = evaluate(node->lhs) << evaluate(node->rhs);
+        result = evaluate(expr->lhs) << evaluate(expr->rhs);
         break;
 
     case EXPR_RSHIFT:
-        result = evaluate(node->lhs) >> evaluate(node->rhs);
+        result = evaluate(expr->lhs) >> evaluate(expr->rhs);
         break;
 
     case EXPR_EQ:
-        result = (evaluate(node->lhs) == evaluate(node->rhs));
+        result = (evaluate(expr->lhs) == evaluate(expr->rhs));
         break;
 
     case EXPR_NEQ:
-        result = (evaluate(node->lhs) != evaluate(node->rhs));
+        result = (evaluate(expr->lhs) != evaluate(expr->rhs));
         break;
 
     case EXPR_L:
-        result = (evaluate(node->lhs) < evaluate(node->rhs));
+        result = (evaluate(expr->lhs) < evaluate(expr->rhs));
         break;
 
     case EXPR_LEQ:
-        result = (evaluate(node->lhs) <= evaluate(node->rhs));
+        result = (evaluate(expr->lhs) <= evaluate(expr->rhs));
         break;
 
     case EXPR_BIT_AND:
-        result = (evaluate(node->lhs) & evaluate(node->rhs));
+        result = (evaluate(expr->lhs) & evaluate(expr->rhs));
         break;
 
     case EXPR_BIT_XOR:
-        result = (evaluate(node->lhs) ^ evaluate(node->rhs));
+        result = (evaluate(expr->lhs) ^ evaluate(expr->rhs));
         break;
 
     case EXPR_BIT_OR:
-        result = (evaluate(node->lhs) | evaluate(node->rhs));
+        result = (evaluate(expr->lhs) | evaluate(expr->rhs));
         break;
 
     case EXPR_LOG_AND:
-        result = (evaluate(node->lhs) && evaluate(node->rhs));
+        result = (evaluate(expr->lhs) && evaluate(expr->rhs));
         break;
 
     case EXPR_LOG_OR:
-        result = (evaluate(node->lhs) || evaluate(node->rhs));
+        result = (evaluate(expr->lhs) || evaluate(expr->rhs));
         break;
 
     case EXPR_CONST:
-        result = node->value;
+        result = expr->value;
         break;
 
     default:

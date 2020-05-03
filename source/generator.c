@@ -40,12 +40,13 @@ typedef enum {
 // function prototype
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
-static void generate_lvalue(const Node *node);
+static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static void generate_args(const Node *args);
-static void generate_binary(const Node *node, BinaryOperationKind kind);
-static void generate_node(const Node *node);
+static void generate_args(const Expression *args);
+static void generate_binary(const Expression *expr, BinaryOperationKind kind);
+static void generate_statement(const Statement *stmt);
+static void generate_expression(const Expression *expr);
 static void put_instruction(const char *fmt, ...);
 
 
@@ -132,9 +133,40 @@ static void generate_store(const Type *type)
     {
         put_instruction("  mov dword ptr [rax], edi");
     }
-    else
+    else if(type->size == 8)
     {
         put_instruction("  mov [rax], rdi");
+    }
+    else
+    {
+        // copy bytes from rdi to rax
+        size_t offset = 0;
+        while(true)
+        {
+            put_instruction("  mov rbx, [rdi]");
+            put_instruction("  mov [rax], rbx");
+            if(offset + 8 < type->size)
+            {
+                offset += 8;
+                put_instruction("  add rax, 8");
+                put_instruction("  add rdi, 8");
+                continue;
+            }
+            break;
+        }
+        while(true)
+        {
+            put_instruction("  mov rbx, [rdi]");
+            put_instruction("  mov byte ptr [rax], bl");
+            if(offset + 1 < type->size)
+            {
+                offset++;
+                put_instruction("  add rax, 1");
+                put_instruction("  add rdi, 1");
+                continue;
+            }
+            break;
+        }
     }
     put_instruction("  push rdi");
 }
@@ -143,33 +175,32 @@ static void generate_store(const Type *type)
 /*
 generate assembler code for lvalue
 */
-static void generate_lvalue(const Node *node)
+static void generate_lvalue(const Expression *expr)
 {
-    switch(node->kind)
+    switch(expr->kind)
     {
-    case STMT_DECL:
     case EXPR_VAR:
-        if(node->var->local)
+        if(expr->var->local)
         {
             put_instruction("  mov rax, rbp");
-            put_instruction("  sub rax, %lu", node->var->offset);
+            put_instruction("  sub rax, %lu", expr->var->offset);
             put_instruction("  push rax");
         }
         else
         {
-            put_instruction("  lea rax, %s[rip]", node->var->name);
+            put_instruction("  lea rax, %s[rip]", expr->var->name);
             put_instruction("  push rax");
         }
         break;
 
     case EXPR_DEREF:
-        generate_node(node->lhs);
+        generate_expression(expr->lhs);
         break;
 
     case EXPR_MEMBER:
-        generate_lvalue(node->lhs);
+        generate_lvalue(expr->lhs);
         put_instruction("  pop rax");
-        put_instruction("  add rax, %lu", node->member->offset);
+        put_instruction("  add rax, %lu", expr->member->offset);
         put_instruction("  push rax");
         break;
 
@@ -291,9 +322,9 @@ static void generate_func(const Function *func)
     }
 
     // body
-    for(Node *node = func->body; node != NULL; node = node->next)
+    for(Statement *stmt = func->body; stmt != NULL; stmt = stmt->next)
     {
-        generate_node(node);
+        generate_statement(stmt);
     }
 
     // epilogue: save return value and release stack
@@ -310,13 +341,13 @@ static void generate_func(const Function *func)
 /*
 generate assembler code of function arguments
 */
-static void generate_args(const Node *args)
+static void generate_args(const Expression *args)
 {
     // push arguments
     size_t argc = 0;
-    for(const Node *arg = args; arg != NULL; arg = arg->next)
+    for(const Expression *arg = args; arg != NULL; arg = arg->next)
     {
-        generate_node(arg);
+        generate_expression(arg);
         argc++;
     }
 
@@ -332,7 +363,7 @@ static void generate_args(const Node *args)
 /*
 generate assembler code of binary operation
 */
-static void generate_binary(const Node *node, BinaryOperationKind kind)
+static void generate_binary(const Expression *expr, BinaryOperationKind kind)
 {
     // pop RHS to rdi and LHS to rax
     put_instruction("  pop rdi");
@@ -346,7 +377,7 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         break;
 
     case BINOP_PTR_ADD:
-        put_instruction("  imul rdi, %lu", node->type->base->size);
+        put_instruction("  imul rdi, %lu", expr->type->base->size);
         put_instruction("  add rax, rdi");
         break;
 
@@ -355,7 +386,7 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
         break;
 
     case BINOP_PTR_SUB:
-        put_instruction("  imul rdi, %lu", node->type->base->size);
+        put_instruction("  imul rdi, %lu", expr->type->base->size);
         put_instruction("  sub rax, rdi");
         break;
 
@@ -430,323 +461,47 @@ static void generate_binary(const Node *node, BinaryOperationKind kind)
 
 
 /*
-generate assembler code of a node, which emulates stack machine
+generate assembler code of a statement
 */
-static void generate_node(const Node *node)
+static void generate_statement(const Statement *stmt)
 {
     // Because this function is recursively called, 
     // * `lab_number` is saved and incremented at the top of each case-statement.
     // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
-    switch(node->kind)
+    switch(stmt->kind)
     {
-    case STMT_NULL:
+    case STMT_LABEL:
+        put_instruction(".L%s:", stmt->ident);
+        generate_statement(stmt->body);
         return;
 
-    case EXPR_CONST:
-        // note that push instruction cannot take a 64-bit immediate value
-        if(node->value == (int)node->value)
+    case STMT_CASE:
+        put_instruction(".Lcase%d:", stmt->case_label);
+        generate_statement(stmt->body);
+        return;
+
+    case STMT_COMPOUND:
+        for(Statement *n = stmt->body; n != NULL; n = n->next)
         {
-            put_instruction("  push %d", node->value);
-        }
-        else
-        {
-            put_instruction("  mov rax, %ld", node->value);
-            put_instruction("  push rax", node->value);
+            generate_statement(n);
         }
         return;
 
     case STMT_DECL:
-        for(const Node *n = node->body; n != NULL; n = n->next)
+        for(const Statement *n = stmt->body; n != NULL; n = n->next)
         {
             if(n->var->init != NULL)
             {
-                generate_node(n->var->init);
+                generate_statement(n->var->init);
             }
         }
         return;
 
-    case EXPR_VAR:
-        generate_lvalue(node);
-        if(!is_array(node->var->type))
-        {
-            generate_load(node->var->type);
-        }
+    case STMT_EXPR:
+        generate_expression(stmt->expr);
         return;
 
-    case EXPR_ADDR:
-        generate_lvalue(node->lhs);
-        return;
-
-    case EXPR_DEREF:
-        generate_node(node->lhs);
-        if(!is_array(node->type))
-        {
-            generate_load(node->type);
-        }
-        return;
-
-    case EXPR_MEMBER:
-        generate_lvalue(node);
-        if(!is_array(node->type))
-        {
-            generate_load(node->type);
-        }
-        return;
-
-    case EXPR_COMPL:
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        put_instruction("  not rax");
-        put_instruction("  push rax");
-        return;
-
-    case EXPR_NEG:
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  sete al");
-        put_instruction("  movzb eax, al");
-        put_instruction("  push rax");
-        return;
-
-    case EXPR_POST_INC:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        put_instruction("  pop rax");
-        put_instruction("  mov rbx, rax");
-        put_instruction("  push rax");
-        put_instruction("  push 1");
-        generate_binary(node, (is_integer(node->type) ? BINOP_ADD : BINOP_PTR_ADD));
-        generate_store(node->type);
-        put_instruction("  pop rax");
-        put_instruction("  push rbx");
-        return;
-
-    case EXPR_POST_DEC:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        put_instruction("  pop rax");
-        put_instruction("  mov rbx, rax");
-        put_instruction("  push rax");
-        put_instruction("  push 1");
-        generate_binary(node, (is_integer(node->type) ? BINOP_SUB : BINOP_PTR_SUB));
-        generate_store(node->type);
-        put_instruction("  pop rax");
-        put_instruction("  push rbx");
-        return;
-
-    case EXPR_CAST:
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        if(node->type->size == 1)
-        {
-            put_instruction("  movsxb rax, al");
-        }
-        else if(node->type->size == 2)
-        {
-            put_instruction("  movsxw rax, ax");
-        }
-        else if(node->type->size == 4)
-        {
-            put_instruction("  movsxd rax, eax");
-        }
-        put_instruction("  push rax");
-        return;
-
-    case EXPR_LOG_AND:
-    {
-        // note that RHS is not evaluated if LHS is equal to 0
-        int lab = lab_number;
-        lab_number++;
-
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lfalse%d", lab);
-        generate_node(node->rhs);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lfalse%d", lab);
-        put_instruction("  push 1");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Lfalse%d:", lab);
-        put_instruction("  push 0");
-        put_instruction(".Lend%d:", lab);
-        return;
-    }
-
-    case EXPR_LOG_OR:
-    {
-        // note that RHS is not evaluated if LHS is not equal to 0
-        int lab = lab_number;
-        lab_number++;
-
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Ltrue%d", lab);
-        generate_node(node->rhs);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Ltrue%d", lab);
-        put_instruction("  push 0");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Ltrue%d:", lab);
-        put_instruction("  push 1");
-        put_instruction(".Lend%d:", lab);
-        return;
-    }
-
-    case EXPR_COND:
-    {
-        // note that either second operand or third operand is evaluated
-        int lab = lab_number;
-        lab_number++;
-
-        generate_node(node->cond);
-        put_instruction("  pop rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lelse%d", lab);
-        generate_node(node->lhs);
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Lelse%d:", lab);
-        generate_node(node->rhs);
-        put_instruction(".Lend%d:", lab);
-        return;
-    }
-
-    case EXPR_ASSIGN:
-        generate_lvalue(node->lhs);
-        generate_node(node->rhs);
-        generate_store(node->type);
-        return;
-
-    case EXPR_ADD_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_ADD);
-        generate_store(node->type);
-        return;
-
-    case EXPR_PTR_ADD_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_PTR_ADD);
-        generate_store(node->type);
-        return;
-
-    case EXPR_SUB_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_SUB);
-        generate_store(node->type);
-        return;
-
-    case EXPR_PTR_SUB_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_PTR_SUB);
-        generate_store(node->type);
-        return;
-
-    case EXPR_MUL_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_MUL);
-        generate_store(node->type);
-        return;
-
-    case EXPR_DIV_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_DIV);
-        generate_store(node->type);
-        return;
-
-    case EXPR_MOD_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_MOD);
-        generate_store(node->type);
-        return;
-
-    case EXPR_LSHIFT_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_LSHIFT);
-        generate_store(node->type);
-        return;
-
-    case EXPR_RSHIFT_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_RSHIFT);
-        generate_store(node->type);
-        return;
-
-    case EXPR_AND_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_AND);
-        generate_store(node->type);
-        return;
-
-    case EXPR_XOR_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_XOR);
-        generate_store(node->type);
-        return;
-
-    case EXPR_OR_EQ:
-        generate_lvalue(node->lhs);
-        put_instruction("  push [rsp]");
-        generate_load(node->lhs->type);
-        generate_node(node->rhs);
-        generate_binary(node, BINOP_OR);
-        generate_store(node->type);
-        return;
-
-    case EXPR_COMMA:
-        generate_node(node->lhs);
-        put_instruction("  pop rax");
-        generate_node(node->rhs);
-        return;
-
-    case STMT_RETURN:
-        if(node->lhs != NULL)
-        {
-            // return value
-            generate_node(node->lhs);
-            put_instruction("  pop rax");
-        }
-        put_instruction("  mov rsp, rbp");
-        put_instruction("  pop rbp");
-        put_instruction("  ret");
+    case STMT_NULL:
         return;
 
     case STMT_IF:
@@ -754,24 +509,24 @@ static void generate_node(const Node *node)
         int lab = lab_number;
         lab_number++;
 
-        generate_node(node->cond);
+        generate_expression(stmt->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
-        if(node->rhs == NULL)
+        if(stmt->false_case == NULL)
         {
             // if ( expression ) statement
             put_instruction("  je  .Lend%d", lab);
-            generate_node(node->lhs);
+            generate_statement(stmt->true_case);
             put_instruction(".Lend%d:", lab);
         }
         else
         {
             // if ( expression ) statement else statement
             put_instruction("  je  .Lelse%d", lab);
-            generate_node(node->lhs);
+            generate_statement(stmt->true_case);
             put_instruction("  jmp .Lend%d", lab);
             put_instruction(".Lelse%d:", lab);
-            generate_node(node->rhs);
+            generate_statement(stmt->false_case);
             put_instruction(".Lend%d:", lab);
         }
         return;
@@ -784,43 +539,33 @@ static void generate_node(const Node *node)
         brk_number = lab_number;
         lab_number++;
 
-        generate_node(node->cond);
+        generate_expression(stmt->cond);
         put_instruction("  pop rax");
 
-        for(Node *case_node = node->next_case; case_node != NULL; case_node = case_node->next_case)
+        for(Statement *s = stmt->next_case; s != NULL; s = s->next_case)
         {
             int case_label = lab_number;
             lab_number++;
 
-            case_node->case_label = case_label;
-            put_instruction("  cmp rax, %d", case_node->value);
+            s->case_label = case_label;
+            put_instruction("  cmp rax, %d", s->value);
             put_instruction("  je .Lcase%d", case_label);
         }
-        if(node->default_case != NULL)
+        if(stmt->default_case != NULL)
         {
             int case_label = lab_number;
             lab_number++;
 
-            node->default_case->case_label = case_label;
+            stmt->default_case->case_label = case_label;
             put_instruction("  jmp .Lcase%d", case_label);
         }
 
-        generate_node(node->lhs);
+        generate_statement(stmt->body);
         put_instruction(".Lbreak%d:", lab);
 
         brk_number = brk;
         return;
     }
-
-    case STMT_CASE:
-        put_instruction(".Lcase%d:", node->case_label);
-        generate_node(node->lhs);
-        return;
-
-    case STMT_LABEL:
-        put_instruction(".L%s:", node->ident);
-        generate_node(node->lhs);
-        return;
 
     case STMT_WHILE:
     {
@@ -832,11 +577,11 @@ static void generate_node(const Node *node)
 
         put_instruction(".Lbegin%d:", lab);
         put_instruction(".Lcontinue%d:", lab);
-        generate_node(node->cond);
+        generate_expression(stmt->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je  .Lend%d", lab);
-        generate_node(node->lhs);
+        generate_statement(stmt->body);
         put_instruction("  jmp .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
         put_instruction(".Lbreak%d:", lab);
@@ -855,9 +600,9 @@ static void generate_node(const Node *node)
         lab_number++;
 
         put_instruction(".Lbegin%d:", lab);
-        generate_node(node->lhs);
+        generate_statement(stmt->body);
         put_instruction(".Lcontinue%d:", lab);
-        generate_node(node->cond);
+        generate_expression(stmt->cond);
         put_instruction("  pop rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  jne .Lbegin%d", lab);
@@ -877,23 +622,23 @@ static void generate_node(const Node *node)
         brk_number = cnt_number = lab_number;
         lab_number++;
 
-        if(node->preexpr != NULL)
+        if(stmt->preexpr != NULL)
         {
-            generate_node(node->preexpr);
+            generate_expression(stmt->preexpr);
         }
         put_instruction(".Lbegin%d:", lab);
-        if(node->cond != NULL)
+        if(stmt->cond != NULL)
         {
-            generate_node(node->cond);
+            generate_expression(stmt->cond);
             put_instruction("  pop rax");
             put_instruction("  cmp rax, 0");
             put_instruction("  je  .Lend%d", lab);
         }
-        generate_node(node->lhs);
+        generate_statement(stmt->body);
         put_instruction(".Lcontinue%d:", lab);
-        if(node->postexpr != NULL)
+        if(stmt->postexpr != NULL)
         {
-            generate_node(node->postexpr);
+            generate_expression(stmt->postexpr);
         }
         put_instruction("  jmp .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
@@ -905,22 +650,328 @@ static void generate_node(const Node *node)
     }
 
     case STMT_GOTO:
-        put_instruction("  jmp .L%s", node->ident);
-        return;
-
-    case STMT_BREAK:
-        put_instruction("  jmp .Lbreak%d", brk_number);
+        put_instruction("  jmp .L%s", stmt->ident);
         return;
 
     case STMT_CONTINUE:
         put_instruction("  jmp .Lcontinue%d", cnt_number);
         return;
 
-    case STMT_COMPOUND:
-        for(Node *n = node->body; n != NULL; n = n->next)
+    case STMT_BREAK:
+        put_instruction("  jmp .Lbreak%d", brk_number);
+        return;
+
+    case STMT_RETURN:
+        if(stmt->expr != NULL)
         {
-            generate_node(n);
+            // return value
+            generate_expression(stmt->expr);
+            put_instruction("  pop rax");
         }
+        put_instruction("  mov rsp, rbp");
+        put_instruction("  pop rbp");
+        put_instruction("  ret");
+        return;
+
+    default:
+        break;
+    }
+}
+
+/*
+generate assembler code of an expression, which emulates stack machine
+*/
+static void generate_expression(const Expression *expr)
+{
+    // Because this function is recursively called, 
+    // * `lab_number` is saved and incremented at the top of each case-statement.
+    // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
+    switch(expr->kind)
+    {
+    case EXPR_CONST:
+        // note that push instruction cannot take a 64-bit immediate value
+        if(expr->value == (int)expr->value)
+        {
+            put_instruction("  push %d", expr->value);
+        }
+        else
+        {
+            put_instruction("  mov rax, %ld", expr->value);
+            put_instruction("  push rax", expr->value);
+        }
+        return;
+
+    case EXPR_VAR:
+        generate_lvalue(expr);
+        if(!(is_array(expr->var->type) || is_struct(expr->var->type) || is_union(expr->var->type)))
+        {
+            generate_load(expr->var->type);
+        }
+        return;
+
+    case EXPR_ADDR:
+        generate_lvalue(expr->lhs);
+        return;
+
+    case EXPR_DEREF:
+        generate_expression(expr->lhs);
+        if(!is_array(expr->type))
+        {
+            generate_load(expr->type);
+        }
+        return;
+
+    case EXPR_MEMBER:
+        generate_lvalue(expr);
+        if(!(is_array(expr->type) || is_struct(expr->type) || is_union(expr->type)))
+        {
+            generate_load(expr->type);
+        }
+        return;
+
+    case EXPR_COMPL:
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  not rax");
+        put_instruction("  push rax");
+        return;
+
+    case EXPR_NEG:
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  sete al");
+        put_instruction("  movzb eax, al");
+        put_instruction("  push rax");
+        return;
+
+    case EXPR_POST_INC:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        put_instruction("  pop rax");
+        put_instruction("  mov rbx, rax");
+        put_instruction("  push rax");
+        put_instruction("  push 1");
+        generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
+        generate_store(expr->type);
+        put_instruction("  pop rax");
+        put_instruction("  push rbx");
+        return;
+
+    case EXPR_POST_DEC:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        put_instruction("  pop rax");
+        put_instruction("  mov rbx, rax");
+        put_instruction("  push rax");
+        put_instruction("  push 1");
+        generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
+        generate_store(expr->type);
+        put_instruction("  pop rax");
+        put_instruction("  push rbx");
+        return;
+
+    case EXPR_CAST:
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        if(expr->type->size == 1)
+        {
+            put_instruction("  movsxb rax, al");
+        }
+        else if(expr->type->size == 2)
+        {
+            put_instruction("  movsxw rax, ax");
+        }
+        else if(expr->type->size == 4)
+        {
+            put_instruction("  movsxd rax, eax");
+        }
+        put_instruction("  push rax");
+        return;
+
+    case EXPR_LOG_AND:
+    {
+        // note that RHS is not evaluated if LHS is equal to 0
+        int lab = lab_number;
+        lab_number++;
+
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  je .Lfalse%d", lab);
+        generate_expression(expr->rhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  je .Lfalse%d", lab);
+        put_instruction("  push 1");
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Lfalse%d:", lab);
+        put_instruction("  push 0");
+        put_instruction(".Lend%d:", lab);
+        return;
+    }
+
+    case EXPR_LOG_OR:
+    {
+        // note that RHS is not evaluated if LHS is not equal to 0
+        int lab = lab_number;
+        lab_number++;
+
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  jne .Ltrue%d", lab);
+        generate_expression(expr->rhs);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  jne .Ltrue%d", lab);
+        put_instruction("  push 0");
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Ltrue%d:", lab);
+        put_instruction("  push 1");
+        put_instruction(".Lend%d:", lab);
+        return;
+    }
+
+    case EXPR_COND:
+    {
+        // note that either second operand or third operand is evaluated
+        int lab = lab_number;
+        lab_number++;
+
+        generate_expression(expr->cond);
+        put_instruction("  pop rax");
+        put_instruction("  cmp rax, 0");
+        put_instruction("  je .Lelse%d", lab);
+        generate_expression(expr->lhs);
+        put_instruction("  jmp .Lend%d", lab);
+        put_instruction(".Lelse%d:", lab);
+        generate_expression(expr->rhs);
+        put_instruction(".Lend%d:", lab);
+        return;
+    }
+
+    case EXPR_ASSIGN:
+        generate_lvalue(expr->lhs);
+        generate_expression(expr->rhs);
+        generate_store(expr->type);
+
+        return;
+
+    case EXPR_ADD_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_ADD);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_PTR_ADD_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_PTR_ADD);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_SUB_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_SUB);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_PTR_SUB_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_PTR_SUB);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_MUL_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_MUL);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_DIV_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_DIV);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_MOD_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_MOD);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_LSHIFT_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_LSHIFT);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_RSHIFT_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_RSHIFT);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_AND_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_AND);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_XOR_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_XOR);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_OR_EQ:
+        generate_lvalue(expr->lhs);
+        put_instruction("  push [rsp]");
+        generate_load(expr->lhs->type);
+        generate_expression(expr->rhs);
+        generate_binary(expr, BINOP_OR);
+        generate_store(expr->type);
+        return;
+
+    case EXPR_COMMA:
+        generate_expression(expr->lhs);
+        put_instruction("  pop rax");
+        generate_expression(expr->rhs);
         return;
 
     case EXPR_FUNC:
@@ -940,16 +991,16 @@ static void generate_node(const Node *node)
         put_instruction("  je  .Lbegin%d", lab);
         // case 1: rsp has not been aligned yet
         put_instruction("  sub rsp, 8");
-        generate_args(node->args);
+        generate_args(expr->args);
         put_instruction("  mov rax, 0");
-        put_instruction("  call %s", node->ident);
+        put_instruction("  call %s", expr->ident);
         put_instruction("  add rsp, 8");
         put_instruction("  jmp .Lend%d", lab);
         put_instruction(".Lbegin%d:", lab);
         // case 2: rsp has already been aligned
-        generate_args(node->args);
+        generate_args(expr->args);
         put_instruction("  mov rax, 0");
-        put_instruction("  call %s", node->ident);
+        put_instruction("  call %s", expr->ident);
         put_instruction(".Lend%d:", lab);
         // push return value
         put_instruction("  push rax");
@@ -962,74 +1013,74 @@ static void generate_node(const Node *node)
     }
 
     // compile LHS and RHS
-    generate_node(node->lhs);
-    generate_node(node->rhs);
+    generate_expression(expr->lhs);
+    generate_expression(expr->rhs);
 
     // execute operation
-    switch(node->kind)
+    switch(expr->kind)
     {
     case EXPR_ADD:
-        generate_binary(node, BINOP_ADD);
+        generate_binary(expr, BINOP_ADD);
         return;
 
     case EXPR_PTR_ADD:
-        generate_binary(node, BINOP_PTR_ADD);
+        generate_binary(expr, BINOP_PTR_ADD);
         return;
 
     case EXPR_SUB:
-        generate_binary(node, BINOP_SUB);
+        generate_binary(expr, BINOP_SUB);
         return;
 
     case EXPR_PTR_SUB:
-        generate_binary(node, BINOP_PTR_SUB);
+        generate_binary(expr, BINOP_PTR_SUB);
         return;
 
     case EXPR_MUL:
-        generate_binary(node, BINOP_MUL);
+        generate_binary(expr, BINOP_MUL);
         return;
 
     case EXPR_DIV:
-        generate_binary(node, BINOP_DIV);
+        generate_binary(expr, BINOP_DIV);
         return;
 
     case EXPR_MOD:
-        generate_binary(node, BINOP_MOD);
+        generate_binary(expr, BINOP_MOD);
         return;
 
     case EXPR_LSHIFT:
-        generate_binary(node, BINOP_LSHIFT);
+        generate_binary(expr, BINOP_LSHIFT);
         return;
 
     case EXPR_RSHIFT:
-        generate_binary(node, BINOP_RSHIFT);
+        generate_binary(expr, BINOP_RSHIFT);
         return;
 
     case EXPR_EQ:
-        generate_binary(node, BINOP_EQ);
+        generate_binary(expr, BINOP_EQ);
         return;
 
     case EXPR_NEQ:
-        generate_binary(node, BINOP_NEQ);
+        generate_binary(expr, BINOP_NEQ);
         return;
 
     case EXPR_L:
-        generate_binary(node, BINOP_L);
+        generate_binary(expr, BINOP_L);
         return;
 
     case EXPR_LEQ:
-        generate_binary(node, BINOP_LEQ);
+        generate_binary(expr, BINOP_LEQ);
         return;
 
     case EXPR_BIT_AND:
-        generate_binary(node, BINOP_AND);
+        generate_binary(expr, BINOP_AND);
         return;
 
     case EXPR_BIT_XOR:
-        generate_binary(node, BINOP_XOR);
+        generate_binary(expr, BINOP_XOR);
         return;
 
     case EXPR_BIT_OR:
-        generate_binary(node, BINOP_OR);
+        generate_binary(expr, BINOP_OR);
         return;
 
     default:

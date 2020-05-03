@@ -73,7 +73,7 @@ typedef enum {
     TQ_VOLATILE = 1 << 2, // volatile
 } TypeQualifier;
 
-// kind of node in AST(abstract syntax tree)
+// expressions
 typedef enum {
     EXPR_CONST,      // integer-constant
     EXPR_VAR,        // variable
@@ -119,10 +119,15 @@ typedef enum {
     EXPR_XOR_EQ,     // compound assignment expression for bitwise exclusive OR (^=)
     EXPR_OR_EQ,      // compound assignment expression for bitwise inclusive OR (|=)
     EXPR_COMMA,      // comma operator (,)
+} ExpressionKind;
+
+// statements
+typedef enum {
     STMT_LABEL,      // labeled statement
     STMT_CASE,       // case label of switch statement
     STMT_COMPOUND,   // compound statement
     STMT_DECL,       // declaration
+    STMT_EXPR,       // expression statement
     STMT_NULL,       // null statement
     STMT_IF,         // if statement
     STMT_SWITCH,     // switch statement
@@ -133,7 +138,7 @@ typedef enum {
     STMT_CONTINUE,   // continue statement
     STMT_BREAK,      // break statement
     STMT_RETURN,     // return statement
-} NodeKind;
+} StatementKind;
 
 
 // structure for token
@@ -181,8 +186,8 @@ struct Type {
     Member *member;     // members (only for TY_STRUCT, TY_UNION)
 };
 
-// structure for node in AST (forward declaration)
-typedef struct Node Node;
+// structure for statement (forward declaration)
+typedef struct Statement Statement;
 
 // structure for variable
 typedef struct Variable Variable;
@@ -190,7 +195,7 @@ struct Variable {
     Variable *next;    // next element
     const char *name;  // name of variable
     Type *type;        // type of variable
-    Node *init;        // initializer
+    Statement *init;   // initializer
     bool local;        // flag indicating that the variable is local or global
     size_t offset;     // offset from base pointer (rbp) (only for local variable)
     char *content;     // content of string-literal including '\0' (only for string-literal)
@@ -204,25 +209,41 @@ typedef struct {
     int value;        // value of enumerator
 } Enumerator;
 
-// structure for node in AST
-struct Node {
-    Node *next;          // next element
-    NodeKind kind;       // kind of node
-    Node *lhs;           // left hand side
-    Node *rhs;           // right hand side
-    Type *type;          // type of node
-    long value;          // value of node (only for ND_CONST, ND_CASE)
-    Variable *var;       // information of variable (only for ND_GVAR, ND_LVAR)
-    Node *cond;          // condition (only for ND_IF, ND_WHILE, ND_DO, ND_FOR)
-    Node *preexpr;       // pre-expression (only for ND_FOR)
-    Node *postexpr;      // post-expression (only for ND_FOR)
-    int case_label;      // sequential number of case label (only for ND_CASE)
-    Node *next_case;     // next case (only for ND_SWITCH, ND_CASE)
-    Node *default_case;  // default case (only for ND_SWITCH)
-    Node *body;          // body of compound statements (only for ND_BLOCK, ND_DECL)
-    char *ident;         // identifier (only for ND_FUNC, ND_GOTO, ND_LABEL)
-    Node *args;          // arguments (only for ND_FUNC)
-    Member *member;      // member (only for ND_MEMBER)
+// structure for expression (forward declaration)
+typedef struct Expression Expression;
+
+// structure for expression
+struct Expression {
+    Expression *next;    // next element
+    ExpressionKind kind; // kind of expression
+    Type *type;          // type of expression
+    Expression *lhs;     // left hand side
+    Expression *rhs;     // right hand side
+    Expression *cond;    // conditional part (only for EXPR_COND)
+    long value;          // value of expression (only for EXPR_CONST)
+    Variable *var;       // information of variable (only for EXPR_VAR)
+    Member *member;      // member (only for EXPR_MEMBER)
+    Expression *args;    // arguments (only for EXPR_FUNC)
+    char *ident;         // identifier (only for EXPR_FUNC)
+};
+
+// structure for statement
+struct Statement {
+    Statement *next;         // next element
+    StatementKind kind;      // kind of statement
+    Statement *body;         // body of compound statements
+    Expression *cond;        // condition (only for STMT_IF, STMT_WHILE, STMT_DO, STMT_FOR)
+    Expression *preexpr;     // pre-expression (only for STMT_FOR)
+    Expression *postexpr;    // post-expression (only for STMT_FOR)
+    Statement *next_case;    // next case (only for STMT_SWITCH, STMT_CASE)
+    Statement *default_case; // default case (only for STMT_SWITCH)
+    Statement *true_case;    // statements of true case (only for STMT_IF)
+    Statement *false_case;   // statements of false case (only for STMT_IF)
+    Expression *expr;        // expression (only for STMT_EXPR)
+    Variable *var;           // information of variable (only for STMT_DECL)
+    char *ident;             // identifier (only for STMT_LABEL, STMT_GOTO)
+    long value;              // value of node (only for STMT_CASE)
+    int case_label;          // sequential number of case label (only for STMT_CASE)
 };
 
 // structure for function
@@ -232,7 +253,7 @@ struct Function {
     char *name;        // name of function
     Type *type;        // type of function
     Variable *args;    // arguments
-    Node *body;        // body of function definition
+    Statement *body;   // body of function definition
     Variable *locals;  // list of local variables (including arguments)
     size_t stack_size; // size of stack in bytes
 };
