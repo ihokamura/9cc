@@ -488,11 +488,11 @@ static void generate_statement(const Statement *stmt)
         return;
 
     case STMT_DECL:
-        for(const Statement *n = stmt->body; n != NULL; n = n->next)
+        for(const Declaration *decl = stmt->decl; decl != NULL; decl = decl->next)
         {
-            if(n->var->init != NULL)
+            if((decl->var != NULL) && (decl->var->init != NULL))
             {
-                generate_statement(n->var->init);
+                generate_statement(decl->var->init);
             }
         }
         return;

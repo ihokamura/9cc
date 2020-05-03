@@ -106,8 +106,8 @@ static int enumerator(int val);
 static Statement *statement(void);
 static Statement *compound_statement(void);
 static Statement *declaration(bool is_local);
-static Statement *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
-static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
+static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
+static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Initializer *initializer(void);
 static Initializer *initializer_list(void);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
@@ -133,6 +133,7 @@ static Expression *arg_expr_list(void);
 static Expression *primary(void);
 static Expression *new_expression(ExpressionKind kind);
 static Statement *new_statement(StatementKind kind);
+static Declaration *new_declaration(Variable *var);
 static Expression *new_node_unary(ExpressionKind kind, Expression *lhs);
 static Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs);
 static Expression *new_node_subscript(Expression *base, size_t index);
@@ -1474,10 +1475,10 @@ static Statement *declaration(bool is_local)
     Type *type = declaration_specifiers(&sclass);
 
     // parse init-declarator-list
-    Statement *stmt = new_statement((sclass == SC_TYPEDEF) ? STMT_NULL : STMT_DECL);
+    Statement *stmt = new_statement(STMT_DECL);
     if(peek_declarator())
     {
-        stmt->body = init_declarator_list(type, sclass, is_local);
+        stmt->decl = init_declarator_list(type, sclass, is_local);
     }
 
     expect_reserved(";");
@@ -1492,10 +1493,10 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static Statement *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
+static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
-    Statement *stmt = init_declarator(type, sclass, is_local);
-    Statement *cursor = stmt;
+    Declaration *decl = init_declarator(type, sclass, is_local);
+    Declaration *cursor = decl;
 
     while(consume_reserved(","))
     {
@@ -1503,7 +1504,7 @@ static Statement *init_declarator_list(Type *type, StorageClassSpecifier sclass,
         cursor = cursor->next;
     }
 
-    return stmt;
+    return decl;
 }
 
 
@@ -1513,7 +1514,7 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
+static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
     // parse declarator
     Token *token;
@@ -1528,10 +1529,9 @@ static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool
 
     if(sclass == SC_TYPEDEF)
     {
+        // make a dummy declaration
         push_identifier_scope(make_identifier(token))->type_def = type;
-
-        static Statement dummy_stmt;
-        return &dummy_stmt;
+        return new_declaration(NULL);
     }
     else
     {
@@ -1565,9 +1565,7 @@ static Statement *init_declarator(Type *type, StorageClassSpecifier sclass, bool
             }
         }
 
-        Statement *stmt = new_statement(STMT_DECL);
-        stmt->var = expr->var;
-        return stmt;
+        return new_declaration(expr->var);
     }
 }
 
@@ -2916,6 +2914,19 @@ static Statement *new_statement(StatementKind kind)
     node->ident = NULL;
 
     return node;
+}
+
+
+/*
+make a new declaration
+*/
+static Declaration *new_declaration(Variable *var)
+{
+    Declaration *decl = calloc(1, sizeof(Declaration));
+    decl->next = NULL;
+    decl->var = var;
+
+    return decl;
 }
 
 
