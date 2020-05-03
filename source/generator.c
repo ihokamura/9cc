@@ -13,7 +13,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "9cc.h"
+#include "generator.h"
+#include "tokenizer.h"
+#include "type.h"
 
 
 // type definition

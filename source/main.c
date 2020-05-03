@@ -13,7 +13,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "9cc.h"
+#include "generator.h"
+#include "parser.h"
+#include "tokenizer.h"
 
 
 /*

@@ -5,16 +5,6 @@
 [1] https://www.sigbus.info/compilerbook
 */
 
-/*
-# Contents of this file
-* definition of macro
-* definition of enumeration
-* definition of structure
-* definition of type
-* declaration of function prototype
-* declaration of global variable
-*/
-
 #ifndef __9CC_H__
 #define __9CC_H__
 
@@ -140,6 +130,14 @@ typedef enum {
     STMT_RETURN,     // return statement
 } StatementKind;
 
+typedef enum {
+    SC_TYPEDEF,  // "typdef"
+    SC_EXTERN,   // "extern"
+    SC_STATIC,   // "static"
+    SC_AUTO,     // "auto"
+    SC_REGISTER, // "register"
+} StorageClassSpecifier;
+
 
 // structure for token
 typedef struct Token Token;
@@ -204,15 +202,13 @@ struct Variable {
 };
 
 // structure for enumerator
-typedef struct {
+typedef struct Enumerator {
     const char *name; // name of enumerator
     int value;        // value of enumerator
 } Enumerator;
 
-// structure for expression (forward declaration)
-typedef struct Expression Expression;
-
 // structure for expression
+typedef struct Expression Expression;
 struct Expression {
     Expression *next;    // next element
     ExpressionKind kind; // kind of expression
@@ -272,45 +268,31 @@ typedef struct Program {
     Function *funcs; // list of functions
 } Program;
 
-// function prototype
-// parser.c
-void construct(Program *prog);
-// generator.c
-void generate(const Program *program);
-// tokenizer.c
-bool peek_reserved(const char *str);
-bool peek_token(TokenKind kind, Token **token);
-bool consume_reserved(const char *str);
-bool consume_token(TokenKind kind, Token **token);
-Token *get_token(void);
-void set_token(Token *token);
-void expect_reserved(const char *str);
-Token *expect_identifier(void);
-Token *expect_integer_constant(void);
-void tokenize(char *str);
-bool at_eof(void);
-char *make_identifier(const Token *token);
-void set_source(SourceType type);
-char *read_file(const char *path);
-void report_warning(const char *loc, const char *fmt, ...);
-void report_error(const char *loc, const char *fmt, ...);
-// type.c
-Type *new_type(TypeKind kind, TypeQualifier qual);
-int get_conversion_rank(const Type *type);
-Type *discard_sign(const Type *type);
-bool is_integer(const Type *type);
-bool is_signed(const Type *type);
-bool is_unsigned(const Type *type);
-bool is_pointer(const Type *type);
-bool is_array(const Type *type);
-bool is_pointer_or_array(const Type *type);
-bool is_struct(const Type *type);
-bool is_union(const Type *type);
-Type *new_type_enum(void);
-Type *new_type_pointer(Type *base);
-Type *new_type_array(Type *base, size_t len);
-Type *new_type_function(Type *base, Type *args);
-Member *new_member(const Token *token, Type *type);
-Member *find_member(const Token *token, const Type *type);
+// structure for identifier
+typedef struct Identifier Identifier;
+struct Identifier {
+    Identifier *next; // next element
+    const char *name; // identifier
+    Variable *var;    // variable
+    Enumerator *en;   // enumerator
+    Type *type_def;   // type definition
+    int depth;        // depth of scope
+};
+
+// structure for tag
+typedef struct Tag Tag;
+struct Tag {
+    Tag *next;        // next element
+    const char *name; // name of tag
+    Type *type;       // type 
+    int depth;        // depth of scope
+};
+
+// structure for scope
+typedef struct Scope {
+    Identifier *ident_list; // list of ordinary identifiers visible in the current scope
+    Tag *tag_list;          // list of tags visible in the current scope
+    int depth;              // depth of the current scope
+} Scope;
 
 #endif /* !__9CC_H__ */

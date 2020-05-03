@@ -10,10 +10,12 @@
 * type handler
 */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "9cc.h"
+#include "tokenizer.h"
+#include "type.h"
 
 
 // macro
@@ -433,4 +435,12 @@ Member *find_member(const Token *token, const Type *type)
 
     report_error(NULL, "cannot find a member \"%s\"", make_identifier(token));
     return NULL;
+}
+
+/*
+adjust alignment
+*/
+size_t adjust_alignment(size_t target, size_t alignment)
+{
+    return (target + (alignment - 1)) & ~(alignment - 1);
 }
