@@ -759,7 +759,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_DEREF:
         generate_expression(expr->lhs);
-        if(!(is_array(expr->type) || is_function(expr->type)))
+        if(!(is_array(expr->type) || is_function(expr->lhs->type->base)))
         {
             generate_load(expr->type);
         }
@@ -1048,9 +1048,9 @@ static void generate_expression(const Expression *expr)
         generate_args(expr->args);
 #endif /* CHECK_STACK_SIZE */
         put_instruction("  mov rax, 0");
-        if(expr->var != NULL)
+        if((expr->lhs->var != NULL) && is_function(expr->lhs->type))
         {
-            put_instruction("  call %s", expr->var->name);
+            put_instruction("  call %s", expr->lhs->var->name);
         }
         else
         {

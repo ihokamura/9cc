@@ -120,7 +120,15 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *lhs)
         break;
 
     case EXPR_DEREF:
-        node->type = lhs->type->base;
+        if(is_function(lhs->type->base))
+        {
+            // implicitly convert function to pointer
+            node->type = lhs->type;
+        }
+        else
+        {
+            node->type = lhs->type->base;
+        }
         break;
 
     case EXPR_POST_INC:
@@ -252,7 +260,7 @@ static Expression *primary(void)
         Expression *node = expression();
  
         expect_reserved(")");
- 
+
         return node;
     }
 
@@ -356,29 +364,29 @@ static Expression *postfix(void)
         else if(consume_reserved("("))
         {
             // function call
-            Expression *func_node = new_expression(EXPR_FUNC);
-            if(!consume_reserved(")"))
-            {
-                func_node->args = arg_expr_list();
-                expect_reserved(")");
-            }
-
             if(is_function(node->type))
             {
-                func_node->type = node->type->base; // get type of return value
-                func_node->var = node->var;
+                // implicitly convert function to pointer
+                node->type = new_type_pointer(node->type);
             }
-            else if((node->type->base != NULL) && is_function(node->type->base))
+
+            if(is_function(node->type->base))
             {
+                Expression *func_node = new_expression(EXPR_FUNC);
                 func_node->lhs = node;
                 func_node->type = node->type->base->base; // dereference pointer and get type of return value
+                // parse arguments
+                if(!consume_reserved(")"))
+                {
+                    func_node->args = arg_expr_list();
+                    expect_reserved(")");
+                }
+                node = func_node;
             }
             else
             {
                 report_error(NULL, "expected function");
             }
-
-            node = func_node;
         }
         else if(consume_reserved("."))
         {
