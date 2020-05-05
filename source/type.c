@@ -348,6 +348,15 @@ bool is_union(const Type *type)
 
 
 /*
+check if a given type is a function type
+*/
+bool is_function(const Type *type)
+{
+    return (type->kind == TY_FUNC);
+}
+
+
+/*
 make an enumeration type
 */
 Type *new_type_enum(void)

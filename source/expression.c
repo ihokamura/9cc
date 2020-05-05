@@ -60,7 +60,6 @@ Expression *new_expression(ExpressionKind kind)
     node->value = 0;
     node->var = NULL;
     node->cond = NULL;
-    node->ident = NULL;
     node->args = NULL;
 
     return node;
@@ -192,6 +191,11 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
             // convert from array to pointer
             node->type = new_type_pointer(rhs->type->base);
         }
+        else if(is_function(rhs->type))
+        {
+            // convert from function to pointer
+            node->type = new_type_pointer(rhs->type);
+        }
         else
         {
             node->type = lhs->type;
@@ -262,21 +266,10 @@ static Expression *primary(void)
             if(ident->var != NULL)
             {
                 // variable
-                Variable *var = ident->var;
-                if(var->type->kind == TY_FUNC)
-                {
-                    Expression *node = new_expression(EXPR_FUNC);
-                    node->type = new_type_pointer(var->type);
-                    node->ident = make_identifier(token);
-                    return node;
-                }
-                else
-                {
-                    Expression *node = new_expression(EXPR_VAR);
-                    node->type = var->type;
-                    node->var = var;
-                    return node;
-                }
+                Expression *node = new_expression(EXPR_VAR);
+                node->type = ident->var->type;
+                node->var = ident->var;
+                return node;
             }
             else if(ident->en != NULL)
             {
@@ -288,9 +281,11 @@ static Expression *primary(void)
         if(peek_reserved("("))
         {
             // implicitly assume that the token denotes a function which returns int
-            Expression *node = new_expression(EXPR_FUNC);
-            node->type = new_type_pointer(new_type_function(new_type(TY_INT, TQ_NONE), new_type(TY_VOID, TQ_NONE)));
-            node->ident = make_identifier(token);
+            Expression *node = new_expression(EXPR_VAR);
+            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_type(TY_VOID, TQ_NONE));
+            Variable *var = new_gvar(token, type, false);
+            node->type = type;
+            node->var = var;
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
             report_warning(token->str, "implicit declaration of function '%s'\n", make_identifier(token));
 #endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
@@ -361,19 +356,28 @@ static Expression *postfix(void)
         else if(consume_reserved("("))
         {
             // function call
-            if((node->type->base == NULL) || (node->type->base->kind != TY_FUNC))
-            {
-                report_error(NULL, "expected function");
-            }
-
             Expression *func_node = new_expression(EXPR_FUNC);
             if(!consume_reserved(")"))
             {
                 func_node->args = arg_expr_list();
                 expect_reserved(")");
             }
-            func_node->type = node->type->base->base; // dereference pointer and get type of return value
-            func_node->ident = node->ident;
+
+            if(is_function(node->type))
+            {
+                func_node->type = node->type->base; // get type of return value
+                func_node->var = node->var;
+            }
+            else if((node->type->base != NULL) && is_function(node->type->base))
+            {
+                func_node->lhs = node;
+                func_node->type = node->type->base->base; // dereference pointer and get type of return value
+            }
+            else
+            {
+                report_error(NULL, "expected function");
+            }
+
             node = func_node;
         }
         else if(consume_reserved("."))

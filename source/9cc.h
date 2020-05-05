@@ -220,7 +220,6 @@ struct Expression {
     Variable *var;       // information of variable (only for EXPR_VAR)
     Member *member;      // member (only for EXPR_MEMBER)
     Expression *args;    // arguments (only for EXPR_FUNC)
-    char *ident;         // identifier (only for EXPR_FUNC)
 };
 
 // structure for declaration

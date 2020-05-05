@@ -747,7 +747,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_VAR:
         generate_lvalue(expr);
-        if(!(is_array(expr->var->type) || is_struct(expr->var->type) || is_union(expr->var->type)))
+        if(!(is_array(expr->var->type) || is_function(expr->var->type) || is_struct(expr->var->type) || is_union(expr->var->type)))
         {
             generate_load(expr->var->type);
         }
@@ -759,7 +759,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_DEREF:
         generate_expression(expr->lhs);
-        if(!is_array(expr->type))
+        if(!(is_array(expr->type) || is_function(expr->type)))
         {
             generate_load(expr->type);
         }
@@ -1048,7 +1048,16 @@ static void generate_expression(const Expression *expr)
         generate_args(expr->args);
 #endif /* CHECK_STACK_SIZE */
         put_instruction("  mov rax, 0");
-        put_instruction("  call %s", expr->ident);
+        if(expr->var != NULL)
+        {
+            put_instruction("  call %s", expr->var->name);
+        }
+        else
+        {
+            generate_expression(expr->lhs);
+            generate_pop("rbx");
+            put_instruction("  call rbx");
+        }
 
         if(!aligned)
         {

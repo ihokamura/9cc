@@ -21,6 +21,7 @@ bool is_array(const Type *type);
 bool is_pointer_or_array(const Type *type);
 bool is_struct(const Type *type);
 bool is_union(const Type *type);
+bool is_function(const Type *type);
 Type *new_type_enum(void);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
