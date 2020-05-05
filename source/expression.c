@@ -120,15 +120,8 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *lhs)
         break;
 
     case EXPR_DEREF:
-        if(is_function(lhs->type->base))
-        {
-            // implicitly convert function to pointer
-            node->type = lhs->type;
-        }
-        else
-        {
-            node->type = lhs->type->base;
-        }
+        // An array type is also converted to the element type.
+        node->type = lhs->type->base;
         break;
 
     case EXPR_POST_INC:
@@ -196,12 +189,12 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_ASSIGN:
         if(is_array(rhs->type))
         {
-            // convert from array to pointer
+            // implicitly convert array to pointer
             node->type = new_type_pointer(rhs->type->base);
         }
         else if(is_function(rhs->type))
         {
-            // convert from function to pointer
+            // implicitly convert function to pointer
             node->type = new_type_pointer(rhs->type);
         }
         else
@@ -345,11 +338,21 @@ static Expression *postfix(void)
             Expression *lhs;
             Expression *index = expression();
 
-            if(is_pointer_or_array(node->type) && is_integer(index->type))
+            // implicitly convert array to pointer
+            if(is_array(node->type))
+            {
+                node = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, node));
+            }
+            if(is_array(index->type))
+            {
+                index = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, index));
+            }
+
+            if(is_pointer(node->type) && is_integer(index->type))
             {
                 lhs = new_node_binary(EXPR_PTR_ADD, node, index);
             }
-            else if(is_integer(node->type) && is_pointer_or_array(index->type))
+            else if(is_integer(node->type) && is_pointer(index->type))
             {
                 lhs = new_node_binary(EXPR_PTR_ADD, index, node);
             }
@@ -367,7 +370,7 @@ static Expression *postfix(void)
             if(is_function(node->type))
             {
                 // implicitly convert function to pointer
-                node->type = new_type_pointer(node->type);
+                node = new_node_unary(EXPR_ADDR, node);
             }
 
             if(is_function(node->type->base))
@@ -534,7 +537,15 @@ static Expression *unary(void)
     }
     else if (consume_reserved("*"))
     {
-        node = new_node_unary(EXPR_DEREF, unary());
+        Expression *operand = unary();
+
+        // implicitly convert function to pointer
+        if(is_function(operand->type))
+        {
+            operand = new_node_unary(EXPR_ADDR, operand);
+        }
+
+        node = new_node_unary(EXPR_DEREF, operand);
     }
     else if(consume_reserved("+"))
     {
@@ -648,15 +659,25 @@ static Expression *additive(void)
             Expression *lhs = node;
             Expression *rhs = multiplicative();
 
+            // implicitly convert array to pointer
+            if(is_array(lhs->type))
+            {
+                lhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, lhs));
+            }
+            if(is_array(rhs->type))
+            {
+                rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
+            }
+
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(EXPR_ADD, lhs, rhs);
             }
-            else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
+            else if(is_pointer(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(EXPR_PTR_ADD, lhs, rhs);
             }
-            else if(is_integer(lhs->type) && is_pointer_or_array(rhs->type))
+            else if(is_integer(lhs->type) && is_pointer(rhs->type))
             {
                 node = new_node_binary(EXPR_PTR_ADD, rhs, lhs);
             }
@@ -670,11 +691,21 @@ static Expression *additive(void)
             Expression *lhs = node;
             Expression *rhs = multiplicative();
 
+            // implicitly convert array to pointer
+            if(is_array(lhs->type))
+            {
+                lhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, lhs));
+            }
+            if(is_array(rhs->type))
+            {
+                rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
+            }
+
             if(is_integer(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(EXPR_SUB, lhs, rhs);
             }
-            else if(is_pointer_or_array(lhs->type) && is_integer(rhs->type))
+            else if(is_pointer(lhs->type) && is_integer(rhs->type))
             {
                 node = new_node_binary(EXPR_PTR_SUB, lhs, rhs);
             }

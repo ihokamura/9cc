@@ -321,15 +321,6 @@ bool is_array(const Type *type)
 
 
 /*
-check if a given type is a pointer type or an array type
-*/
-bool is_pointer_or_array(const Type *type)
-{
-    return (is_pointer(type) || is_array(type));
-}
-
-
-/*
 check if a given type is a structure type
 */
 bool is_struct(const Type *type)

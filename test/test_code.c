@@ -614,7 +614,7 @@ int test_function_call()
     int (*pf)(void);
     pf = func_call_return0; assert_int(0, pf());
     pf = &func_call_return1; assert_int(1, pf());
-    pf = func_call_return2; assert_int(2, (*pf)()); assert_int(2, (***pf)());
+    pf = func_call_return2; assert_int(2, (**func_call_return2)()); assert_int(2, (*pf)()); assert_int(2, (***pf)());
     int (*af[3])(void) = {func_call_return0, func_call_return1, func_call_return2}; int i; for(i = 0; i < sizeof(af) / sizeof(af[0]); i++) {assert_int(i, af[i]());}
 }
 
@@ -1002,7 +1002,7 @@ int test_struct()
     st4.m4 = 2; st4.m3 = &st4.m4; st4.m5 = &st4.m3; assert_int(2, *st4.m3); assert_int(2, **st4.m5);
 
     struct {int a1[5];} st5, st5_copy;
-    int i; for(i = 0; i < 5; i++) st5.a1[i] = i; st5_copy = st5; for(i = 0; i < 5; i++) assert_int(i, st5_copy.a1[i]);
+    int i; for(i = 0; i < 5; i++) st5.a1[i] = i; st5_copy = st5; for(i = 0; i < 5; i++) assert_int(i, st5_copy.a1[i]); assert_int(20, sizeof(st5.a1));
 
     return 0;
 }
@@ -1036,7 +1036,7 @@ int test_union()
 
     union {struct {long mm1; long mm2;} m1; int m2[3];} un4, un4_copy;
     un4.m1.mm1 = 1; un4.m1.mm2 = 2; un4_copy = un4; assert_long(1, un4_copy.m1.mm1); assert_long(2, un4_copy.m1.mm2);
-    int i; for(i = 0; i < 3; i++) un4.m2[i] = 10 * i; un4_copy = un4; for(i = 0; i < 3; i++) assert_int(10 * i, un4_copy.m2[i]);
+    int i; for(i = 0; i < 3; i++) un4.m2[i] = 10 * i; un4_copy = un4; for(i = 0; i < 3; i++) assert_int(10 * i, un4_copy.m2[i]); assert_int(12, sizeof(un4.m2));
 
     return 0;
 }

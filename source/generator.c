@@ -759,7 +759,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_DEREF:
         generate_expression(expr->lhs);
-        if(!(is_array(expr->type) || is_function(expr->lhs->type->base)))
+        if(!(is_array(expr->type) || is_function(expr->type)))
         {
             generate_load(expr->type);
         }
