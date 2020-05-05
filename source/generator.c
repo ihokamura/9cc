@@ -17,6 +17,11 @@
 #include "tokenizer.h"
 #include "type.h"
 
+#define CHECK_STACK_SIZE (ENABLED) // check stack size
+#if(CHECK_STACK_SIZE == ENABLED)
+#include <assert.h>
+#endif /* CHECK_STACK_SIZE */
+
 
 // type definition
 typedef enum {
@@ -40,12 +45,15 @@ typedef enum {
 
 
 // function prototype
+static void generate_push_imm(int value);
+static void generate_push_reg_or_mem(const char *reg_or_mem);
+static void generate_pop(const char *reg_or_mem);
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static void generate_args(const Expression *args);
+static size_t generate_args(const Expression *args);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
@@ -58,9 +66,11 @@ const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name 
 const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
 const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
 const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
+const size_t STACK_CHANGE_UNIT = 8; // number of bytes by which the stack grows or shrinks in one push or pop operation
 static int lab_number; // sequential number for labels
 static int brk_number; // sequential number for break statements
 static int cnt_number; // sequential number for continue statements
+static int stack_size; // size of the stack
 
 
 /*
@@ -91,11 +101,42 @@ void generate(const Program *program)
 
 
 /*
+generate assembler code to push an immediate value to the stack
+* 'push' instruction cannot take a 64-bit immediate value.
+*/
+static void generate_push_imm(int value)
+{
+    put_instruction("  push %d", value);
+    stack_size += STACK_CHANGE_UNIT;
+}
+
+
+/*
+generate assembler code to push a register or memory contents to the stack
+*/
+static void generate_push_reg_or_mem(const char *reg_or_mem)
+{
+    put_instruction("  push %s", reg_or_mem);
+    stack_size += STACK_CHANGE_UNIT;
+}
+
+
+/*
+generate assembler code to pop from the stack to a register or memory
+*/
+static void generate_pop(const char *reg_or_mem)
+{
+    put_instruction("  pop %s", reg_or_mem);
+    stack_size -= STACK_CHANGE_UNIT;
+}
+
+
+/*
 generate assembler code to load value
 */
 static void generate_load(const Type *type)
 {
-    put_instruction("  pop rax");
+    generate_pop("rax");
     if(type->size == 1)
     {
         put_instruction("  movsxb rax, byte ptr [rax]");
@@ -112,7 +153,7 @@ static void generate_load(const Type *type)
     {
         put_instruction("  mov rax, [rax]");
     }
-    put_instruction("  push rax");
+    generate_push_reg_or_mem("rax");
 }
 
 
@@ -121,8 +162,8 @@ generate assembler code to store value
 */
 static void generate_store(const Type *type)
 {
-    put_instruction("  pop rdi");
-    put_instruction("  pop rax");
+    generate_pop("rdi");
+    generate_pop("rax");
     if(type->size == 1)
     {
         put_instruction("  mov byte ptr [rax], dil");
@@ -170,7 +211,7 @@ static void generate_store(const Type *type)
             break;
         }
     }
-    put_instruction("  push rdi");
+    generate_push_reg_or_mem("rdi");
 }
 
 
@@ -186,12 +227,12 @@ static void generate_lvalue(const Expression *expr)
         {
             put_instruction("  mov rax, rbp");
             put_instruction("  sub rax, %lu", expr->var->offset);
-            put_instruction("  push rax");
+            generate_push_reg_or_mem("rax");
         }
         else
         {
             put_instruction("  lea rax, %s[rip]", expr->var->name);
-            put_instruction("  push rax");
+            generate_push_reg_or_mem("rax");
         }
         break;
 
@@ -201,9 +242,9 @@ static void generate_lvalue(const Expression *expr)
 
     case EXPR_MEMBER:
         generate_lvalue(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  add rax, %lu", expr->member->offset);
-        put_instruction("  push rax");
+        generate_push_reg_or_mem("rax");
         break;
 
     default:
@@ -276,9 +317,10 @@ static void generate_func(const Function *func)
     put_instruction("%s:", func->name);
 
     // prologue: allocate stack for arguments and local variables and copy arguments
-    put_instruction("  push rbp");
+    generate_push_reg_or_mem("rbp");
     put_instruction("  mov rbp, rsp");
     put_instruction("  sub rsp, %lu", func->stack_size);
+    stack_size = func->stack_size; // initialize stack size
 
     // arguments
     size_t argc = 0;
@@ -310,13 +352,13 @@ static void generate_func(const Function *func)
         else
         {
             // load argument from the stack
-            put_instruction("  push rax");
+            generate_push_reg_or_mem("rax");
             put_instruction("  mov rax, rbp");
             put_instruction("  add rax, %lu", (argc - ARG_REGISTERS_SIZE + 2) * 8);
-            put_instruction("  push rax");
+            generate_push_reg_or_mem("rax");
             generate_load(arg->type);
             generate_store(arg->type);
-            put_instruction("  pop rdi");
+            generate_pop("rdi");
         }
 
         // count number of arguments
@@ -329,21 +371,18 @@ static void generate_func(const Function *func)
         generate_statement(stmt);
     }
 
-    // epilogue: save return value and release stack
-    if(func->type->kind != TY_VOID)
-    {
-        put_instruction("  pop rax");
-    }
+    // epilogue: release stack
     put_instruction("  mov rsp, rbp");
-    put_instruction("  pop rbp");
+    generate_pop("rbp");
     put_instruction("  ret");
 }
 
 
 /*
 generate assembler code of function arguments
+* This function returns number of arguments which are passed on the stack.
 */
-static void generate_args(const Expression *args)
+static size_t generate_args(const Expression *args)
 {
     // push arguments
     size_t argc = 0;
@@ -357,8 +396,10 @@ static void generate_args(const Expression *args)
     size_t argc_reg = (argc < ARG_REGISTERS_SIZE) ? argc : ARG_REGISTERS_SIZE;
     for(size_t i = 0; i < argc_reg; i++)
     {
-        put_instruction("  pop %s", arg_registers64[i]);
+        generate_pop(arg_registers64[i]);
     }
+
+    return argc - argc_reg;
 }
 
 
@@ -368,8 +409,8 @@ generate assembler code of binary operation
 static void generate_binary(const Expression *expr, BinaryOperationKind kind)
 {
     // pop RHS to rdi and LHS to rax
-    put_instruction("  pop rdi");
-    put_instruction("  pop rax");
+    generate_pop("rdi");
+    generate_pop("rax");
 
     // execute operation
     switch(kind)
@@ -458,7 +499,7 @@ static void generate_binary(const Expression *expr, BinaryOperationKind kind)
     }
 
     // push the result of operation
-    put_instruction("  push rax");
+    generate_push_reg_or_mem("rax");
 }
 
 
@@ -501,6 +542,7 @@ static void generate_statement(const Statement *stmt)
 
     case STMT_EXPR:
         generate_expression(stmt->expr);
+        generate_pop("rax");
         return;
 
     case STMT_NULL:
@@ -512,7 +554,7 @@ static void generate_statement(const Statement *stmt)
         lab_number++;
 
         generate_expression(stmt->cond);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         if(stmt->false_case == NULL)
         {
@@ -542,7 +584,7 @@ static void generate_statement(const Statement *stmt)
         lab_number++;
 
         generate_expression(stmt->cond);
-        put_instruction("  pop rax");
+        generate_pop("rax");
 
         for(Statement *s = stmt->next_case; s != NULL; s = s->next_case)
         {
@@ -580,7 +622,7 @@ static void generate_statement(const Statement *stmt)
         put_instruction(".Lbegin%d:", lab);
         put_instruction(".Lcontinue%d:", lab);
         generate_expression(stmt->cond);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je  .Lend%d", lab);
         generate_statement(stmt->body);
@@ -605,7 +647,7 @@ static void generate_statement(const Statement *stmt)
         generate_statement(stmt->body);
         put_instruction(".Lcontinue%d:", lab);
         generate_expression(stmt->cond);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  jne .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
@@ -632,7 +674,7 @@ static void generate_statement(const Statement *stmt)
         if(stmt->cond != NULL)
         {
             generate_expression(stmt->cond);
-            put_instruction("  pop rax");
+            generate_pop("rax");
             put_instruction("  cmp rax, 0");
             put_instruction("  je  .Lend%d", lab);
         }
@@ -668,10 +710,10 @@ static void generate_statement(const Statement *stmt)
         {
             // return value
             generate_expression(stmt->expr);
-            put_instruction("  pop rax");
+            generate_pop("rax");
         }
         put_instruction("  mov rsp, rbp");
-        put_instruction("  pop rbp");
+        generate_pop("rbp");
         put_instruction("  ret");
         return;
 
@@ -691,15 +733,15 @@ static void generate_expression(const Expression *expr)
     switch(expr->kind)
     {
     case EXPR_CONST:
-        // note that push instruction cannot take a 64-bit immediate value
+        // It is assumed that the size of 'int' is 4 bytes.
         if(expr->value == (int)expr->value)
         {
-            put_instruction("  push %d", expr->value);
+            generate_push_imm(expr->value);
         }
         else
         {
             put_instruction("  mov rax, %ld", expr->value);
-            put_instruction("  push rax", expr->value);
+            generate_push_reg_or_mem("rax");
         }
         return;
 
@@ -733,51 +775,51 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_COMPL:
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  not rax");
-        put_instruction("  push rax");
+        generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_NEG:
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  sete al");
         put_instruction("  movzb eax, al");
-        put_instruction("  push rax");
+        generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_POST_INC:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  mov rbx, rax");
-        put_instruction("  push rax");
-        put_instruction("  push 1");
+        generate_push_reg_or_mem("rax");
+        generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
         generate_store(expr->type);
-        put_instruction("  pop rax");
-        put_instruction("  push rbx");
+        generate_pop("rax");
+        generate_push_reg_or_mem("rbx");
         return;
 
     case EXPR_POST_DEC:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  mov rbx, rax");
-        put_instruction("  push rax");
-        put_instruction("  push 1");
+        generate_push_reg_or_mem("rax");
+        generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
         generate_store(expr->type);
-        put_instruction("  pop rax");
-        put_instruction("  push rbx");
+        generate_pop("rax");
+        generate_push_reg_or_mem("rbx");
         return;
 
     case EXPR_CAST:
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         if(expr->type->size == 1)
         {
             put_instruction("  movsxb rax, al");
@@ -790,7 +832,7 @@ static void generate_expression(const Expression *expr)
         {
             put_instruction("  movsxd rax, eax");
         }
-        put_instruction("  push rax");
+        generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_LOG_AND:
@@ -800,18 +842,19 @@ static void generate_expression(const Expression *expr)
         lab_number++;
 
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je .Lfalse%d", lab);
         generate_expression(expr->rhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je .Lfalse%d", lab);
-        put_instruction("  push 1");
+        put_instruction("  mov rax, 1");
         put_instruction("  jmp .Lend%d", lab);
         put_instruction(".Lfalse%d:", lab);
-        put_instruction("  push 0");
+        put_instruction("  mov rax, 0");
         put_instruction(".Lend%d:", lab);
+        generate_push_reg_or_mem("rax");
         return;
     }
 
@@ -822,18 +865,19 @@ static void generate_expression(const Expression *expr)
         lab_number++;
 
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  jne .Ltrue%d", lab);
         generate_expression(expr->rhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  jne .Ltrue%d", lab);
-        put_instruction("  push 0");
+        put_instruction("  mov rax, 0");
         put_instruction("  jmp .Lend%d", lab);
         put_instruction(".Ltrue%d:", lab);
-        put_instruction("  push 1");
+        put_instruction("  mov rax, 1");
         put_instruction(".Lend%d:", lab);
+        generate_push_reg_or_mem("rax");
         return;
     }
 
@@ -844,14 +888,17 @@ static void generate_expression(const Expression *expr)
         lab_number++;
 
         generate_expression(expr->cond);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je .Lelse%d", lab);
         generate_expression(expr->lhs);
+        generate_pop("rax");
         put_instruction("  jmp .Lend%d", lab);
         put_instruction(".Lelse%d:", lab);
         generate_expression(expr->rhs);
+        generate_pop("rax");
         put_instruction(".Lend%d:", lab);
+        generate_push_reg_or_mem("rax");
         return;
     }
 
@@ -859,12 +906,11 @@ static void generate_expression(const Expression *expr)
         generate_lvalue(expr->lhs);
         generate_expression(expr->rhs);
         generate_store(expr->type);
-
         return;
 
     case EXPR_ADD_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_ADD);
@@ -873,7 +919,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_PTR_ADD_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_ADD);
@@ -882,7 +928,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_SUB_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_SUB);
@@ -891,7 +937,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_PTR_SUB_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_SUB);
@@ -900,7 +946,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_MUL_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MUL);
@@ -909,7 +955,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_DIV_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_DIV);
@@ -918,7 +964,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_MOD_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MOD);
@@ -927,7 +973,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_LSHIFT_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_LSHIFT);
@@ -936,7 +982,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_RSHIFT_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_RSHIFT);
@@ -945,7 +991,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_AND_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_AND);
@@ -954,7 +1000,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_XOR_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_XOR);
@@ -963,7 +1009,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_OR_EQ:
         generate_lvalue(expr->lhs);
-        put_instruction("  push [rsp]");
+        generate_push_reg_or_mem("[rsp]");
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_OR);
@@ -972,40 +1018,53 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_COMMA:
         generate_expression(expr->lhs);
-        put_instruction("  pop rax");
+        generate_pop("rax");
         generate_expression(expr->rhs);
         return;
 
     case EXPR_FUNC:
     {
-        int lab = lab_number;
-        lab_number++;
-
         // System V ABI for x86-64 requires that
         // * rsp be a multiple of 16 before function call.
         // * Arguments be passed in rdi, rsi, rdx, rcx, r8, r9, and further ones be passed on the stack in reverse order.
         // * The number of floating point arguments be set to al if the callee is a variadic function.
 
-        // check alignment of rsp before function call
-        put_instruction("  mov rax, rsp");
-        put_instruction("  and rax, 0xF");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je  .Lbegin%d", lab);
-        // case 1: rsp has not been aligned yet
-        put_instruction("  sub rsp, 8");
+        // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
+#if(CHECK_STACK_SIZE == ENABLED)
+        int current_stack = stack_size;
+#endif /* CHECK_STACK_SIZE */
+        bool aligned = ((stack_size % 16) == 0);
+        if(!aligned)
+        {
+            put_instruction("  sub rsp, %d", STACK_CHANGE_UNIT);
+#if(CHECK_STACK_SIZE == ENABLED)
+            stack_size += STACK_CHANGE_UNIT;
+#endif /* CHECK_STACK_SIZE */
+        }
+
+#if(CHECK_STACK_SIZE == ENABLED)
+        size_t stack_args = generate_args(expr->args);
+#else
         generate_args(expr->args);
+#endif /* CHECK_STACK_SIZE */
         put_instruction("  mov rax, 0");
         put_instruction("  call %s", expr->ident);
-        put_instruction("  add rsp, 8");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Lbegin%d:", lab);
-        // case 2: rsp has already been aligned
-        generate_args(expr->args);
-        put_instruction("  mov rax, 0");
-        put_instruction("  call %s", expr->ident);
-        put_instruction(".Lend%d:", lab);
+
+        if(!aligned)
+        {
+            put_instruction("  add rsp, %d", STACK_CHANGE_UNIT);
+#if(CHECK_STACK_SIZE == ENABLED)
+            stack_size -= STACK_CHANGE_UNIT;
+#endif /* CHECK_STACK_SIZE */
+        }
+#if(CHECK_STACK_SIZE == ENABLED)
+        stack_size -= STACK_CHANGE_UNIT * stack_args;
+        assert(stack_size == current_stack);
+#endif /* CHECK_STACK_SIZE */
+
         // push return value
-        put_instruction("  push rax");
+        generate_push_reg_or_mem("rax");
+
         return;
     }
 
