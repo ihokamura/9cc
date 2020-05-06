@@ -31,8 +31,9 @@ static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
 static int is_constant(const char *str, TypeKind *kind, long *value);
-static long read_integer_constant(const char *str, TypeKind *kind);
-static int read_character_constant(const char *str);
+static int parse_escape_sequence(const char *str);
+static long convert_integer_constant(const char *str, TypeKind *kind);
+static int convert_character_constant(const char *str);
 static void report_position(const char *loc);
 
 
@@ -138,6 +139,9 @@ static const struct {int character; int value;} simple_escape_sequence_map[] = {
     {'v', '\v'},
 };
 static const size_t SIMPLE_ESCAPE_SEQUENCE_SIZE = sizeof(simple_escape_sequence_map) / sizeof(simple_escape_sequence_map[0]); // number of simple escape sequences
+// list of octal digits
+static const char octal_digit_list[] = "01234567";
+static const size_t OCTAL_DIGIT_LIST_SIZE = sizeof(octal_digit_list) / sizeof(octal_digit_list[0]); // number of octal digits
 static char *user_input; // input of compiler
 static Token *current_token; // currently parsing token
 static int source_type; // type of source
@@ -646,27 +650,19 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
     {
         // character constant
         len++;
-        while((str[len] != '\0') && (str[len] != '\''))
-        {
-            if(str[len] == '\\')
-            {
-                // check escape sequence
-                len++;
 
-                bool valid = false;
-                for(size_t i = 0; i < SIMPLE_ESCAPE_SEQUENCE_SIZE; i++)
-                {
-                    if(str[len] == simple_escape_sequence_map[i].character)
-                    {
-                        valid = true;
-                        break;
-                    }
-                }
-                if(!valid)
-                {
-                    report_error(str, "unknown escape sequence");
-                }
-            }
+        if(str[len] == '\'')
+        {
+            report_error(str, "empty character constant");
+        }
+
+        if(str[len] == '\\')
+        {
+            len++;
+            len += parse_escape_sequence(&str[len]);
+        }
+        else
+        {
             len++;
         }
 
@@ -680,7 +676,7 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
         }
 
         *kind = TY_INT;
-        *value = read_character_constant(str);
+        *value = convert_character_constant(str);
     }
     else
     {
@@ -689,7 +685,7 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
         {
             len++;
         }
-        *value = read_integer_constant(str, kind);
+        *value = convert_integer_constant(str, kind);
     }
 
     return len;
@@ -697,9 +693,53 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
 
 
 /*
-parse an integer-constant
+parse an escape sequence
 */
-static long read_integer_constant(const char *str, TypeKind *kind)
+static int parse_escape_sequence(const char *str)
+{
+    int len = 0;
+
+    // check simple escape sequence
+    for(size_t i = 0; i < SIMPLE_ESCAPE_SEQUENCE_SIZE; i++)
+    {
+        if(str[len] == simple_escape_sequence_map[i].character)
+        {
+            len++;
+            break;
+        }
+    }
+    if(len > 0)
+    {
+        return len;
+    }
+
+    // check octal escape sequence
+    // An octal escape sequence consists of up to 3 octal digits.
+    for(size_t count = 0; count < 3; count++)
+    {
+        for(size_t i = 0; i < OCTAL_DIGIT_LIST_SIZE; i++)
+        {
+            if(str[len] == octal_digit_list[i])
+            {
+                len++;
+                break;
+            }
+        }
+    }
+    if(len > 0)
+    {
+        return len;
+    }
+
+    report_error(str, "unknown escape sequence");
+    return len;
+}
+
+
+/*
+convert an integer-constant
+*/
+static long convert_integer_constant(const char *str, TypeKind *kind)
 {
     long value = strtol(str, NULL, 10);
     if(errno != ERANGE)
@@ -724,30 +764,28 @@ static long read_integer_constant(const char *str, TypeKind *kind)
 
 
 /*
-parse a character constant
+convert a character constant
 */
-static int read_character_constant(const char *str)
+static int convert_character_constant(const char *str)
 {
-    int result = 0;
-
     if(str[1] == '\\')
     {
-        // handle escape sequence
+        // simple escape sequence
         for(size_t i = 0; i < SIMPLE_ESCAPE_SEQUENCE_SIZE; i++)
         {
             if(str[2] == simple_escape_sequence_map[i].character)
             {
-                result = simple_escape_sequence_map[i].value;
-                break;
+                return simple_escape_sequence_map[i].value;
             }
         }
+
+        // octal escape sequence
+        return strtol(&str[2], NULL, 8);
     }
     else
     {
-        result = str[1];
+        return str[1];
     }
-
-    return result;
 }
 
 

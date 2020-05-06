@@ -1108,6 +1108,10 @@ int test_character_constant()
     assert_char(13, '\r');
     assert_char(9, '\t');
     assert_char(11, '\v');
+    assert_char(0, '\0');
+    assert_char(1, '\1');
+    assert_char(10, '\12');
+    assert_char(83, '\123');
 }
 
 
