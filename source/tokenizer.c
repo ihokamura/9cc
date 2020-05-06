@@ -147,6 +147,23 @@ static const size_t OCTAL_DIGIT_LIST_SIZE = sizeof(octal_digit_list) / sizeof(oc
 // list of hexadecimal digits
 static const char hexadecimal_digit_list[] = "0123456789abcdefABCDEF";
 static const size_t HEXADECIMAL_DIGIT_LIST_SIZE = sizeof(hexadecimal_digit_list) / sizeof(hexadecimal_digit_list[0]); // number of hexadecimal digits
+// list of integer suffixes
+// It is necessary to put longer strings above than shorter strings.
+static const struct {const char *suffix; TypeKind type;} integer_suffix_list[] = {
+    {"ul", TY_ULONG},
+    {"uL", TY_ULONG},
+    {"Ul", TY_ULONG},
+    {"UL", TY_ULONG},
+    {"lu", TY_ULONG},
+    {"lU", TY_ULONG},
+    {"Lu", TY_ULONG},
+    {"LU", TY_ULONG},
+    {"u", TY_UINT},
+    {"U", TY_UINT},
+    {"l", TY_LONG},
+    {"L", TY_LONG},
+};
+static const size_t INTEGER_SUFFIX_LIST_SIZE = sizeof(integer_suffix_list) / sizeof(integer_suffix_list[0]); // number of integer suffixes
 static char *user_input; // input of compiler
 static Token *current_token; // currently parsing token
 static int source_type; // type of source
@@ -705,6 +722,18 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
         {
             len++;
         }
+
+        for(size_t i = 0; i < INTEGER_SUFFIX_LIST_SIZE; i++)
+        {
+            const char *suffix = integer_suffix_list[i].suffix;
+            size_t suffix_len = strlen(suffix);
+            if(strncmp(&str[len], suffix, suffix_len) == 0)
+            {
+                len += suffix_len;
+                break;
+            }
+        }
+
         *value = convert_integer_constant(str, kind);
     }
 
@@ -809,7 +838,8 @@ static long convert_integer_constant(const char *str, TypeKind *kind)
         offset = 0;
     }
 
-    long value = strtol(&str[offset], NULL, base);
+    char *end;
+    long value = strtol(&str[offset], &end, base);
     if(errno != ERANGE)
     {
         if((INT_MIN <= value) && (value <= INT_MAX))
@@ -825,6 +855,31 @@ static long convert_integer_constant(const char *str, TypeKind *kind)
     {
         report_warning(str, "integer constant is too large");
         *kind = TY_LONG;
+    }
+
+    for(size_t i = 0; i < INTEGER_SUFFIX_LIST_SIZE; i++)
+    {
+        const char *suffix = integer_suffix_list[i].suffix;
+        size_t suffix_len = strlen(suffix);
+        if(strncmp(end, suffix, suffix_len) == 0)
+        {
+            if(integer_suffix_list[i].type == TY_UINT)
+            {
+                if(*kind == TY_INT)
+                {
+                    *kind = TY_UINT;
+                }
+                else if(*kind == TY_LONG)
+                {
+                    *kind = TY_ULONG;
+                }
+            }
+            else
+            {
+                *kind = integer_suffix_list[i].type;
+            }
+            break;
+        }
     }
 
     return value;
