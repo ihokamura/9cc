@@ -30,7 +30,7 @@ typedef enum {
 typedef enum {
     TK_RESERVED, // reserved token
     TK_IDENT,    // identifier
-    TK_CONST,    // integer-constant
+    TK_CONST,    // constant
     TK_STR,      // string-literal
     TK_EOF,      // end of input
 } TokenKind;
@@ -65,7 +65,7 @@ typedef enum {
 
 // expressions
 typedef enum {
-    EXPR_CONST,      // integer-constant
+    EXPR_CONST,      // constant
     EXPR_VAR,        // variable
     EXPR_FUNC,       // function call
     EXPR_MEMBER,     // member
@@ -139,6 +139,9 @@ typedef enum {
 } StorageClassSpecifier;
 
 
+// structure for type (forward declaration)
+typedef struct Type Type;
+
 // structure for token
 typedef struct Token Token;
 struct Token {
@@ -146,6 +149,8 @@ struct Token {
     TokenKind kind; // kind of token
     char *str;      // pointer to token string
     size_t len;     // length of token string
+    TypeKind type;  // type of token (only for TK_CONST)
+    long value;     // value of token (only for TK_CONST)
 };
 
 // structure for contents in data segment
@@ -157,9 +162,6 @@ struct DataSegment {
     bool zero;           // flag indicating that data is zero or non-zero
     long value;          // value of data
 };
-
-// structure for type (forward declaration)
-typedef struct Type Type;
 
 // structure for member
 typedef struct Member Member;

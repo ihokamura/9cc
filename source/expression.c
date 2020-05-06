@@ -10,8 +10,6 @@
 * parser for expression
 */
 
-#include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +41,6 @@ static Expression *logical_or(void);
 static Expression *conditional(void);
 static Expression *apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
-static long parse_integer_constant(const Token *token, TypeKind *kind);
 
 
 /*
@@ -67,9 +64,9 @@ Expression *new_expression(ExpressionKind kind)
 
 
 /*
-make a new node for integer-constant
+make a new node for constant
 */
-Expression *new_node_integer(TypeKind kind, long value)
+Expression *new_node_constant(TypeKind kind, long value)
 {
     Expression *node = new_expression(EXPR_CONST);
     node->type = new_type(kind, TQ_NONE);
@@ -84,7 +81,7 @@ make a new node for subscripting
 */
 Expression *new_node_subscript(Expression *base, size_t index)
 {
-    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_integer(TY_ULONG, index));
+    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_constant(TY_ULONG, index));
     Expression *dest = new_node_unary(EXPR_DEREF, addr);
 
     return dest;
@@ -240,7 +237,7 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
 make a primary expression
 ```
 primary ::= identifier
-          | integer-constant
+          | constant
           | string-literal
           | "(" expression ")"
 ```
@@ -275,7 +272,7 @@ static Expression *primary(void)
             else if(ident->en != NULL)
             {
                 // enumeration
-                return new_node_integer(TY_INT, ident->en->value);
+                return new_node_constant(TY_INT, ident->en->value);
             }
         }
 
@@ -305,11 +302,9 @@ static Expression *primary(void)
         return node;
     }
 
-    // integer-constant
-    token = expect_integer_constant();
-    TypeKind kind;
-    long value = parse_integer_constant(token, &kind);
-    return new_node_integer(kind, value);
+    // constant
+    token = expect_constant();
+    return new_node_constant(token->type, token->value);
 }
 
 
@@ -484,7 +479,7 @@ static Expression *unary(void)
             if(peek_type_name())
             {
                 Type *type = type_name();
-                node = new_node_integer(TY_ULONG, type->size);
+                node = new_node_constant(TY_ULONG, type->size);
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -495,7 +490,7 @@ static Expression *unary(void)
         }
 
         Expression *operand = unary();
-        node = new_node_integer(TY_ULONG, operand->type->size);
+        node = new_node_constant(TY_ULONG, operand->type->size);
     }
     else if(consume_reserved("++"))
     {
@@ -503,11 +498,11 @@ static Expression *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
         }
         else
         {
@@ -520,11 +515,11 @@ static Expression *unary(void)
 
         if(is_integer(operand->type))
         {
-            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_integer(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
         }
         else
         {
@@ -553,7 +548,7 @@ static Expression *unary(void)
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(EXPR_SUB, new_node_integer(TY_INT, 0), apply_integer_promotion(unary()));
+        node = new_node_binary(EXPR_SUB, new_node_constant(TY_INT, 0), apply_integer_promotion(unary()));
     }
     else if (consume_reserved("~"))
     {
@@ -1379,31 +1374,4 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
             }
         }
     }
-}
-
-
-/*
-parse an integer-constant
-*/
-static long parse_integer_constant(const Token *token, TypeKind *kind)
-{
-    long value = strtol(token->str, NULL, 10);
-    if(errno != ERANGE)
-    {
-        if((INT_MIN <= value) && (value <= INT_MAX))
-        {
-            *kind = TY_INT;
-        }
-        else
-        {
-            *kind = TY_LONG;
-        }
-    }
-    else
-    {
-        report_warning(token->str, "integer constant is too large");
-        *kind = TY_LONG;
-    }
-
-    return value;
 }

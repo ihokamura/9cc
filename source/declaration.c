@@ -1400,7 +1400,7 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
             {
                 cursor->next = new_initializer();
                 cursor = cursor->next;
-                cursor->assign = new_node_integer(TY_INT, content[i]);
+                cursor->assign = new_node_constant(TY_INT, content[i]);
             }
 
             Initializer *init_string = new_initializer();
@@ -1456,7 +1456,7 @@ static Statement *assign_zero_initializer(Expression *expr)
     else
     {
         init_stmt->body = new_statement(STMT_EXPR);
-        init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, new_node_integer(TY_INT, 0));
+        init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, new_node_constant(TY_INT, 0));
     }
 
     return init_stmt;
@@ -1591,7 +1591,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             {
                 cursor->next = new_initializer();
                 cursor = cursor->next;
-                cursor->assign = new_node_integer(TY_INT, content[i]);
+                cursor->assign = new_node_constant(TY_INT, content[i]);
             }
 
             Initializer *init_string = new_initializer();

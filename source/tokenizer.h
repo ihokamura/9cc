@@ -20,7 +20,7 @@ Token *get_token(void);
 void set_token(Token *token);
 void expect_reserved(const char *str);
 Token *expect_identifier(void);
-Token *expect_integer_constant(void);
+Token *expect_constant(void);
 void tokenize(char *str);
 bool at_eof(void);
 char *make_identifier(const Token *token);

@@ -12,7 +12,7 @@
 ### Expressions
 ```
 primary ::= identifier
-          | integer-constant
+          | constant
           | string-literal
           | "(" expression ")"
 

@@ -11,7 +11,7 @@
 #include "9cc.h"
 
 Expression *new_expression(ExpressionKind kind);
-Expression *new_node_integer(TypeKind kind, long value);
+Expression *new_node_constant(TypeKind kind, long value);
 Expression *new_node_subscript(Expression *base, size_t index);
 Expression *new_node_member(Expression *expr, Member *member);
 Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs);

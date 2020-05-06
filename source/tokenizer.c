@@ -12,6 +12,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -19,16 +20,18 @@
 #include <string.h>
 
 #include "tokenizer.h"
+#include "type.h"
 
 
 // function prototype
+static Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 static int is_space(const char *str);
 static int is_comment(const char *str);
 static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
-static int is_integer_constant(const char *str);
-static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len);
+static int is_constant(const char *str, TypeKind *kind, long *value);
+static long read_integer_constant(const char *str, TypeKind *kind);
 static void report_position(const char *loc);
 
 
@@ -123,6 +126,24 @@ static char *user_input; // input of compiler
 static Token *current_token; // currently parsing token
 static int source_type; // type of source
 static const char *file_name; // name of source file
+
+
+/*
+make a new token and concatenate it to the current token
+*/
+static Token *new_token(TokenKind kind, Token *cur, char *str, int len)
+{
+    Token *token = calloc(1, sizeof(Token));
+
+    token->kind = kind;
+    token->str = str;
+    token->len = len;
+    token->type = TY_INT;
+    token->value = 0;
+    cur->next = token;
+
+    return token;
+}
 
 
 /*
@@ -246,15 +267,15 @@ Token *expect_identifier(void)
 
 
 /*
-parse an integer-constant
-* If the next token is an integer-constant, this function parses and returns the token.
+parse a constant
+* If the next token is a constant, this function parses and returns the token.
 * Otherwise, it reports an error.
 */
-Token *expect_integer_constant(void)
+Token *expect_constant(void)
 {
     if(current_token->kind != TK_CONST)
     {
-        report_error(current_token->str, "expected an integer-constant.");
+        report_error(current_token->str, "expected a constant.");
     }
 
     Token *token = current_token;
@@ -323,11 +344,15 @@ void tokenize(char *str)
             continue;
         }
 
-        // parse an integer-constant
-        len = is_integer_constant(str);
+        // parse a constant
+        TypeKind type;
+        long value;
+        len = is_constant(str, &type, &value);
         if(len > 0)
         {
             cursor = new_token(TK_CONST, cursor, str, len);
+            cursor->type = type;
+            cursor->value = value;
             str += len;
             continue;
         }
@@ -594,9 +619,9 @@ static int is_string(const char *str)
 
 
 /*
-check if the following string is an integer-constant
+check if the following string is a constant
 */
-static int is_integer_constant(const char *str)
+static int is_constant(const char *str, TypeKind *kind, long *value)
 {
     int len = 0;
 
@@ -605,23 +630,36 @@ static int is_integer_constant(const char *str)
         len++;
     }
 
+    *value = read_integer_constant(str, kind);
+
     return len;
 }
 
 
 /*
-make a new token and concatenate it to the current token
+parse an integer-constant
 */
-static Token *new_token(TokenKind kind, Token *cur_tok, char *str, int len)
+static long read_integer_constant(const char *str, TypeKind *kind)
 {
-    Token *new_tok = calloc(1, sizeof(Token));
+    long value = strtol(str, NULL, 10);
+    if(errno != ERANGE)
+    {
+        if((INT_MIN <= value) && (value <= INT_MAX))
+        {
+            *kind = TY_INT;
+        }
+        else
+        {
+            *kind = TY_LONG;
+        }
+    }
+    else
+    {
+        report_warning(str, "integer constant is too large");
+        *kind = TY_LONG;
+    }
 
-    new_tok->kind = kind;
-    new_tok->str = str;
-    new_tok->len = len;
-    cur_tok->next = new_tok;
-
-    return new_tok;
+    return value;
 }
 
 
