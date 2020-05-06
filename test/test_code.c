@@ -1086,6 +1086,9 @@ int test_integer_constant()
     long sint_max_p1 = 2147483648; assert_long(2147483648, sint_max_p1);
     int sint_min = -2147483648; assert_int(-2147483648, sint_min);
     long sint_min_m1 = -2147483649; assert_long(-2147483649, sint_min_m1);
+
+    int oct_int = 012; assert_int(10, oct_int); assert_int(-83, -0123);
+    int hex_int = 0x12; assert_int(18, hex_int); assert_int(-6699, -0X1A2b);
 }
 
 

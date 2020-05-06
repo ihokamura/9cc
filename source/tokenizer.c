@@ -31,6 +31,8 @@ static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
 static int is_constant(const char *str, TypeKind *kind, long *value);
+static int is_octal_digit(int character);
+static int is_hexadeciaml_digit(int character);
 static int parse_escape_sequence(const char *str);
 static long convert_integer_constant(const char *str, TypeKind *kind);
 static int convert_character_constant(const char *str);
@@ -142,6 +144,9 @@ static const size_t SIMPLE_ESCAPE_SEQUENCE_SIZE = sizeof(simple_escape_sequence_
 // list of octal digits
 static const char octal_digit_list[] = "01234567";
 static const size_t OCTAL_DIGIT_LIST_SIZE = sizeof(octal_digit_list) / sizeof(octal_digit_list[0]); // number of octal digits
+// list of hexadecimal digits
+static const char hexadecimal_digit_list[] = "0123456789abcdefABCDEF";
+static const size_t HEXADECIMAL_DIGIT_LIST_SIZE = sizeof(hexadecimal_digit_list) / sizeof(hexadecimal_digit_list[0]); // number of hexadecimal digits
 static char *user_input; // input of compiler
 static Token *current_token; // currently parsing token
 static int source_type; // type of source
@@ -681,7 +686,22 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
     else
     {
         // integer constant
-        while(isdigit(str[len]))
+        int (*check_digit)(int);
+        if((strncmp(&str[len], "0x", 2) == 0) || (strncmp(&str[len], "0X", 2) == 0))
+        {
+            len += 2;
+            check_digit = is_hexadeciaml_digit;
+        }
+        else if(str[len] == '0')
+        {
+            check_digit = is_octal_digit;
+        }
+        else
+        {
+            check_digit = isdigit;
+        }
+
+        while(check_digit(str[len]))
         {
             len++;
         }
@@ -689,6 +709,40 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
     }
 
     return len;
+}
+
+
+/*
+check if the character is an octal digit
+*/
+static int is_octal_digit(int character)
+{
+    for(size_t i = 0; i < OCTAL_DIGIT_LIST_SIZE; i++)
+    {
+        if(character == octal_digit_list[i])
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+/*
+check if the character is a hexadecimal digit
+*/
+static int is_hexadeciaml_digit(int character)
+{
+    for(size_t i = 0; i < HEXADECIMAL_DIGIT_LIST_SIZE; i++)
+    {
+        if(character == hexadecimal_digit_list[i])
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
@@ -717,13 +771,9 @@ static int parse_escape_sequence(const char *str)
     // An octal escape sequence consists of up to 3 octal digits.
     for(size_t count = 0; count < 3; count++)
     {
-        for(size_t i = 0; i < OCTAL_DIGIT_LIST_SIZE; i++)
+        if(is_octal_digit(str[len]))
         {
-            if(str[len] == octal_digit_list[i])
-            {
-                len++;
-                break;
-            }
+            len++;
         }
     }
     if(len > 0)
@@ -741,7 +791,25 @@ convert an integer-constant
 */
 static long convert_integer_constant(const char *str, TypeKind *kind)
 {
-    long value = strtol(str, NULL, 10);
+    int base;
+    int offset;
+    if((strncmp(str, "0x", 2) == 0) || (strncmp(str, "0X", 2) == 0))
+    {
+        base = 16;
+        offset = 2;
+    }
+    else if(*str == '0')
+    {
+        base = 8;
+        offset = 0;
+    }
+    else
+    {
+        base = 10;
+        offset = 0;
+    }
+
+    long value = strtol(&str[offset], NULL, base);
     if(errno != ERANGE)
     {
         if((INT_MIN <= value) && (value <= INT_MAX))
