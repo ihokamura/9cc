@@ -1090,6 +1090,28 @@ int test_integer_constant()
 
 
 /*
+character constant
+*/
+int test_character_constant()
+{
+    put_title("character constant");
+
+    assert_char(111, 'o');
+    assert_char(48, '0');
+    assert_char(34, '\"'); assert_char(34, '"');
+    assert_char(39, '\'');
+    assert_char(63, '\?'); assert_char(63, '?');
+    assert_char(92, '\\');
+    assert_char(7, '\a');
+    assert_char(8, '\b');
+    assert_char(12, '\f');
+    assert_char(13, '\r');
+    assert_char(9, '\t');
+    assert_char(11, '\v');
+}
+
+
+/*
 initializer
 */
 char gvar_char_init = 1;
@@ -1319,6 +1341,7 @@ int main()
     test_enum();
     test_string_literal();
     test_integer_constant();
+    test_character_constant();
     test_initializer();
     test_scope();
     test_storage_class();

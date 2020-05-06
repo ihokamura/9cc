@@ -32,6 +32,7 @@ static int is_identifier(const char *str);
 static int is_string(const char *str);
 static int is_constant(const char *str, TypeKind *kind, long *value);
 static long read_integer_constant(const char *str, TypeKind *kind);
+static int read_character_constant(const char *str);
 static void report_position(const char *loc);
 
 
@@ -122,6 +123,21 @@ static const char *keyword_list[] = {
     "while",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords
+// map of simple escape sequences (excluding "\")
+static const struct {int character; int value;} simple_escape_sequence_map[] = {
+    {'\'', '\''},
+    {'\"', '\"'},
+    {'\?', '\?'},
+    {'\\', '\\'},
+    {'a', '\a'},
+    {'b', '\b'},
+    {'f', '\f'},
+    {'n', '\n'},
+    {'r', '\r'},
+    {'t', '\t'},
+    {'v', '\v'},
+};
+static const size_t SIMPLE_ESCAPE_SEQUENCE_SIZE = sizeof(simple_escape_sequence_map) / sizeof(simple_escape_sequence_map[0]); // number of simple escape sequences
 static char *user_input; // input of compiler
 static Token *current_token; // currently parsing token
 static int source_type; // type of source
@@ -454,6 +470,7 @@ void report_warning(const char *loc, const char *fmt, ...)
     {
         loc = get_token()->str;
     }
+    report_position(loc);
 
     // print the warning message
     va_list ap;
@@ -625,12 +642,55 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
 {
     int len = 0;
 
-    while(isdigit(str[len]))
+    if(*str == '\'')
     {
+        // character constant
         len++;
-    }
+        while((str[len] != '\0') && (str[len] != '\''))
+        {
+            if(str[len] == '\\')
+            {
+                // check escape sequence
+                len++;
 
-    *value = read_integer_constant(str, kind);
+                bool valid = false;
+                for(size_t i = 0; i < SIMPLE_ESCAPE_SEQUENCE_SIZE; i++)
+                {
+                    if(str[len] == simple_escape_sequence_map[i].character)
+                    {
+                        valid = true;
+                        break;
+                    }
+                }
+                if(!valid)
+                {
+                    report_error(str, "unknown escape sequence");
+                }
+            }
+            len++;
+        }
+
+        if(str[len] == '\'')
+        {
+            len++;
+        }
+        else
+        {
+            report_error(str, "expected \"'\"");
+        }
+
+        *kind = TY_INT;
+        *value = read_character_constant(str);
+    }
+    else
+    {
+        // integer constant
+        while(isdigit(str[len]))
+        {
+            len++;
+        }
+        *value = read_integer_constant(str, kind);
+    }
 
     return len;
 }
@@ -660,6 +720,34 @@ static long read_integer_constant(const char *str, TypeKind *kind)
     }
 
     return value;
+}
+
+
+/*
+parse a character constant
+*/
+static int read_character_constant(const char *str)
+{
+    int result = 0;
+
+    if(str[1] == '\\')
+    {
+        // handle escape sequence
+        for(size_t i = 0; i < SIMPLE_ESCAPE_SEQUENCE_SIZE; i++)
+        {
+            if(str[2] == simple_escape_sequence_map[i].character)
+            {
+                result = simple_escape_sequence_map[i].value;
+                break;
+            }
+        }
+    }
+    else
+    {
+        result = str[1];
+    }
+
+    return result;
 }
 
 
