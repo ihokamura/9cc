@@ -23,6 +23,15 @@
 #include "type.h"
 
 
+// type definition
+typedef enum {
+    IS_NONE,          // none
+    IS_UNSIGNED,      // unsigned-suffix
+    IS_LONG,          // long-suffix
+    IS_UNSIGNED_LONG, // unsigned-suffix and long-suffix
+} IntegerSuffix;
+
+
 // function prototype
 static Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 static int is_space(const char *str);
@@ -34,7 +43,7 @@ static int is_constant(const char *str, TypeKind *kind, long *value);
 static int is_octal_digit(int character);
 static int is_hexadeciaml_digit(int character);
 static int parse_escape_sequence(const char *str);
-static long convert_integer_constant(const char *str, TypeKind *kind);
+static long convert_integer_constant(const char *start, int base, IntegerSuffix suffix, TypeKind *kind);
 static int convert_character_constant(const char *str);
 static void report_position(const char *loc);
 
@@ -149,19 +158,19 @@ static const char hexadecimal_digit_list[] = "0123456789abcdefABCDEF";
 static const size_t HEXADECIMAL_DIGIT_LIST_SIZE = sizeof(hexadecimal_digit_list) / sizeof(hexadecimal_digit_list[0]); // number of hexadecimal digits
 // list of integer suffixes
 // It is necessary to put longer strings above than shorter strings.
-static const struct {const char *suffix; TypeKind type;} integer_suffix_list[] = {
-    {"ul", TY_ULONG},
-    {"uL", TY_ULONG},
-    {"Ul", TY_ULONG},
-    {"UL", TY_ULONG},
-    {"lu", TY_ULONG},
-    {"lU", TY_ULONG},
-    {"Lu", TY_ULONG},
-    {"LU", TY_ULONG},
-    {"u", TY_UINT},
-    {"U", TY_UINT},
-    {"l", TY_LONG},
-    {"L", TY_LONG},
+static const struct {const char *string; IntegerSuffix suffix;} integer_suffix_list[] = {
+    {"ul", IS_UNSIGNED_LONG},
+    {"uL", IS_UNSIGNED_LONG},
+    {"Ul", IS_UNSIGNED_LONG},
+    {"UL", IS_UNSIGNED_LONG},
+    {"lu", IS_UNSIGNED_LONG},
+    {"lU", IS_UNSIGNED_LONG},
+    {"Lu", IS_UNSIGNED_LONG},
+    {"LU", IS_UNSIGNED_LONG},
+    {"u" , IS_UNSIGNED},
+    {"U" , IS_UNSIGNED},
+    {"l" , IS_LONG},
+    {"L" , IS_LONG},
 };
 static const size_t INTEGER_SUFFIX_LIST_SIZE = sizeof(integer_suffix_list) / sizeof(integer_suffix_list[0]); // number of integer suffixes
 static char *user_input; // input of compiler
@@ -703,38 +712,49 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
     else
     {
         // integer constant
+        int base;
+        const char *start;
         int (*check_digit)(int);
+
+        // check prefix
         if((strncmp(&str[len], "0x", 2) == 0) || (strncmp(&str[len], "0X", 2) == 0))
         {
             len += 2;
+            base = 16;
             check_digit = is_hexadeciaml_digit;
         }
         else if(str[len] == '0')
         {
+            base = 8;
             check_digit = is_octal_digit;
         }
         else
         {
+            base = 10;
             check_digit = isdigit;
         }
 
+        // consume digits
+        start = &str[len];
         while(check_digit(str[len]))
         {
             len++;
         }
 
+        // check suffix
+        IntegerSuffix suffix = IS_NONE;
         for(size_t i = 0; i < INTEGER_SUFFIX_LIST_SIZE; i++)
         {
-            const char *suffix = integer_suffix_list[i].suffix;
-            size_t suffix_len = strlen(suffix);
-            if(strncmp(&str[len], suffix, suffix_len) == 0)
+            const char *string = integer_suffix_list[i].string;
+            size_t suffix_length = strlen(string);
+            if(strncmp(&str[len], string, suffix_length) == 0)
             {
-                len += suffix_len;
+                len += suffix_length;
                 break;
             }
         }
 
-        *value = convert_integer_constant(str, kind);
+        *value = convert_integer_constant(start, base, suffix, kind);
     }
 
     return len;
@@ -818,71 +838,85 @@ static int parse_escape_sequence(const char *str)
 /*
 convert an integer-constant
 */
-static long convert_integer_constant(const char *str, TypeKind *kind)
+static long convert_integer_constant(const char *start, int base, IntegerSuffix suffix, TypeKind *kind)
 {
-    int base;
-    int offset;
-    if((strncmp(str, "0x", 2) == 0) || (strncmp(str, "0X", 2) == 0))
-    {
-        base = 16;
-        offset = 2;
-    }
-    else if(*str == '0')
-    {
-        base = 8;
-        offset = 0;
-    }
-    else
-    {
-        base = 10;
-        offset = 0;
-    }
+    // note that the converted string always represents positive value
+    unsigned long value = strtoul(start, NULL, base);
 
-    char *end;
-    long value = strtol(&str[offset], &end, base);
-    if(errno != ERANGE)
+    bool valid = (errno != ERANGE);
+    if(valid)
     {
-        if((INT_MIN <= value) && (value <= INT_MAX))
+        // determine type by value, base and suffix
+        switch(suffix)
         {
-            *kind = TY_INT;
-        }
-        else
-        {
-            *kind = TY_LONG;
-        }
-    }
-    else
-    {
-        report_warning(str, "integer constant is too large");
-        *kind = TY_LONG;
-    }
-
-    for(size_t i = 0; i < INTEGER_SUFFIX_LIST_SIZE; i++)
-    {
-        const char *suffix = integer_suffix_list[i].suffix;
-        size_t suffix_len = strlen(suffix);
-        if(strncmp(end, suffix, suffix_len) == 0)
-        {
-            if(integer_suffix_list[i].type == TY_UINT)
+        case IS_NONE:
+            if(value <= INT_MAX)
             {
-                if(*kind == TY_INT)
-                {
-                    *kind = TY_UINT;
-                }
-                else if(*kind == TY_LONG)
-                {
-                    *kind = TY_ULONG;
-                }
+                *kind = TY_INT;
+            }
+            else if((base != 10) && (value <= UINT_MAX))
+            {
+                *kind = TY_UINT;
+            }
+            else if(value <= LONG_MAX)
+            {
+                *kind = TY_LONG;
+            }
+            else if(base != 10)
+            {
+                *kind = TY_ULONG;
             }
             else
             {
-                *kind = integer_suffix_list[i].type;
+                valid = false;
             }
+            break;
+
+        case IS_UNSIGNED:
+            if(value <= UINT_MAX)
+            {
+                *kind = TY_UINT;
+            }
+            else
+            {
+                *kind = TY_ULONG;
+            }
+            break;
+
+        case IS_LONG:
+            if(value <= LONG_MAX)
+            {
+                *kind = TY_LONG;
+            }
+            else if(base != 10)
+            {
+                *kind = TY_ULONG;
+            }
+            else
+            {
+                valid = false;
+            }
+            break;
+
+        case IS_UNSIGNED_LONG:
+            *kind = TY_ULONG;
+            break;
+
+        default:
+            *kind = TY_INT;
             break;
         }
     }
 
-    return value;
+    // handle invalid case
+    if(!valid)
+    {
+        report_warning(start, "integer constant is too large");
+        *kind = TY_LONG;
+    }
+
+    // represent integer by long type
+    return (long)value;
 }
 
 

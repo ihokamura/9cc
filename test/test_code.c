@@ -1091,7 +1091,7 @@ int test_integer_constant()
     int hex_int = 0x12; assert_int(18, hex_int); assert_int(-6699, -0X1A2b);
     unsigned int uint_suffix = 12U; assert_int(12u, uint_suffix);
     long long_suffix = 12L; assert_long(12l, long_suffix);
-    unsigned long ulong_suffix = 12UL; assert_long(12lu, long_suffix);
+    unsigned long ulong_suffix = 12UL; assert_long(12lu, ulong_suffix);
 }
 
 
