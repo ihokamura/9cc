@@ -1059,12 +1059,16 @@ static void generate_expression(const Expression *expr)
         generate_args(expr->args);
 #endif /* CHECK_STACK_SIZE */
         put_instruction("  mov rax, 0");
-        if((expr->operand->var != NULL) && is_function(expr->operand->type))
+
+        Expression *body = expr->operand->operand;
+        if((body != NULL) && (body->var != NULL))
         {
-            put_instruction("  call %s", expr->operand->var->name);
+            // call function by name
+            put_instruction("  call %s", body->var->name);
         }
         else
         {
+            // call function through pointer
             generate_expression(expr->operand);
             generate_pop("rbx");
             put_instruction("  call rbx");
