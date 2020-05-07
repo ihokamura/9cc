@@ -590,8 +590,18 @@ static Expression *cast(void)
         {
             Type *type = type_name();
             expect_reserved(")");
-            node = new_expression(EXPR_CAST);
-            node->operand = unary();
+            if(!(is_void(type) || is_scalar(type)))
+            {
+                report_error(NULL, "expected void type or scalar type");
+            }
+
+            Expression *operand = unary();
+            if(!is_scalar(operand->type))
+            {
+                report_error(NULL, "expected scalar type");
+            }
+
+            node = new_node_unary(EXPR_CAST, operand);
             node->type = type;
             goto cast_end;
         }

@@ -13,10 +13,13 @@
 Type *new_type(TypeKind kind, TypeQualifier qual);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
-bool is_integer(const Type *type);
+bool is_void(const Type *type);
 bool is_signed(const Type *type);
 bool is_unsigned(const Type *type);
+bool is_integer(const Type *type);
+bool is_arithmetic(const Type *type);
 bool is_pointer(const Type *type);
+bool is_scalar(const Type *type);
 bool is_array(const Type *type);
 bool is_struct(const Type *type);
 bool is_union(const Type *type);

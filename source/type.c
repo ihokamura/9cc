@@ -215,6 +215,7 @@ int get_conversion_rank(const Type *type)
 
     case TY_INT:
     case TY_UINT:
+    case TY_ENUM:
         return RANK_INT;
 
     case TY_LONG:
@@ -257,20 +258,11 @@ Type *discard_sign(const Type *type)
 
 
 /*
-check if a given type is an integer type
+check if a given type is a void type
 */
-bool is_integer(const Type *type)
+bool is_void(const Type *type)
 {
-    return (
-           (type->kind == TY_CHAR)
-        || (type->kind == TY_UCHAR)
-        || (type->kind == TY_SHORT)
-        || (type->kind == TY_USHORT)
-        || (type->kind == TY_INT)
-        || (type->kind == TY_UINT)
-        || (type->kind == TY_LONG)
-        || (type->kind == TY_ULONG)
-        );
+    return (type->kind == TY_VOID);
 }
 
 
@@ -303,11 +295,38 @@ bool is_unsigned(const Type *type)
 
 
 /*
+check if a given type is an integer type
+*/
+bool is_integer(const Type *type)
+{
+    return is_signed(type) || is_unsigned(type) || (type->kind == TY_ENUM);
+}
+
+
+/*
+check if a given type is an arithmetic type
+*/
+bool is_arithmetic(const Type *type)
+{
+    return is_integer(type);
+}
+
+
+/*
 check if a given type is a pointer type
 */
 bool is_pointer(const Type *type)
 {
     return (type->kind == TY_PTR);
+}
+
+
+/*
+check if a given type is a scalar type
+*/
+bool is_scalar(const Type *type)
+{
+    return is_arithmetic(type) || is_pointer(type);
 }
 
 
