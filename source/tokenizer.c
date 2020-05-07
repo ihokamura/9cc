@@ -653,7 +653,15 @@ static int is_string(const char *str)
         len++;
         while((str[len] != '\0') && (str[len] != '"'))
         {
-            len++;
+            if(str[len] == '\\')
+            {
+                len++;
+                len += parse_escape_sequence(&str[len]);
+            }
+            else
+            {
+                len++;
+            }
         }
 
         if(str[len] == '"')

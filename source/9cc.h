@@ -191,18 +191,21 @@ struct Type {
 // structure for statement (forward declaration)
 typedef struct Statement Statement;
 
+// structure for string-literal (forward declaration)
+typedef struct StringLiteral StringLiteral;
+
 // structure for variable
 typedef struct Variable Variable;
 struct Variable {
-    Variable *next;    // next element
-    const char *name;  // name of variable
-    Type *type;        // type of variable
-    Statement *init;   // initializer
-    bool local;        // flag indicating that the variable is local or global
-    size_t offset;     // offset from base pointer (rbp) (only for local variable)
-    char *content;     // content of string-literal including '\0' (only for string-literal)
-    bool entity;       // flag indicating that the variable has an entity in the current translation unit (only for global variable)
-    DataSegment *data; // contents of data segment (only for global variable)
+    Variable *next;     // next element
+    const char *name;   // name of variable
+    Type *type;         // type of variable
+    Statement *init;    // initializer
+    bool local;         // flag indicating that the variable is local or global
+    size_t offset;      // offset from base pointer (rbp) (only for local variable)
+    StringLiteral *str; // information of string-literal (only for string-literal)
+    bool entity;        // flag indicating that the variable has an entity in the current translation unit (only for global variable)
+    DataSegment *data;  // contents of data segment (only for global variable)
 };
 
 // structure for enumerator
@@ -210,6 +213,13 @@ typedef struct Enumerator {
     const char *name; // name of enumerator
     int value;        // value of enumerator
 } Enumerator;
+
+// structure for string-literal
+struct StringLiteral {
+    StringLiteral *next; // next element
+    Variable *var;       // global variable which points to string-literal
+    const char *content; // array of characters consisting of string-literal
+};
 
 // structure for expression
 typedef struct Expression Expression;
@@ -221,6 +231,7 @@ struct Expression {
     Expression *rhs;     // right hand side of binary operation
     Expression *operand; // operand of unary operation or condition of conditional expression
     long value;          // value of expression (only for EXPR_CONST)
+    StringLiteral *str;  // information of string-literal (only for EXPR_STR)
     Variable *var;       // information of variable (only for EXPR_VAR)
     Member *member;      // member (only for EXPR_MEMBER)
     Expression *args;    // arguments (only for EXPR_FUNC)

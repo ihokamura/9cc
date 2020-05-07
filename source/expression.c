@@ -302,7 +302,8 @@ static Expression *primary(void)
     if(consume_token(TK_STR, &token))
     {
         Expression *node = new_expression(EXPR_VAR);
-        node->var = new_string(token);
+        node->str = new_string(token);
+        node->var = node->str->var;
         node->type = node->var->type;
         return node;
     }

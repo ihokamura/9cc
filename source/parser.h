@@ -13,7 +13,7 @@
 Variable *new_var(const char *name, Type *type, bool local);
 Variable *new_gvar(const Token *token, Type *type, bool entity);
 Variable *new_lvar(const Token *token, Type *type);
-Variable *new_string(const Token *token);
+StringLiteral *new_string(const Token *token);
 void construct(Program *prog);
 Identifier *push_identifier_scope(const char *name);
 Tag *push_tag_scope(const char *name);

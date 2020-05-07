@@ -1395,7 +1395,7 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
             // initialize array of char type by string-literal
             Initializer head = {};
             Initializer *cursor = &head;
-            char *content = init->assign->var->content;
+            const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
                 cursor->next = new_initializer();
@@ -1586,7 +1586,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             // initialize array of char type by string-literal
             Initializer head = {};
             Initializer *cursor = &head;
-            char *content = init->assign->var->content;
+            const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
                 cursor->next = new_initializer();
@@ -1692,7 +1692,7 @@ check if a given node is a string-literal
 */
 static bool is_string(const Expression *expr)
 {
-    return (expr->var != NULL) && (expr->var->content != NULL);
+    return (expr->str != NULL);
 }
 
 

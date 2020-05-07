@@ -1069,7 +1069,10 @@ int test_string_literal()
 
     char *s;
     s = "foo";
-    assert_char(111, s[1]);
+    assert_char('f', s[0]);
+    assert_char('o', s[1]);
+    assert_char('o', s[2]);
+    assert_char('\0', s[3]);
 
     return 0;
 }

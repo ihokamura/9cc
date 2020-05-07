@@ -32,6 +32,8 @@ static bool peek_func(void);
 
 // global variable
 static int str_number = 0; // label number of string-literal
+static StringLiteral *str_list = NULL; // list of string-literals
+static StringLiteral *last_str = NULL; // last element of list of string-literals
 static Function *function_list = NULL; // list of functions
 static Variable *gvar_list = NULL; // list of global variables
 static Variable *lvar_list = NULL; // list of local variables of currently constructing function
@@ -51,7 +53,7 @@ Variable *new_var(const char *name, Type *type, bool local)
     var->init = NULL;
     var->local = local;
     var->offset = 0;
-    var->content = NULL;
+    var->str = NULL;
     var->entity = false;
 
     push_identifier_scope(var->name)->var = var;
@@ -91,19 +93,40 @@ Variable *new_lvar(const Token *token, Type *type)
 make a new string-literal
 * String-literal is regarded as a global variable.
 */
-Variable *new_string(const Token *token)
+StringLiteral *new_string(const Token *token)
 {
+    // search existing string-literals
+    for(StringLiteral *cursor = str_list->next; cursor != NULL; cursor = cursor->next)
+    {
+        if((strlen(cursor->content) == token->len) && (strncmp(cursor->content, token->str, token->len) == 0))
+        {
+            return cursor;
+        }
+    }
+
+    // make a string-literal (an array of char terminated by '\0')
+    char *content = calloc(token->len + 1, sizeof(char));
+    strncpy(content, token->str, token->len);
+
     char *label = new_string_label();
-    Variable *gvar = new_var(label, new_type_array(new_type(TY_CHAR, TQ_CONST), token->len + 1), false);
-    gvar->content = calloc(token->len + 1, sizeof(char));
-    strncpy(gvar->content, token->str, token->len);
+    Type *type = new_type_array(new_type(TY_CHAR, TQ_NONE), token->len + 1);
+
+    Variable *gvar = new_var(label, type, false);
+    gvar->str = calloc(1, sizeof(StringLiteral));
     gvar->data = new_data_segment();
     gvar->data->label = label;
     gvar->entity = true;
     gvar_list->next = gvar;
     gvar_list = gvar;
 
-    return gvar;
+    StringLiteral *str = gvar->str;
+    str->next = NULL;
+    str->content = content;
+    str->var = gvar;
+    last_str->next = str;
+    last_str = str;
+
+    return str;
 }
 
 
@@ -171,6 +194,8 @@ program ::= (declaration | function-def)*
 */
 static void program(void)
 {
+    StringLiteral str_head = {};
+    str_list = last_str = &str_head;
     Function func_head = {};
     function_list = &func_head;
     Variable gvar_head = {};
@@ -190,6 +215,7 @@ static void program(void)
         }
     }
 
+    str_list = str_head.next;
     function_list = func_head.next;
     gvar_list = gvar_head.next;
 }

@@ -263,10 +263,10 @@ static void generate_gvar(const Variable *gvar)
     put_instruction(".global %s", gvar->name);
     put_instruction("%s:", gvar->name);
 
-    if(gvar->content != NULL)
+    if(gvar->str != NULL)
     {
         // allocate memory for string-literal
-        put_instruction("  .string \"%s\"", gvar->content);
+        put_instruction("  .string \"%s\"", gvar->str->content);
     }
     else
     {
