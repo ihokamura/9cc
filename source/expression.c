@@ -634,15 +634,33 @@ static Expression *multiplicative(void)
     {
         if(consume_reserved("*"))
         {
-            node = new_node_binary(EXPR_MUL, node, cast());
+            Expression *lhs = node;
+            Expression *rhs = cast();
+            if(!(is_arithmetic(lhs->type) && is_arithmetic(rhs->type)))
+            {
+                report_error(NULL, "invalid operands to binary *");
+            }
+            node = new_node_binary(EXPR_MUL, lhs, rhs);
         }
         else if(consume_reserved("/"))
         {
-            node = new_node_binary(EXPR_DIV, node, cast());
+            Expression *lhs = node;
+            Expression *rhs = cast();
+            if(!(is_arithmetic(lhs->type) && is_arithmetic(rhs->type)))
+            {
+                report_error(NULL, "invalid operands to binary /");
+            }
+            node = new_node_binary(EXPR_DIV, lhs, rhs);
         }
         else if(consume_reserved("%"))
         {
-            node = new_node_binary(EXPR_MOD, node, cast());
+            Expression *lhs = node;
+            Expression *rhs = cast();
+            if(!(is_integer(lhs->type) && is_integer(rhs->type)))
+            {
+                report_error(NULL, "invalid operands to binary %%");
+            }
+            node = new_node_binary(EXPR_MOD, lhs, rhs);
         }
         else
         {
