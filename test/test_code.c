@@ -1129,7 +1129,7 @@ short gvar_short_init = 2;
 int gvar_int_init = 3;
 long gvar_long_init = 4;
 int gvar_int_uninit1, gvar_int_init1 = 11, gvar_int_init2 = 12, gvar_int_uninit2;
-int gvar_a1[3] = {11, 22, 11 + 22};
+int gvar_a1[3] = {10 * +1 + (1 - 2) / -1, (1 << 1) * ((8 >> 3 / 2) * 3 - !0), (0 < 1) * 11 + 22};
 int gvar_a2[2][2] = {{11, 22}, {33, 44}};
 int gvar_a3[][3] = {{11, 22, }, {44, }};
 struct {int m1; int m2;} gvar_st1 = {111, 222};

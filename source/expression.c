@@ -130,7 +130,12 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
         node->type = new_type(TY_INT, TQ_NONE);
         break;
 
+    case EXPR_PLUS:
+    case EXPR_MINUS:
     case EXPR_COMPL:
+        node->type = operand->type;
+        break;
+
     default:
         break;
     }
@@ -544,11 +549,11 @@ static Expression *unary(void)
     }
     else if(consume_reserved("+"))
     {
-        node = apply_integer_promotion(unary());
+        node = new_node_unary(EXPR_PLUS, apply_integer_promotion(unary()));
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_binary(EXPR_SUB, new_node_constant(TY_INT, 0), apply_integer_promotion(unary()));
+        node = new_node_unary(EXPR_MINUS, apply_integer_promotion(unary()));
     }
     else if (consume_reserved("~"))
     {
@@ -1203,12 +1208,24 @@ long evaluate(Expression *expr)
 
     switch(expr->kind)
     {
+    case EXPR_CONST:
+        result = expr->value;
+        break;
+
+    case EXPR_PLUS:
+        result = evaluate(expr->operand);
+        break;
+
+    case EXPR_MINUS:
+        result = -evaluate(expr->operand);
+        break;
+
     case EXPR_COMPL:
-        result = ~evaluate(expr);
+        result = ~evaluate(expr->operand);
         break;
 
     case EXPR_NEG:
-        result = !evaluate(expr);
+        result = !evaluate(expr->operand);
         break;
 
     case EXPR_ADD:
@@ -1273,10 +1290,6 @@ long evaluate(Expression *expr)
 
     case EXPR_LOG_OR:
         result = (evaluate(expr->lhs) || evaluate(expr->rhs));
-        break;
-
-    case EXPR_CONST:
-        result = expr->value;
         break;
 
     default:

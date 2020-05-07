@@ -73,6 +73,8 @@ typedef enum {
     EXPR_POST_DEC,   // post decrement operator
     EXPR_ADDR,       // address (&)
     EXPR_DEREF,      // dereference (*)
+    EXPR_PLUS,       // plus (+)
+    EXPR_MINUS,      // minus (-)
     EXPR_COMPL,      // bitwise complement (~)
     EXPR_NEG,        // logical negation (!)
     EXPR_CAST,       // cast operator

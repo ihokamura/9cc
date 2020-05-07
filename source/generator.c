@@ -773,6 +773,17 @@ static void generate_expression(const Expression *expr)
         }
         return;
 
+    case EXPR_PLUS:
+        generate_expression(expr->operand);
+        return;
+
+    case EXPR_MINUS:
+        generate_expression(expr->operand);
+        generate_pop("rax");
+        put_instruction("  neg rax");
+        generate_push_reg_or_mem("rax");
+        return;
+
     case EXPR_COMPL:
         generate_expression(expr->operand);
         generate_pop("rax");
