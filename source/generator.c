@@ -237,11 +237,11 @@ static void generate_lvalue(const Expression *expr)
         break;
 
     case EXPR_DEREF:
-        generate_expression(expr->lhs);
+        generate_expression(expr->operand);
         break;
 
     case EXPR_MEMBER:
-        generate_lvalue(expr->lhs);
+        generate_lvalue(expr->operand);
         generate_pop("rax");
         put_instruction("  add rax, %lu", expr->member->offset);
         generate_push_reg_or_mem("rax");
@@ -754,11 +754,11 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_ADDR:
-        generate_lvalue(expr->lhs);
+        generate_lvalue(expr->operand);
         return;
 
     case EXPR_DEREF:
-        generate_expression(expr->lhs);
+        generate_expression(expr->operand);
         if(!(is_array(expr->type) || is_function(expr->type)))
         {
             generate_load(expr->type);
@@ -774,14 +774,14 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_COMPL:
-        generate_expression(expr->lhs);
+        generate_expression(expr->operand);
         generate_pop("rax");
         put_instruction("  not rax");
         generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_NEG:
-        generate_expression(expr->lhs);
+        generate_expression(expr->operand);
         generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  sete al");
@@ -790,9 +790,9 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_POST_INC:
-        generate_lvalue(expr->lhs);
+        generate_lvalue(expr->operand);
         generate_push_reg_or_mem("[rsp]");
-        generate_load(expr->lhs->type);
+        generate_load(expr->operand->type);
         generate_pop("rax");
         put_instruction("  mov rbx, rax");
         generate_push_reg_or_mem("rax");
@@ -804,9 +804,9 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_POST_DEC:
-        generate_lvalue(expr->lhs);
+        generate_lvalue(expr->operand);
         generate_push_reg_or_mem("[rsp]");
-        generate_load(expr->lhs->type);
+        generate_load(expr->operand->type);
         generate_pop("rax");
         put_instruction("  mov rbx, rax");
         generate_push_reg_or_mem("rax");
@@ -818,7 +818,7 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_CAST:
-        generate_expression(expr->lhs);
+        generate_expression(expr->operand);
         generate_pop("rax");
         if(expr->type->size == 1)
         {
@@ -887,7 +887,7 @@ static void generate_expression(const Expression *expr)
         int lab = lab_number;
         lab_number++;
 
-        generate_expression(expr->cond);
+        generate_expression(expr->operand);
         generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  je .Lelse%d", lab);
@@ -1048,13 +1048,13 @@ static void generate_expression(const Expression *expr)
         generate_args(expr->args);
 #endif /* CHECK_STACK_SIZE */
         put_instruction("  mov rax, 0");
-        if((expr->lhs->var != NULL) && is_function(expr->lhs->type))
+        if((expr->operand->var != NULL) && is_function(expr->operand->type))
         {
-            put_instruction("  call %s", expr->lhs->var->name);
+            put_instruction("  call %s", expr->operand->var->name);
         }
         else
         {
-            generate_expression(expr->lhs);
+            generate_expression(expr->operand);
             generate_pop("rbx");
             put_instruction("  call rbx");
         }

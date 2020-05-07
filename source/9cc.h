@@ -215,9 +215,9 @@ struct Expression {
     Expression *next;    // next element
     ExpressionKind kind; // kind of expression
     Type *type;          // type of expression
-    Expression *lhs;     // left hand side
-    Expression *rhs;     // right hand side
-    Expression *cond;    // conditional part (only for EXPR_COND)
+    Expression *lhs;     // left hand side of binary operation
+    Expression *rhs;     // right hand side of binary operation
+    Expression *operand; // operand of unary operation or condition of conditional expression
     long value;          // value of expression (only for EXPR_CONST)
     Variable *var;       // information of variable (only for EXPR_VAR)
     Member *member;      // member (only for EXPR_MEMBER)

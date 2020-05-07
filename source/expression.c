@@ -22,7 +22,7 @@
 
 
 // function prototype
-static Expression *new_node_unary(ExpressionKind kind, Expression *lhs);
+static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
 static Expression *primary(void);
 static Expression *postfix(void);
 static Expression *arg_expr_list(void);
@@ -56,7 +56,7 @@ Expression *new_expression(ExpressionKind kind)
     node->type = NULL;
     node->value = 0;
     node->var = NULL;
-    node->cond = NULL;
+    node->operand = NULL;
     node->args = NULL;
 
     return node;
@@ -91,12 +91,12 @@ Expression *new_node_subscript(Expression *base, size_t index)
 /*
 make a new node for members of structure or union
 */
-Expression *new_node_member(Expression *lhs, Member *member)
+Expression *new_node_member(Expression *operand, Member *member)
 {
     Expression *node = new_expression(EXPR_MEMBER);
     node->member = member;
     node->type = member->type;
-    node->lhs = lhs;
+    node->operand = operand;
 
     return node;
 }
@@ -105,25 +105,25 @@ Expression *new_node_member(Expression *lhs, Member *member)
 /*
 make a new node for unary operations
 */
-static Expression *new_node_unary(ExpressionKind kind, Expression *lhs)
+static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 {
     Expression *node = new_expression(kind);
-    node->lhs = lhs;
+    node->operand = operand;
 
     switch(kind)
     {
     case EXPR_ADDR:
-        node->type = new_type_pointer(lhs->type);
+        node->type = new_type_pointer(operand->type);
         break;
 
     case EXPR_DEREF:
         // An array type is also converted to the element type.
-        node->type = lhs->type->base;
+        node->type = operand->type->base;
         break;
 
     case EXPR_POST_INC:
     case EXPR_POST_DEC:
-        node->type = lhs->type;
+        node->type = operand->type;
         break;
 
     case EXPR_NEG:
@@ -330,7 +330,7 @@ static Expression *postfix(void)
         if(consume_reserved("["))
         {
             // array subscripting
-            Expression *lhs;
+            Expression *operand;
             Expression *index = expression();
 
             // implicitly convert array to pointer
@@ -345,18 +345,18 @@ static Expression *postfix(void)
 
             if(is_pointer(node->type) && is_integer(index->type))
             {
-                lhs = new_node_binary(EXPR_PTR_ADD, node, index);
+                operand = new_node_binary(EXPR_PTR_ADD, node, index);
             }
             else if(is_integer(node->type) && is_pointer(index->type))
             {
-                lhs = new_node_binary(EXPR_PTR_ADD, index, node);
+                operand = new_node_binary(EXPR_PTR_ADD, index, node);
             }
             else
             {
                 report_error(NULL, "bad operand for [] operator\n");
             }
 
-            node = new_node_unary(EXPR_DEREF, lhs);
+            node = new_node_unary(EXPR_DEREF, operand);
             expect_reserved("]");
         }
         else if(consume_reserved("("))
@@ -371,7 +371,7 @@ static Expression *postfix(void)
             if(is_function(node->type->base))
             {
                 Expression *func_node = new_expression(EXPR_FUNC);
-                func_node->lhs = node;
+                func_node->operand = node;
                 func_node->type = node->type->base->base; // dereference pointer and get type of return value
                 // parse arguments
                 if(!consume_reserved(")"))
@@ -586,7 +586,7 @@ static Expression *cast(void)
             Type *type = type_name();
             expect_reserved(")");
             node = new_expression(EXPR_CAST);
-            node->lhs = unary();
+            node->operand = unary();
             node->type = type;
             goto cast_end;
         }
@@ -971,7 +971,7 @@ static Expression *conditional(void)
     {
         Expression *ternary = new_expression(EXPR_COND);
 
-        ternary->cond = node;
+        ternary->operand = node;
         ternary->lhs = expression();
         expect_reserved(":");
         ternary->rhs = conditional();
