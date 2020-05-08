@@ -158,8 +158,6 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_MUL:
     case EXPR_DIV:
     case EXPR_MOD:
-    case EXPR_L:
-    case EXPR_LEQ:
     case EXPR_BIT_AND:
     case EXPR_BIT_XOR:
     case EXPR_BIT_OR:
@@ -230,6 +228,8 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         node->type = rhs->type;
         break;
 
+    case EXPR_L:
+    case EXPR_LEQ:
     case EXPR_LOG_AND:
     case EXPR_LOG_OR:
     default:
@@ -834,26 +834,60 @@ static Expression *relational(void)
     // parse tokens while finding a shift expression
     while(true)
     {
+        Expression *lhs, *rhs;
+        ExpressionKind kind;
+        char *operator = NULL;
+
         if(consume_reserved("<"))
         {
-            node = new_node_binary(EXPR_L, node, shift());
+            lhs = node;
+            rhs = shift();
+            kind = EXPR_L;
+            operator = "<";
         }
         else if(consume_reserved("<="))
         {
-            node = new_node_binary(EXPR_LEQ, node, shift());
+            lhs = node;
+            rhs = shift();
+            kind = EXPR_LEQ;
+            operator = "<=";
         }
         else if(consume_reserved(">"))
         {
-            node = new_node_binary(EXPR_L, shift(), node);
+            lhs = shift();
+            rhs = node;
+            kind = EXPR_L;
+            operator = ">";
         }
         else if(consume_reserved(">="))
         {
-            node = new_node_binary(EXPR_LEQ, shift(), node);
+            lhs = shift();
+            rhs = node;
+            kind = EXPR_LEQ;
+            operator = ">=";
         }
         else
         {
             return node;
         }
+
+        // check constraints
+        if(is_real(lhs->type) && is_real(rhs->type))
+        {
+            // perform the usual arithmetic conversions
+            apply_arithmetic_conversion(lhs, rhs);
+        }
+        else if(is_pointer(lhs->type) && is_pointer(rhs->type) && is_compatible(lhs->type->base, rhs->type->base))
+        {
+            // do nothing
+        }
+        else
+        {
+            report_error(NULL, "invalid operands to binary %s", operator);
+        }
+
+        // make a new node
+        node = new_node_binary(kind, lhs, rhs);
     }
 }
 

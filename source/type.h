@@ -17,6 +17,7 @@ bool is_void(const Type *type);
 bool is_signed(const Type *type);
 bool is_unsigned(const Type *type);
 bool is_integer(const Type *type);
+bool is_real(const Type *type);
 bool is_arithmetic(const Type *type);
 bool is_pointer(const Type *type);
 bool is_scalar(const Type *type);

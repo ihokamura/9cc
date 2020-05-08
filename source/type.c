@@ -313,6 +313,15 @@ bool is_integer(const Type *type)
 
 
 /*
+check if a given type is a real type
+*/
+bool is_real(const Type *type)
+{
+    return is_integer(type);
+}
+
+
+/*
 check if a given type is an arithmetic type
 */
 bool is_arithmetic(const Type *type)

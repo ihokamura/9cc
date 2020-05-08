@@ -816,16 +816,18 @@ int test_sizeof()
 
 
 /*
-pointer addition and subtraction
+pointer operation
 */
-int test_pointer_addition_subtraction()
+int test_pointer_operation()
 {
-    put_title("pointer addition and subtraction");
+    put_title("pointer operation");
 
     int *p; int *q; alloc4(&p, 1, 2, 4, 8);
     q = p + 2; assert_int(4, *q);
     q = 2 + p; assert_int(4, *q);
-    q = p + 2; assert_int(2, *(q - 1)); assert_int(2, q - p);  assert_int(-2, p - q);
+    q = p + 2; assert_int(2, *(q - 1));
+    assert_int(2, q - p); assert_int(-2, p - q);
+    assert_int(1, p < q); assert_int(1, p <= q); assert_int(0, p > q); assert_int(0, p >= q);
 
     return 0;
 }
@@ -1341,7 +1343,7 @@ int main()
     test_function_definition();
     test_address_dereference();
     test_sizeof();
-    test_pointer_addition_subtraction();
+    test_pointer_operation();
     test_array();
     test_global_variable();
     test_void();
