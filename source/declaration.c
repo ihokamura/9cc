@@ -54,7 +54,7 @@ struct Initializer {
 
 // function prototype
 static Declaration *new_declaration(Variable *var);
-static Enumerator *new_enumerator(const char *name, int value);
+static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
 static DataSegment *new_zero_data_segment(size_t size);
 static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
@@ -67,8 +67,8 @@ static Member *struct_declaration(void);
 static Type *specifier_qualifier_list(void);
 static Member *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
-static void enumerator_list(void);
-static int enumerator(int val);
+static Member *enumerator_list(void);
+static int enumerator(int val, Member **member);
 static TypeQualifier type_qualifier(void);
 static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars);
 static Type *pointer(Type *base);
@@ -157,15 +157,17 @@ static Declaration *new_declaration(Variable *var)
 /*
 make a new enumerator
 */
-static Enumerator *new_enumerator(const char *name, int value)
+static Member *new_enumerator(const char *name, int value)
 {
     Enumerator *en = calloc(1, sizeof(Enumerator));
     en->name = name;
     en->value = value;
-
     push_identifier_scope(en->name)->en = en;
 
-    return en;
+    Member *member = new_member(name, new_type(TY_INT, TQ_CONST));
+    member->value = value;
+
+    return member;
 }
 
 /*
@@ -533,7 +535,7 @@ static Type *struct_or_union_specifier(void)
         {
             // declaration of a new tag
             type = new_type(type_kind, TQ_NONE);
-            push_tag_scope(name)->type = type;
+            type->tag = push_tag_scope(name, type);
         }
         else
         {
@@ -551,7 +553,7 @@ static Type *struct_or_union_specifier(void)
             {
                 // make a new type since this is a declaration of a new tag in the current scope
                 type = new_type(type_kind, TQ_NONE);
-                push_tag_scope(name)->type = type;
+                type->tag = push_tag_scope(name, type);
             }
 
             if(type->complete)
@@ -706,12 +708,12 @@ static Member *struct_declarator_list(Type *type)
 {
     Token *token;
     Type *decl_type = declarator(type, &token, false);
-    Member *member = new_member(token, decl_type);
+    Member *member = new_member(make_identifier(token), decl_type);
     Member *cursor = member;
     while(consume_reserved(","))
     {
         decl_type = declarator(type, &token, false);
-        cursor->next = new_member(token, decl_type);
+        cursor->next = new_member(make_identifier(token), decl_type);
         cursor = cursor->next;
     }
 
@@ -751,7 +753,7 @@ static Type *enum_specifier(void)
         {
             // declaration of a new tag
             type = new_type_enum();
-            push_tag_scope(name)->type = type;
+            type->tag = push_tag_scope(name, type);
         }
         else
         {
@@ -769,7 +771,7 @@ static Type *enum_specifier(void)
             {
                 // make a new type since this is a declaration of a new tag in the current scope
                 type = new_type_enum();
-                push_tag_scope(name)->type = type;
+                type->tag = push_tag_scope(name, type);
             }
 
             if(type->complete)
@@ -788,7 +790,7 @@ static Type *enum_specifier(void)
     if(parse_content)
     {
         // parse enumeration content
-        enumerator_list();
+        type->member = enumerator_list();
         if(consume_reserved(","))
         {
             // do nothing (only consume the trailing ",")
@@ -807,15 +809,21 @@ make an enumerator-list
 enumerator-list ::= enumerator ("," enumerator)*
 ```
 */
-static void enumerator_list(void)
+static Member *enumerator_list(void)
 {
     Token *token;
+    Member head = {};
+    Member *cursor = &head;
 
-    int val = enumerator(0);
+    int val = enumerator(0, &cursor->next);
+    cursor = cursor->next;
     while(consume_reserved(",") && peek_token(TK_IDENT, &token))
     {
-        val = enumerator(val);
+        val = enumerator(val, &cursor->next);
+        cursor = cursor->next;
     }
+
+    return head.next;
 }
 
 
@@ -825,14 +833,14 @@ make an enumerator
 enumerator ::= identifier ("=" const-expression)?
 ```
 */
-static int enumerator(int value)
+static int enumerator(int value, Member **member)
 {
     Token *token = expect_identifier();
     if(consume_reserved("="))
     {
         value = const_expression();
     }
-    new_enumerator(make_identifier(token), value);
+    *member = new_enumerator(make_identifier(token), value);
 
     return value + 1;
 }

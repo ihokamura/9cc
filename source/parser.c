@@ -286,12 +286,12 @@ Identifier *push_identifier_scope(const char *name)
 /*
 push a tag to the current scope
 */
-Tag *push_tag_scope(const char *name)
+Tag *push_tag_scope(const char *name, Type *type)
 {
     Tag *tag = calloc(1, sizeof(Tag));
     tag->next = current_scope.tag_list;
     tag->name = name;
-    tag->type = NULL;
+    tag->type = type;
     tag->depth = current_scope.depth;
     current_scope.tag_list = tag;
 

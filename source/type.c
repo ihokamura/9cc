@@ -380,8 +380,19 @@ check if given types are compatible
 */
 bool is_compatible(const Type *self, const Type *other)
 {
-    if((is_struct(self) && is_struct(other)) || (is_union(self) && is_union(other)))
+    // Both types are a structure type, an union type or an enumerated type.
+    if((is_struct(self) && is_struct(other)) || (is_union(self) && is_union(other)) || (is_enumerated(self) && is_enumerated(other)))
     {
+        // If one is declared with a tag, the other shall be declared with the same tag.
+        if(self->tag != NULL)
+        {
+            return (other->tag != NULL) && (self->tag == other->tag);
+        }
+        if(other->tag != NULL)
+        {
+            return (self->tag != NULL) && (self->tag == other->tag);
+        }
+
         Member *cursor_self = self->member;
         Member *cursor_other = other->member;
         while((cursor_self != NULL) && (cursor_other != NULL))
@@ -401,14 +412,31 @@ bool is_compatible(const Type *self, const Type *other)
 
         return (cursor_self == NULL) && (cursor_other == NULL);
     }
+
+    // Only one of types is an enumerated type.
+    // This implementation regards enumerated types compatible with 'unsigned int'.
+    else if(is_enumerated(self))
+    {
+        return (other->kind == TY_UINT);
+    }
+    else if(is_enumerated(other))
+    {
+        return (self->kind == TY_UINT);
+    }
+
+    // Both types are a pointer type.
     else if(is_pointer(self) && is_pointer(other))
     {
         return (self->qual == other->qual) && is_compatible(self->base, other->base);
     }
+
+    // Both types are an array type.
     else if(is_array(self) && is_array(other))
     {
         return is_compatible(self->base, other->base) && (self->len == other->len);
     }
+
+    // Both types are a function type.
     else if(is_function(self) && is_function(other))
     {
         if(is_compatible(self->base, other->base))
@@ -433,6 +461,8 @@ bool is_compatible(const Type *self, const Type *other)
             return false;
         }
     }
+
+    // other cases
     else
     {
         return (self->kind == other->kind);
@@ -501,12 +531,12 @@ Type *new_type_function(Type *base, Type *args)
 /*
 make a new member of structure
 */
-Member *new_member(const Token *token, Type *type)
+Member *new_member(const char *name, Type *type)
 {
     Member *member = calloc(1, sizeof(Member));
     member->next = NULL;
     member->type = type;
-    member->name = make_identifier(token);
+    member->name = name;
     member->offset = 0;
 
     return member;

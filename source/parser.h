@@ -16,7 +16,7 @@ Variable *new_lvar(const Token *token, Type *type);
 StringLiteral *new_string(const Token *token);
 void construct(Program *prog);
 Identifier *push_identifier_scope(const char *name);
-Tag *push_tag_scope(const char *name);
+Tag *push_tag_scope(const char *name, Type *type);
 Scope enter_scope(void);
 void leave_scope(Scope scope);
 int get_current_scope_depth(void);

@@ -29,7 +29,7 @@ Type *new_type_enum(void);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
 Type *new_type_function(Type *base, Type *args);
-Member *new_member(const Token *token, Type *type);
+Member *new_member(const char *name, Type *type);
 Member *find_member(const Token *token, const Type *type);
 size_t adjust_alignment(size_t target, size_t alignment);
 

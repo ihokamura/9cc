@@ -169,11 +169,15 @@ struct DataSegment {
 // structure for member
 typedef struct Member Member;
 struct Member {
-    Member *next;  // next element
-    Type *type;    // type of member
-    char *name;    // name of member
-    size_t offset; // offset of member
+    Member *next;     // next element
+    Type *type;       // type of member
+    const char *name; // name of member
+    size_t offset;    // offset of member (only for TY_STRUCT, TY_UNION)
+    int value;        // value of member (only for TY_ENUM)
 };
+
+// structure for tag (forward declaration)
+typedef struct Tag Tag;
 
 // structure for type
 struct Type {
@@ -186,7 +190,8 @@ struct Type {
     size_t len;         // length of array (only for TY_ARRAY)
     Type *args;         // type of arguments (only for TY_FUNC)
     Type *next;         // next element (only for TY_FUNC)
-    Member *member;     // members (only for TY_STRUCT, TY_UNION)
+    Tag *tag;           // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    Member *member;     // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
 };
 
 // structure for statement (forward declaration)
@@ -295,7 +300,6 @@ struct Identifier {
 };
 
 // structure for tag
-typedef struct Tag Tag;
 struct Tag {
     Tag *next;        // next element
     const char *name; // name of tag
