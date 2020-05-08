@@ -25,22 +25,23 @@
 
 // type definition
 typedef enum {
-    BINOP_ADD,     // addition
-    BINOP_PTR_ADD, // pointer addition
-    BINOP_SUB,     // subtraction
-    BINOP_PTR_SUB, // pointer subtraction
-    BINOP_MUL,     // multiplication
-    BINOP_DIV,     // dividion
-    BINOP_MOD,     // remainder
-    BINOP_LSHIFT,  // left shift
-    BINOP_RSHIFT,  // right shift
-    BINOP_EQ,      // equality
-    BINOP_NEQ,     // inequality
-    BINOP_L,       // strict order
-    BINOP_LEQ,     // order
-    BINOP_AND,     // bitwise AND
-    BINOP_XOR,     // exclusive OR
-    BINOP_OR,      // inclusive OR
+    BINOP_ADD,      // addition
+    BINOP_PTR_ADD,  // pointer addition
+    BINOP_SUB,      // subtraction
+    BINOP_PTR_SUB,  // pointer subtraction
+    BINOP_PTR_DIFF, // pointer difference
+    BINOP_MUL,      // multiplication
+    BINOP_DIV,      // dividion
+    BINOP_MOD,      // remainder
+    BINOP_LSHIFT,   // left shift
+    BINOP_RSHIFT,   // right shift
+    BINOP_EQ,       // equality
+    BINOP_NEQ,      // inequality
+    BINOP_L,        // strict order
+    BINOP_LEQ,      // order
+    BINOP_AND,      // bitwise AND
+    BINOP_XOR,      // exclusive OR
+    BINOP_OR,       // inclusive OR
 } BinaryOperationKind;
 
 
@@ -431,6 +432,13 @@ static void generate_binary(const Expression *expr, BinaryOperationKind kind)
     case BINOP_PTR_SUB:
         put_instruction("  imul rdi, %lu", expr->type->base->size);
         put_instruction("  sub rax, rdi");
+        break;
+
+    case BINOP_PTR_DIFF:
+        put_instruction("  sub rax, rdi");
+        put_instruction("  cqo");
+        put_instruction("  mov rdi, %lu", expr->lhs->type->base->size);
+        put_instruction("  idiv rdi");
         break;
 
     case BINOP_MUL:
@@ -1118,6 +1126,10 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_PTR_SUB:
         generate_binary(expr, BINOP_PTR_SUB);
+        return;
+
+    case EXPR_PTR_DIFF:
+        generate_binary(expr, BINOP_PTR_DIFF);
         return;
 
     case EXPR_MUL:

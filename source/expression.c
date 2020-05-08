@@ -188,6 +188,12 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         node->type = lhs->type;
         break;
 
+    case EXPR_PTR_DIFF:
+        // The type of the result of pointer difference is 'ptrdiff_t'.
+        // This implementation regards 'ptrdiff_t' as 'long'.
+        node->type = new_type(TY_LONG, TQ_NONE);
+        break;
+
     case EXPR_ASSIGN:
         if(is_array(rhs->type))
         {
@@ -698,7 +704,7 @@ static Expression *additive(void)
                 rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
             }
 
-            if(is_integer(lhs->type) && is_integer(rhs->type))
+            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 node = new_node_binary(EXPR_ADD, lhs, rhs);
             }
@@ -712,7 +718,7 @@ static Expression *additive(void)
             }
             else
             {
-                report_error(NULL, "bad operand for binary operator +");
+                report_error(NULL, "invalid operands to binary +");
             }
         }
         else if(consume_reserved("-"))
@@ -730,7 +736,7 @@ static Expression *additive(void)
                 rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
             }
 
-            if(is_integer(lhs->type) && is_integer(rhs->type))
+            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 node = new_node_binary(EXPR_SUB, lhs, rhs);
             }
@@ -738,9 +744,13 @@ static Expression *additive(void)
             {
                 node = new_node_binary(EXPR_PTR_SUB, lhs, rhs);
             }
+            else if(is_pointer(lhs->type) && is_pointer(rhs->type))
+            {
+                node = new_node_binary(EXPR_PTR_DIFF, lhs, rhs);
+            }
             else
             {
-                report_error(NULL, "bad operand for binary operator -");
+                report_error(NULL, "invalid operands to binary -");
             }
         }
         else

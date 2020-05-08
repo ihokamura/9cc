@@ -825,7 +825,7 @@ int test_pointer_addition_subtraction()
     int *p; int *q; alloc4(&p, 1, 2, 4, 8);
     q = p + 2; assert_int(4, *q);
     q = 2 + p; assert_int(4, *q);
-    q = p + 2; assert_int(2, *(q - 1));
+    q = p + 2; assert_int(2, *(q - 1)); assert_int(2, q - p);  assert_int(-2, p - q);
 
     return 0;
 }
