@@ -295,11 +295,20 @@ bool is_unsigned(const Type *type)
 
 
 /*
+check if a given type is an enumerated type
+*/
+bool is_enumerated(const Type *type)
+{
+    return (type->kind == TY_ENUM);
+}
+
+
+/*
 check if a given type is an integer type
 */
 bool is_integer(const Type *type)
 {
-    return is_signed(type) || is_unsigned(type) || (type->kind == TY_ENUM);
+    return is_signed(type) || is_unsigned(type) || is_enumerated(type);
 }
 
 
@@ -363,6 +372,71 @@ check if a given type is a function type
 bool is_function(const Type *type)
 {
     return (type->kind == TY_FUNC);
+}
+
+
+/*
+check if given types are compatible
+*/
+bool is_compatible(const Type *self, const Type *other)
+{
+    if((is_struct(self) && is_struct(other)) || (is_union(self) && is_union(other)))
+    {
+        Member *cursor_self = self->member;
+        Member *cursor_other = other->member;
+        while((cursor_self != NULL) && (cursor_other != NULL))
+        {
+            if(strcmp(cursor_self->name, cursor_other->name) != 0)
+            {
+                return false;
+            }
+            if(!is_compatible(cursor_self->type, cursor_other->type))
+            {
+                return false;
+            }
+
+            cursor_self = cursor_self->next;
+            cursor_other = cursor_other->next;
+        }
+
+        return (cursor_self == NULL) && (cursor_other == NULL);
+    }
+    else if(is_pointer(self) && is_pointer(other))
+    {
+        return (self->qual == other->qual) && is_compatible(self->base, other->base);
+    }
+    else if(is_array(self) && is_array(other))
+    {
+        return is_compatible(self->base, other->base) && (self->len == other->len);
+    }
+    else if(is_function(self) && is_function(other))
+    {
+        if(is_compatible(self->base, other->base))
+        {
+            Type *cursor_self = self->args;
+            Type *cursor_other = other->args;
+            while((cursor_self != NULL) && (cursor_other != NULL))
+            {
+                if(!is_compatible(cursor_self, cursor_other))
+                {
+                    return false;
+                }
+
+                cursor_self = cursor_self->next;
+                cursor_other = cursor_other->next;
+            }
+
+            return (cursor_self == NULL) && (cursor_other == NULL);
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return (self->kind == other->kind);
+    }
 }
 
 

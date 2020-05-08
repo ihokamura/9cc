@@ -642,31 +642,40 @@ static Expression *multiplicative(void)
         {
             Expression *lhs = node;
             Expression *rhs = cast();
-            if(!(is_arithmetic(lhs->type) && is_arithmetic(rhs->type)))
+            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
+            {
+                node = new_node_binary(EXPR_MUL, lhs, rhs);
+            }
+            else
             {
                 report_error(NULL, "invalid operands to binary *");
             }
-            node = new_node_binary(EXPR_MUL, lhs, rhs);
         }
         else if(consume_reserved("/"))
         {
             Expression *lhs = node;
             Expression *rhs = cast();
-            if(!(is_arithmetic(lhs->type) && is_arithmetic(rhs->type)))
+            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
+            {
+                node = new_node_binary(EXPR_DIV, lhs, rhs);
+            }
+            else
             {
                 report_error(NULL, "invalid operands to binary /");
             }
-            node = new_node_binary(EXPR_DIV, lhs, rhs);
         }
         else if(consume_reserved("%"))
         {
             Expression *lhs = node;
             Expression *rhs = cast();
-            if(!(is_integer(lhs->type) && is_integer(rhs->type)))
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                node = new_node_binary(EXPR_MOD, lhs, rhs);
+            }
+            else
             {
                 report_error(NULL, "invalid operands to binary %%");
             }
-            node = new_node_binary(EXPR_MOD, lhs, rhs);
         }
         else
         {
@@ -744,7 +753,9 @@ static Expression *additive(void)
             {
                 node = new_node_binary(EXPR_PTR_SUB, lhs, rhs);
             }
-            else if(is_pointer(lhs->type) && is_pointer(rhs->type))
+            else if(is_pointer(lhs->type) && is_pointer(rhs->type) &&
+                    lhs->type->base->complete && rhs->type->base->complete &&
+                    is_compatible(lhs->type->base, rhs->type->base))
             {
                 node = new_node_binary(EXPR_PTR_DIFF, lhs, rhs);
             }
@@ -785,7 +796,7 @@ static Expression *shift(void)
             }
             else
             {
-                report_error(NULL, "bad operand for binary operator <<");
+                report_error(NULL, "invalid operands to binary <<");
             }
         }
         else if(consume_reserved(">>"))
@@ -799,7 +810,7 @@ static Expression *shift(void)
             }
             else
             {
-                report_error(NULL, "bad operand for binary operator >>");
+                report_error(NULL, "invalid operands to binary >>");
             }
         }
         else
