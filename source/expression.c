@@ -1079,7 +1079,19 @@ static Expression *logical_and(void)
     {
         if(consume_reserved("&&"))
         {
-            node = new_node_binary(EXPR_LOG_AND, node, bitwise_or());
+            // implicitly convert array to pointer
+            Expression *lhs = convert_array_to_pointer(node);
+            Expression *rhs = convert_array_to_pointer(bitwise_or());
+
+            // check constraints
+            if(is_scalar(lhs->type) && is_scalar(rhs->type))
+            {
+                node = new_node_binary(EXPR_LOG_AND, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "expected scalar type");
+            }
         }
         else
         {
@@ -1104,7 +1116,19 @@ static Expression *logical_or(void)
     {
         if(consume_reserved("||"))
         {
-            node = new_node_binary(EXPR_LOG_OR, node, logical_and());
+            // implicitly convert array to pointer
+            Expression *lhs = convert_array_to_pointer(node);
+            Expression *rhs = convert_array_to_pointer(logical_and());
+
+            // check constraints
+            if(is_scalar(lhs->type) && is_scalar(rhs->type))
+            {
+                node = new_node_binary(EXPR_LOG_OR, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "expected scalar type");
+            }
         }
         else
         {
