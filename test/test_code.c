@@ -847,7 +847,8 @@ int test_array()
     for(i = 0; i < 4; i = i + 1){*(a4 + i) = i + 1;} assert_int(10, *a4 + *(a4 + 1) + *(a4 + 2) + *(a4 + 3));
     for(i = 0; i < 4; i = i + 1){a4[i] = i + 1;} assert_int(10, a4[0] + 1[a4] + a4[2] + 3[a4]);
     assert_int(12, sizeof(a3));
-    assert_int(1, (a3 == &a3));
+    assert_int(1, (a3 == (int *)&a3));
+    assert_int(1, ((int *)a3 == (int *)&a3));
     a32[0][0] = 0; assert_int(0, a32[0][0]);
     a32[0][1] = 1; assert_int(1, a32[0][1]);
     a32[0][2] = 2; assert_int(2, a32[0][2]);

@@ -41,6 +41,7 @@ static Expression *logical_or(void);
 static Expression *conditional(void);
 static Expression *apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
+static Expression *convert_array_to_pointer(Expression *expr);
 
 
 /*
@@ -154,35 +155,21 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     switch(kind)
     {
     case EXPR_ADD:
+    case EXPR_PTR_ADD:
     case EXPR_SUB:
+    case EXPR_PTR_SUB:
     case EXPR_MUL:
     case EXPR_DIV:
     case EXPR_MOD:
+    case EXPR_LSHIFT:
+    case EXPR_RSHIFT:
+        node->type = lhs->type;
+        break;
+
     case EXPR_BIT_AND:
     case EXPR_BIT_XOR:
     case EXPR_BIT_OR:
         apply_arithmetic_conversion(lhs, rhs);
-        node->type = lhs->type;
-        break;
-
-    case EXPR_LSHIFT:
-    case EXPR_RSHIFT:
-        lhs = apply_integer_promotion(lhs);
-        rhs = apply_integer_promotion(rhs);
-        node->type = lhs->type;
-        break;
-
-    case EXPR_EQ:
-    case EXPR_NEQ:
-        if(is_integer(lhs->type) && is_integer(rhs->type))
-        {
-            apply_arithmetic_conversion(lhs, rhs);
-        }
-        node->type = new_type(TY_INT, TQ_NONE);
-        break;
-
-    case EXPR_PTR_ADD:
-    case EXPR_PTR_SUB:
         node->type = lhs->type;
         break;
 
@@ -230,6 +217,8 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
 
     case EXPR_L:
     case EXPR_LEQ:
+    case EXPR_EQ:
+    case EXPR_NEQ:
     case EXPR_LOG_AND:
     case EXPR_LOG_OR:
     default:
@@ -346,14 +335,8 @@ static Expression *postfix(void)
             Expression *index = expression();
 
             // implicitly convert array to pointer
-            if(is_array(node->type))
-            {
-                node = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, node));
-            }
-            if(is_array(index->type))
-            {
-                index = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, index));
-            }
+            node = convert_array_to_pointer(node);
+            index = convert_array_to_pointer(index);
 
             if(is_pointer(node->type) && is_integer(index->type))
             {
@@ -602,7 +585,8 @@ static Expression *cast(void)
                 report_error(NULL, "expected void type or scalar type");
             }
 
-            Expression *operand = unary();
+            // implicitly convert array to pointer
+            Expression *operand = convert_array_to_pointer(unary());
             if(!is_scalar(operand->type))
             {
                 report_error(NULL, "expected scalar type");
@@ -638,49 +622,53 @@ static Expression *multiplicative(void)
     // parse tokens while finding a cast expression
     while(true)
     {
+        Expression *lhs, *rhs;
+        ExpressionKind kind;
+        char *operator = NULL;
+        bool (*check_type)(const Type *type) = NULL;
+
         if(consume_reserved("*"))
         {
-            Expression *lhs = node;
-            Expression *rhs = cast();
-            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
-            {
-                node = new_node_binary(EXPR_MUL, lhs, rhs);
-            }
-            else
-            {
-                report_error(NULL, "invalid operands to binary *");
-            }
+            lhs = node;
+            rhs = cast();
+            kind = EXPR_MUL;
+            operator = "*";
+            check_type = is_arithmetic;
         }
         else if(consume_reserved("/"))
         {
-            Expression *lhs = node;
-            Expression *rhs = cast();
-            if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
-            {
-                node = new_node_binary(EXPR_DIV, lhs, rhs);
-            }
-            else
-            {
-                report_error(NULL, "invalid operands to binary /");
-            }
+            lhs = node;
+            rhs = cast();
+            kind = EXPR_DIV;
+            operator = "/";
+            check_type = is_arithmetic;
         }
         else if(consume_reserved("%"))
         {
-            Expression *lhs = node;
-            Expression *rhs = cast();
-            if(is_integer(lhs->type) && is_integer(rhs->type))
-            {
-                node = new_node_binary(EXPR_MOD, lhs, rhs);
-            }
-            else
-            {
-                report_error(NULL, "invalid operands to binary %%");
-            }
+            lhs = node;
+            rhs = cast();
+            kind = EXPR_MOD;
+            operator = "%";
+            check_type = is_integer;
         }
         else
         {
             return node;
         }
+
+        // check constraints
+        if(check_type(lhs->type) && check_type(rhs->type))
+        {
+            // perform the usual arithmetic conversions
+            apply_arithmetic_conversion(lhs, rhs);
+        }
+        else
+        {
+            report_error(NULL, "invalid operands to binary %s", operator);
+        }
+
+        // make a new node
+        node = new_node_binary(kind, lhs, rhs);
     }
 }
 
@@ -700,21 +688,14 @@ static Expression *additive(void)
     {
         if(consume_reserved("+"))
         {
-            Expression *lhs = node;
-            Expression *rhs = multiplicative();
-
             // implicitly convert array to pointer
-            if(is_array(lhs->type))
-            {
-                lhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, lhs));
-            }
-            if(is_array(rhs->type))
-            {
-                rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
-            }
+            Expression *lhs = convert_array_to_pointer(node);
+            Expression *rhs = convert_array_to_pointer(multiplicative());
 
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
+                // perform the usual arithmetic conversions
+                apply_arithmetic_conversion(lhs, rhs);
                 node = new_node_binary(EXPR_ADD, lhs, rhs);
             }
             else if(is_pointer(lhs->type) && is_integer(rhs->type))
@@ -732,21 +713,14 @@ static Expression *additive(void)
         }
         else if(consume_reserved("-"))
         {
-            Expression *lhs = node;
-            Expression *rhs = multiplicative();
-
             // implicitly convert array to pointer
-            if(is_array(lhs->type))
-            {
-                lhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, lhs));
-            }
-            if(is_array(rhs->type))
-            {
-                rhs = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, rhs));
-            }
+            Expression *lhs = convert_array_to_pointer(node);
+            Expression *rhs = convert_array_to_pointer(multiplicative());
 
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
+                // perform the usual arithmetic conversions
+                apply_arithmetic_conversion(lhs, rhs);
                 node = new_node_binary(EXPR_SUB, lhs, rhs);
             }
             else if(is_pointer(lhs->type) && is_integer(rhs->type))
@@ -785,38 +759,43 @@ static Expression *shift(void)
     // parse tokens while finding an additive expression
     while(true)
     {
+        Expression *lhs, *rhs;
+        ExpressionKind kind;
+        char *operator = NULL;
+
         if(consume_reserved("<<"))
         {
-            Expression *lhs = node;
-            Expression *rhs = additive();
-
-            if(is_integer(lhs->type) && is_integer(rhs->type))
-            {
-                node = new_node_binary(EXPR_LSHIFT, lhs, rhs);
-            }
-            else
-            {
-                report_error(NULL, "invalid operands to binary <<");
-            }
+            lhs = node;
+            rhs = additive();
+            kind = EXPR_LSHIFT;
+            operator = "<<";
         }
         else if(consume_reserved(">>"))
         {
-            Expression *lhs = node;
-            Expression *rhs = additive();
-
-            if(is_integer(lhs->type) && is_integer(rhs->type))
-            {
-                node = new_node_binary(EXPR_RSHIFT, lhs, rhs);
-            }
-            else
-            {
-                report_error(NULL, "invalid operands to binary >>");
-            }
+            lhs = node;
+            rhs = additive();
+            kind = EXPR_RSHIFT;
+            operator = ">>";
         }
         else
         {
             return node;
         }
+
+        // check constraints
+        if(is_integer(lhs->type) && is_integer(rhs->type))
+        {
+            // perform the integer promotion on both operands
+            lhs = apply_integer_promotion(lhs);
+            rhs = apply_integer_promotion(rhs);
+        }
+        else
+        {
+            report_error(NULL, "invalid operands to binary %s", operator);
+        }
+
+        // make a new node
+        node = new_node_binary(kind, lhs, rhs);
     }
 }
 
@@ -871,6 +850,10 @@ static Expression *relational(void)
             return node;
         }
 
+        // implicitly convert array to pointer
+        lhs = convert_array_to_pointer(lhs);
+        rhs = convert_array_to_pointer(rhs);
+
         // check constraints
         if(is_real(lhs->type) && is_real(rhs->type))
         {
@@ -905,18 +888,68 @@ static Expression *equality(void)
     // parse tokens while finding a relational expression
     while(true)
     {
+        Expression *lhs, *rhs;
+        ExpressionKind kind;
+        char *operator = NULL;
+
         if(consume_reserved("=="))
         {
-            node = new_node_binary(EXPR_EQ, node, relational());
+            lhs = node;
+            rhs = relational();
+            kind = EXPR_EQ;
+            operator = "==";
         }
         else if(consume_reserved("!="))
         {
-            node = new_node_binary(EXPR_NEQ, node, relational());
+            lhs = node;
+            rhs = relational();
+            kind = EXPR_NEQ;
+            operator = "!=";
         }
         else
         {
             return node;
         }
+
+        // implicitly convert array to pointer
+        lhs = convert_array_to_pointer(lhs);
+        rhs = convert_array_to_pointer(rhs);
+
+        // check constraints
+        bool valid = false;
+        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
+        {
+            // perform the usual arithmetic conversions
+            apply_arithmetic_conversion(lhs, rhs);
+            valid = true;
+        }
+        else if((is_pointer(lhs->type) && is_pointer(rhs->type)))
+        {
+            if(is_compatible(lhs->type->base, rhs->type->base))
+            {
+                valid = true;
+            }
+
+            // If one operand is a pointer to an object type and the other is a pointer to a qualified or unqualified version of 'void', the former is converted to the type of the latter.
+            else if(is_void(lhs->type->base))
+            {
+                rhs->type = new_type_pointer(new_type(TY_VOID, lhs->type->qual));
+                valid = true;
+            }
+            else if(is_void(rhs->type->base))
+            {
+                lhs->type = new_type_pointer(new_type(TY_VOID, rhs->type->qual));
+                valid = true;
+            }
+        }
+
+        if(!valid)
+        {
+            report_error(NULL, "invalid operands to binary %s", operator);
+        }
+
+        // make a new node
+        node = new_node_binary(kind, lhs, rhs);
     }
 }
 
@@ -1471,4 +1504,22 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
             }
         }
     }
+}
+
+
+/*
+implicitly convert array to pointer
+* If the argument has an array type, this function returns the expression with an pointer type to the initial element of the array.
+* Otherwise, this function returns the argument.
+*/
+static Expression *convert_array_to_pointer(Expression *expr)
+{
+    Expression *conv = expr;
+
+    if(is_array(expr->type))
+    {
+        conv = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, expr));
+    }
+
+    return conv;
 }
