@@ -163,13 +163,9 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_MOD:
     case EXPR_LSHIFT:
     case EXPR_RSHIFT:
-        node->type = lhs->type;
-        break;
-
     case EXPR_BIT_AND:
     case EXPR_BIT_XOR:
     case EXPR_BIT_OR:
-        apply_arithmetic_conversion(lhs, rhs);
         node->type = lhs->type;
         break;
 
@@ -969,7 +965,20 @@ static Expression *bitwise_and(void)
     {
         if(consume_reserved("&"))
         {
-            node = new_node_binary(EXPR_BIT_AND, node, equality());
+            Expression *lhs = node;
+            Expression *rhs = equality();
+
+            // check constraints
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                // perform the usual arithmetic conversions
+                apply_arithmetic_conversion(lhs, rhs);
+                node = new_node_binary(EXPR_BIT_AND, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "invalid operands to binary &");
+            }
         }
         else
         {
@@ -994,7 +1003,20 @@ static Expression *bitwise_xor(void)
     {
         if(consume_reserved("^"))
         {
-            node = new_node_binary(EXPR_BIT_XOR, node, bitwise_and());
+            Expression *lhs = node;
+            Expression *rhs = bitwise_and();
+
+            // check constraints
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                // perform the usual arithmetic conversions
+                apply_arithmetic_conversion(lhs, rhs);
+                node = new_node_binary(EXPR_BIT_XOR, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "invalid operands to binary ^");
+            }
         }
         else
         {
@@ -1019,7 +1041,20 @@ static Expression *bitwise_or(void)
     {
         if(consume_reserved("|"))
         {
-            node = new_node_binary(EXPR_BIT_OR, node, bitwise_xor());
+            Expression *lhs = node;
+            Expression *rhs = bitwise_xor();
+
+            // check constraints
+            if(is_integer(lhs->type) && is_integer(rhs->type))
+            {
+                // perform the usual arithmetic conversions
+                apply_arithmetic_conversion(lhs, rhs);
+                node = new_node_binary(EXPR_BIT_OR, lhs, rhs);
+            }
+            else
+            {
+                report_error(NULL, "invalid operands to binary |");
+            }
         }
         else
         {
