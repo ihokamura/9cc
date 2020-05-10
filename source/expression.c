@@ -43,6 +43,8 @@ static Expression *apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
 static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
+static bool is_modifiable_lvalue(const Expression *expr);
+static bool is_const_qualified(const Type *type);
 
 
 /*
@@ -60,6 +62,7 @@ Expression *new_expression(ExpressionKind kind)
     node->var = NULL;
     node->operand = NULL;
     node->args = NULL;
+    node->lvalue = false;
 
     return node;
 }
@@ -240,6 +243,7 @@ static Expression *primary(void)
                 Expression *node = new_expression(EXPR_VAR);
                 node->type = ident->var->type;
                 node->var = ident->var;
+                node->lvalue = !is_function(ident->var->type);
                 return node;
             }
             else if(ident->en != NULL)
@@ -273,6 +277,7 @@ static Expression *primary(void)
         node->str = new_string(token);
         node->var = node->str->var;
         node->type = node->var->type;
+        node->lvalue = true;
         return node;
     }
 
@@ -384,6 +389,11 @@ static Expression *postfix(void)
         else if(consume_reserved("++"))
         {
             // postfix increment
+            // check constraints
+            if(!is_modifiable_lvalue(node))
+            {
+                report_error(NULL, "expected modifiable lvalue");
+            }
             if(is_real(node->type) || is_pointer(node->type))
             {
                 node = new_node_unary(EXPR_POST_INC, node);
@@ -396,6 +406,11 @@ static Expression *postfix(void)
         else if(consume_reserved("--"))
         {
             // postfix decrement
+            // check constraints
+            if(!is_modifiable_lvalue(node))
+            {
+                report_error(NULL, "expected modifiable lvalue");
+            }
             if(is_real(node->type) || is_pointer(node->type))
             {
                 node = new_node_unary(EXPR_POST_DEC, node);
@@ -484,6 +499,10 @@ static Expression *unary(void)
         Expression *operand = unary();
 
         // check constraints
+        if(!is_modifiable_lvalue(operand))
+        {
+            report_error(NULL, "expected modifiable lvalue");
+        }
         if(is_real(operand->type))
         {
             node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
@@ -502,6 +521,10 @@ static Expression *unary(void)
         Expression *operand = unary();
 
         // check constraints
+        if(!is_modifiable_lvalue(operand))
+        {
+            report_error(NULL, "expected modifiable lvalue");
+        }
         if(is_integer(operand->type))
         {
             node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
@@ -1651,6 +1674,7 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
 
 /*
 apply implicit conversion on expression
+* If the argument is an lvalue which does not have an array type, this function returns the expression after lvalue conversion.
 * If the argument has an array type, this function returns the expression with an pointer type to the initial element of the array.
 * If the argument has a function type, this function returns the expression with an pointer type to the function.
 * Otherwise, this function returns the argument.
@@ -1658,6 +1682,13 @@ apply implicit conversion on expression
 static Expression *apply_implicit_conversion(Expression *expr)
 {
     Expression *conv = expr;
+
+    // implicitly convert lvalue
+    if(expr->lvalue && (!is_array(expr->type)))
+    {
+        conv->type->qual = TQ_NONE;
+        conv->lvalue = false;
+    }
 
     // implicitly convert array to pointer
     if(is_array(expr->type))
@@ -1715,4 +1746,49 @@ static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, c
     }
 
     return valid;
+}
+
+
+/*
+check if a given expression is a modifiable lvalue
+*/
+static bool is_modifiable_lvalue(const Expression *expr)
+{
+    if(!expr->lvalue)
+    {
+        return false;
+    }
+
+    if(is_array(expr->type))
+    {
+        return false;
+    }
+
+    if(!expr->type->complete)
+    {
+        return false;
+    }
+
+    return is_const_qualified(expr->type);
+}
+
+
+/*
+check if a given type is const-qualified
+* For a structure or union type, this function recursively checks if its members are const-qualified.
+*/
+static bool is_const_qualified(const Type *type)
+{
+    if(is_struct(type) || is_union(type))
+    {
+        for(Member *member = type->member; member != NULL; member = member->next)
+        {
+            if(!is_const_qualified(member->type))
+            {
+                return false;
+            }
+        }
+    }
+
+    return (type->qual & TQ_CONST) == 0;
 }

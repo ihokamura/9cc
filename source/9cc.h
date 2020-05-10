@@ -241,6 +241,7 @@ struct Expression {
     Variable *var;       // information of variable (only for EXPR_VAR)
     Member *member;      // member (only for EXPR_MEMBER)
     Expression *args;    // arguments (only for EXPR_FUNC)
+    bool lvalue;         // flag indicating that the expression is lvalue
 };
 
 // structure for declaration
