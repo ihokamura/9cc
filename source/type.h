@@ -11,6 +11,7 @@
 #include "9cc.h"
 
 Type *new_type(TypeKind kind, TypeQualifier qual);
+Type *copy_type(const Type *type);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
 bool is_void(const Type *type);

@@ -1150,21 +1150,64 @@ static Expression *conditional(void)
 
     if(consume_reserved("?"))
     {
-        Expression *ternary = new_expression(EXPR_COND);
-
-        ternary->operand = node;
-        ternary->lhs = expression();
-        expect_reserved(":");
-        ternary->rhs = conditional();
-
-        // copy LHS and RHS since their types may not be modified
-        Expression lhs = *ternary->lhs;
-        Expression rhs = *ternary->rhs;
-        if(is_integer(lhs.type) && is_integer(rhs.type))
+        // parse the first operand and check constraints on it
+        Expression *operand = convert_array_to_pointer(node); // implicitly convert array to pointer
+        if(!is_scalar(node->type))
         {
-            apply_arithmetic_conversion(&lhs, &rhs);
+            report_error(NULL, "expected scalar type");
         }
-        ternary->type = lhs.type;
+
+        // parse the second and third operands, check constraints on them and determine the type of the conditional expression
+        Expression *lhs = convert_array_to_pointer(expression()); // implicitly convert array to pointer
+        expect_reserved(":");
+        Expression *rhs = convert_array_to_pointer(conditional()); // implicitly convert array to pointer
+        Type *type = NULL;
+        bool valid = false;
+        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
+        {
+            // perform the usual arithmetic conversions
+            apply_arithmetic_conversion(lhs, rhs);
+            type = lhs->type;
+            valid = true;
+        }
+        else if(((is_struct(lhs->type) && is_struct(rhs->type)) || (is_union(lhs->type) && is_union(rhs->type))) &&
+                is_compatible(lhs->type, rhs->type))
+        {
+            type = lhs->type;
+            valid = true;
+        }
+        else if(is_void(lhs->type) && is_void(rhs->type))
+        {
+            type = lhs->type;
+            valid = true;
+        }
+        else if(is_pointer(lhs->type) && is_pointer(rhs->type))
+        {
+            if(is_compatible(lhs->type, rhs->type))
+            {
+                type = copy_type(lhs->type);
+                type->qual = (lhs->type->qual | rhs->type->qual);
+                valid = true;
+            }
+            else if(is_void(lhs->type->base) || is_void(rhs->type->base))
+            {
+                type = copy_type(lhs->type);
+                type->qual = (lhs->type->qual | rhs->type->qual);
+                valid = true;
+            }
+        }
+
+        if(!valid)
+        {
+            report_error(NULL, "type mismatch in conditional expression");
+        }
+
+        // make a new node
+        Expression *ternary = new_expression(EXPR_COND);
+        ternary->operand = operand;
+        ternary->lhs = lhs;
+        ternary->rhs = rhs;
+        ternary->type = type;
 
         return ternary;
     }
