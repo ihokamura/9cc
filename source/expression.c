@@ -41,7 +41,7 @@ static Expression *logical_or(void);
 static Expression *conditional(void);
 static Expression *apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
-static Expression *convert_array_to_pointer(Expression *expr);
+static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
 
 
@@ -126,20 +126,15 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 
     case EXPR_POST_INC:
     case EXPR_POST_DEC:
-        node->type = operand->type;
-        break;
-
-    case EXPR_NEG:
-        node->type = new_type(TY_INT, TQ_NONE);
-        break;
-
     case EXPR_PLUS:
     case EXPR_MINUS:
     case EXPR_COMPL:
         node->type = operand->type;
         break;
 
+    case EXPR_NEG:
     default:
+        node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
 
@@ -153,6 +148,8 @@ make a new node for binary operations
 Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs)
 {
     Expression *node = new_expression(kind);
+    node->lhs = lhs;
+    node->rhs = rhs;
 
     switch(kind)
     {
@@ -204,9 +201,6 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
-
-    node->lhs = lhs;
-    node->rhs = rhs;
 
     return node;
 }
@@ -313,9 +307,8 @@ static Expression *postfix(void)
             Expression *operand;
             Expression *index = expression();
 
-            // implicitly convert array to pointer
-            node = convert_array_to_pointer(node);
-            index = convert_array_to_pointer(index);
+            node = apply_implicit_conversion(node);
+            index = apply_implicit_conversion(index);
 
             // check constraints
             if(is_pointer(node->type) && node->type->base->complete && is_integer(index->type))
@@ -337,11 +330,7 @@ static Expression *postfix(void)
         else if(consume_reserved("("))
         {
             // function call
-            if(is_function(node->type))
-            {
-                // implicitly convert function to pointer
-                node = new_node_unary(EXPR_ADDR, node);
-            }
+            node = apply_implicit_conversion(node);
 
             if(is_function(node->type->base))
             {
@@ -494,7 +483,8 @@ static Expression *unary(void)
     {
         Expression *operand = unary();
 
-        if(is_integer(operand->type))
+        // check constraints
+        if(is_real(operand->type))
         {
             node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
         }
@@ -504,13 +494,14 @@ static Expression *unary(void)
         }
         else
         {
-            report_error(NULL, "bad operand for prefix increment operator ++");
+            report_error(NULL, "wrong type argument to increment");
         }
     }
     else if(consume_reserved("--"))
     {
         Expression *operand = unary();
 
+        // check constraints
         if(is_integer(operand->type))
         {
             node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
@@ -521,7 +512,7 @@ static Expression *unary(void)
         }
         else
         {
-            report_error(NULL, "bad operand for prefix decrement operator --");
+            report_error(NULL, "wrong type argument to decrement");
         }
     }
     else if(consume_reserved("&"))
@@ -530,31 +521,76 @@ static Expression *unary(void)
     }
     else if (consume_reserved("*"))
     {
-        Expression *operand = unary();
+        Expression *operand = apply_implicit_conversion(unary());
 
-        // implicitly convert function to pointer
-        if(is_function(operand->type))
+        // check constraints
+        if(is_pointer(operand->type))
         {
-            operand = new_node_unary(EXPR_ADDR, operand);
+            node = new_node_unary(EXPR_DEREF, operand);
         }
-
-        node = new_node_unary(EXPR_DEREF, operand);
+        else
+        {
+            report_error(NULL, "wrong type argument to unary *");
+        }
     }
     else if(consume_reserved("+"))
     {
-        node = new_node_unary(EXPR_PLUS, apply_integer_promotion(unary()));
+        Expression *operand = unary();
+
+        // check constraints
+        if(is_arithmetic(operand->type))
+        {
+            operand = apply_integer_promotion(operand);
+            node = new_node_unary(EXPR_PLUS, operand);
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary +");
+        }
     }
     else if(consume_reserved("-"))
     {
-        node = new_node_unary(EXPR_MINUS, apply_integer_promotion(unary()));
+        Expression *operand = unary();
+
+        // check constraints
+        if(is_arithmetic(operand->type))
+        {
+            operand = apply_integer_promotion(operand);
+            node = new_node_unary(EXPR_MINUS, operand);
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary -");
+        }
     }
     else if (consume_reserved("~"))
     {
-        node = new_node_unary(EXPR_COMPL, apply_integer_promotion(unary()));
+        Expression *operand = unary();
+
+        // check constraints
+        if(is_integer(operand->type))
+        {
+            operand = apply_integer_promotion(operand);
+            node = new_node_unary(EXPR_COMPL, operand);
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary ~");
+        }
     }
     else if (consume_reserved("!"))
     {
-        node = new_node_unary(EXPR_NEG, unary());
+        Expression *operand = unary();
+
+        // check constraints
+        if(is_scalar(operand->type))
+        {
+            node = new_node_unary(EXPR_NEG, operand);
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary !");
+        }
     }
     else
     {
@@ -588,8 +624,7 @@ static Expression *cast(void)
                 report_error(NULL, "expected void type or scalar type");
             }
 
-            // implicitly convert array to pointer
-            Expression *operand = convert_array_to_pointer(unary());
+            Expression *operand = apply_implicit_conversion(unary());
             if(!is_scalar(operand->type))
             {
                 report_error(NULL, "expected scalar type");
@@ -685,9 +720,8 @@ static Expression *additive(void)
     {
         if(consume_reserved("+"))
         {
-            // implicitly convert array to pointer
-            Expression *lhs = convert_array_to_pointer(node);
-            Expression *rhs = convert_array_to_pointer(multiplicative());
+            Expression *lhs = apply_implicit_conversion(node);
+            Expression *rhs = apply_implicit_conversion(multiplicative());
 
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
@@ -710,9 +744,8 @@ static Expression *additive(void)
         }
         else if(consume_reserved("-"))
         {
-            // implicitly convert array to pointer
-            Expression *lhs = convert_array_to_pointer(node);
-            Expression *rhs = convert_array_to_pointer(multiplicative());
+            Expression *lhs = apply_implicit_conversion(node);
+            Expression *rhs = apply_implicit_conversion(multiplicative());
 
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
@@ -844,10 +877,8 @@ static Expression *relational(void)
         {
             return node;
         }
-
-        // implicitly convert array to pointer
-        lhs = convert_array_to_pointer(lhs);
-        rhs = convert_array_to_pointer(rhs);
+        lhs = apply_implicit_conversion(lhs);
+        rhs = apply_implicit_conversion(rhs);
 
         // check constraints
         if(is_real(lhs->type) && is_real(rhs->type))
@@ -905,10 +936,8 @@ static Expression *equality(void)
         {
             return node;
         }
-
-        // implicitly convert array to pointer
-        lhs = convert_array_to_pointer(lhs);
-        rhs = convert_array_to_pointer(rhs);
+        lhs = apply_implicit_conversion(lhs);
+        rhs = apply_implicit_conversion(rhs);
 
         // check constraints
         bool valid = false;
@@ -1078,9 +1107,8 @@ static Expression *logical_and(void)
     {
         if(consume_reserved("&&"))
         {
-            // implicitly convert array to pointer
-            Expression *lhs = convert_array_to_pointer(node);
-            Expression *rhs = convert_array_to_pointer(bitwise_or());
+            Expression *lhs = apply_implicit_conversion(node);
+            Expression *rhs = apply_implicit_conversion(bitwise_or());
 
             // make a new node
             if(check_constraint_binary(EXPR_LOG_AND, lhs->type, rhs->type))
@@ -1115,9 +1143,8 @@ static Expression *logical_or(void)
     {
         if(consume_reserved("||"))
         {
-            // implicitly convert array to pointer
-            Expression *lhs = convert_array_to_pointer(node);
-            Expression *rhs = convert_array_to_pointer(logical_and());
+            Expression *lhs = apply_implicit_conversion(node);
+            Expression *rhs = apply_implicit_conversion(logical_and());
 
             // make a new node
             if(check_constraint_binary(EXPR_LOG_OR, lhs->type, rhs->type))
@@ -1150,16 +1177,16 @@ static Expression *conditional(void)
     if(consume_reserved("?"))
     {
         // parse the first operand and check constraints on it
-        Expression *operand = convert_array_to_pointer(node); // implicitly convert array to pointer
+        Expression *operand = apply_implicit_conversion(node);
         if(!is_scalar(node->type))
         {
             report_error(NULL, "expected scalar type");
         }
 
         // parse the second and third operands, check constraints on them and determine the type of the conditional expression
-        Expression *lhs = convert_array_to_pointer(expression()); // implicitly convert array to pointer
+        Expression *lhs = apply_implicit_conversion(expression());
         expect_reserved(":");
-        Expression *rhs = convert_array_to_pointer(conditional()); // implicitly convert array to pointer
+        Expression *rhs = apply_implicit_conversion(conditional());
         Type *type = NULL;
         bool valid = false;
         if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
@@ -1623,17 +1650,24 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
 
 
 /*
-implicitly convert array to pointer
+apply implicit conversion on expression
 * If the argument has an array type, this function returns the expression with an pointer type to the initial element of the array.
+* If the argument has a function type, this function returns the expression with an pointer type to the function.
 * Otherwise, this function returns the argument.
 */
-static Expression *convert_array_to_pointer(Expression *expr)
+static Expression *apply_implicit_conversion(Expression *expr)
 {
     Expression *conv = expr;
 
+    // implicitly convert array to pointer
     if(is_array(expr->type))
     {
         conv = new_node_unary(EXPR_ADDR, new_node_unary(EXPR_DEREF, expr));
+    }
+    // implicitly convert function to pointer
+    else if(is_function(expr->type))
+    {
+        conv = new_node_unary(EXPR_ADDR, expr);
     }
 
     return conv;
