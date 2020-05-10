@@ -106,7 +106,7 @@ static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPE
     // synonym of 'char'
     {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_CHAR},    // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_SCHAR},   // signed char
     // synonym of 'unsigned char'
     {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
     // synonym of 'short'
@@ -1650,6 +1650,7 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             {
             case TY_VOID:
             case TY_CHAR:
+            case TY_SCHAR:
             case TY_UCHAR:
             case TY_SHORT:
             case TY_USHORT:

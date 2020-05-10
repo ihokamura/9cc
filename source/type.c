@@ -62,6 +62,16 @@ static Type char_types[] = {
     {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT | TQ_VOLATILE,            true},
     {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
 };
+static Type schar_types[] = {
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_NONE,                              true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST,                             true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT,                          true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_VOLATILE,                          true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_SCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
 static Type uchar_types[] = {
     {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_NONE,                              true},
     {TY_UCHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_CONST,                             true},
@@ -151,6 +161,10 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type = &char_types[qual];
         break;
 
+    case TY_SCHAR:
+        type = &schar_types[qual];
+        break;
+
     case TY_UCHAR:
         type = &uchar_types[qual];
         break;
@@ -218,6 +232,7 @@ int get_conversion_rank(const Type *type)
     switch(type->kind)
     {
     case TY_CHAR:
+    case TY_SCHAR:
     case TY_UCHAR:
         return RANK_CHAR;
 
@@ -247,22 +262,12 @@ Type *discard_sign(const Type *type)
 {
     switch(type->kind)
     {
-    case TY_CHAR:
-    case TY_UCHAR:
-        return &char_types[type->qual];
-
-    case TY_SHORT:
-    case TY_USHORT:
-        return &short_types[type->qual];
-
-    case TY_INT:
-    case TY_UINT:
-        return &int_types[type->qual];
-
     case TY_LONG:
     case TY_ULONG:
         return &long_types[type->qual];
 
+    case TY_INT:
+    case TY_UINT:
     default:
         return &int_types[type->qual];
     }
@@ -284,7 +289,7 @@ check if a given type is a signed integer type
 bool is_signed(const Type *type)
 {
     return (
-           (type->kind == TY_CHAR)
+           (type->kind == TY_SCHAR)
         || (type->kind == TY_SHORT)
         || (type->kind == TY_INT)
         || (type->kind == TY_LONG)
@@ -320,7 +325,7 @@ check if a given type is an integer type
 */
 bool is_integer(const Type *type)
 {
-    return is_signed(type) || is_unsigned(type) || is_enumerated(type);
+    return (type->kind == TY_CHAR) || is_signed(type) || is_unsigned(type) || is_enumerated(type);
 }
 
 

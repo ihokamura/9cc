@@ -39,6 +39,7 @@ typedef enum {
 typedef enum {
     TY_VOID,    // void
     TY_CHAR,    // char
+    TY_SCHAR,   // signed char
     TY_UCHAR,   // unsigned char
     TY_SHORT,   // short
     TY_USHORT,  // unsigned short

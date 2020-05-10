@@ -1594,6 +1594,7 @@ apply integer promotion
 static Expression *apply_integer_promotion(Expression *expr)
 {
     if((expr->type->kind == TY_CHAR)
+    || (expr->type->kind == TY_SCHAR)
     || (expr->type->kind == TY_UCHAR)
     || (expr->type->kind == TY_SHORT)
     || (expr->type->kind == TY_USHORT))
