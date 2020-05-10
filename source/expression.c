@@ -124,7 +124,8 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 
     case EXPR_DEREF:
         // An array type is also converted to the element type.
-        node->type = operand->type->base;
+        node->type = copy_type(operand->type->base);
+        node->lvalue = true;
         break;
 
     case EXPR_POST_INC:
@@ -132,7 +133,7 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
     case EXPR_PLUS:
     case EXPR_MINUS:
     case EXPR_COMPL:
-        node->type = operand->type;
+        node->type = copy_type(operand->type);
         break;
 
     case EXPR_NEG:
@@ -181,7 +182,7 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_AND_EQ:
     case EXPR_XOR_EQ:
     case EXPR_OR_EQ:
-        node->type = lhs->type;
+        node->type = copy_type(lhs->type);
         break;
 
     case EXPR_PTR_DIFF:
@@ -191,7 +192,7 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         break;
 
     case EXPR_COMMA:
-        node->type = rhs->type;
+        node->type = copy_type(rhs->type);
         break;
 
     case EXPR_L:
@@ -204,6 +205,9 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
+
+    node->type->qual = TQ_NONE;
+    node->lvalue = false;
 
     return node;
 }
@@ -365,6 +369,7 @@ static Expression *postfix(void)
             {
                 Expression *struct_node = node;
                 node = new_node_member(struct_node, find_member(token, struct_node->type));
+                node->lvalue = struct_node->lvalue;
             }
             else
             {
@@ -380,6 +385,7 @@ static Expression *postfix(void)
             {
                 Expression *struct_node = new_node_unary(EXPR_DEREF, node);
                 node = new_node_member(struct_node, find_member(token, struct_node->type));
+                node->lvalue = true;
             }
             else
             {
@@ -1281,7 +1287,18 @@ Expression *assign(void)
     // parse assignment
     if(consume_reserved("="))
     {
-        node = new_node_binary(EXPR_ASSIGN, node, assign());
+        Expression *lhs = node;
+        Expression *rhs = assign();
+
+        // make a new node
+        if(is_modifiable_lvalue(lhs))
+        {
+            node = new_node_binary(EXPR_ASSIGN, lhs, rhs);
+        }
+        else
+        {
+            report_error(NULL, "expected modifiable lvalue as left operand of assignment");
+        }
     }
     else if(consume_reserved("*="))
     {
