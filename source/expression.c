@@ -97,7 +97,8 @@ Expression *new_node_member(Expression *operand, Member *member)
 {
     Expression *node = new_expression(EXPR_MEMBER);
     node->member = member;
-    node->type = member->type;
+    node->type = copy_type(member->type);
+    node->type->qual = operand->type->qual;
     node->operand = operand;
 
     return node;
@@ -316,17 +317,18 @@ static Expression *postfix(void)
             node = convert_array_to_pointer(node);
             index = convert_array_to_pointer(index);
 
-            if(is_pointer(node->type) && is_integer(index->type))
+            // check constraints
+            if(is_pointer(node->type) && node->type->base->complete && is_integer(index->type))
             {
                 operand = new_node_binary(EXPR_PTR_ADD, node, index);
             }
-            else if(is_integer(node->type) && is_pointer(index->type))
+            else if(is_integer(node->type) && is_pointer(index->type) && index->type->base->complete)
             {
                 operand = new_node_binary(EXPR_PTR_ADD, index, node);
             }
             else
             {
-                report_error(NULL, "bad operand for [] operator\n");
+                report_error(NULL, "invalid operands to subscription operator []");
             }
 
             node = new_node_unary(EXPR_DEREF, operand);
@@ -363,33 +365,56 @@ static Expression *postfix(void)
         {
             // access to member (by value)
             Token *token = expect_identifier();
-            Expression *struct_node = node;
-            node = new_node_member(struct_node, find_member(token, struct_node->type));
+
+            // check constraints
+            if(is_struct(node->type) || is_union(node->type))
+            {
+                Expression *struct_node = node;
+                node = new_node_member(struct_node, find_member(token, struct_node->type));
+            }
+            else
+            {
+                report_error(NULL, "expected structure or union");
+            }
         }
         else if(consume_reserved("->"))
         {
             // access to member (by pointer)
             Token *token = expect_identifier();
-            Expression *struct_node = new_node_unary(EXPR_DEREF, node);
-            node = new_node_member(struct_node, find_member(token, struct_node->type));
+
+            if(is_pointer(node->type) && (is_struct(node->type->base) || is_union(node->type->base)))
+            {
+                Expression *struct_node = new_node_unary(EXPR_DEREF, node);
+                node = new_node_member(struct_node, find_member(token, struct_node->type));
+            }
+            else
+            {
+                report_error(NULL, "expected pointer to structure or union");
+            }
         }
         else if(consume_reserved("++"))
         {
             // postfix increment
-            if(!(is_integer(node->type) || is_pointer(node->type)))
+            if(is_real(node->type) || is_pointer(node->type))
             {
-                report_error(NULL, "bad operand for postfix increment operator ++\n");
+                node = new_node_unary(EXPR_POST_INC, node);
             }
-            node = new_node_unary(EXPR_POST_INC, node);
+            else
+            {
+                report_error(NULL, "wrong type argument to increment");
+            }
         }
         else if(consume_reserved("--"))
         {
             // postfix decrement
-            if(!(is_integer(node->type) || is_pointer(node->type)))
+            if(is_real(node->type) || is_pointer(node->type))
             {
-                report_error(NULL, "bad operand for postfix decrement operator --\n");
+                node = new_node_unary(EXPR_POST_DEC, node);
             }
-            node = new_node_unary(EXPR_POST_DEC, node);
+            else
+            {
+                report_error(NULL, "wrong type argument to decrement");
+            }
         }
         else
         {
