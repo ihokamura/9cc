@@ -42,6 +42,7 @@ static Expression *conditional(void);
 static Expression *apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
 static Expression *convert_array_to_pointer(Expression *expr);
+static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
 
 
 /*
@@ -166,32 +167,7 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_BIT_AND:
     case EXPR_BIT_XOR:
     case EXPR_BIT_OR:
-        node->type = lhs->type;
-        break;
-
-    case EXPR_PTR_DIFF:
-        // The type of the result of pointer difference is 'ptrdiff_t'.
-        // This implementation regards 'ptrdiff_t' as 'long'.
-        node->type = new_type(TY_LONG, TQ_NONE);
-        break;
-
     case EXPR_ASSIGN:
-        if(is_array(rhs->type))
-        {
-            // implicitly convert array to pointer
-            node->type = new_type_pointer(rhs->type->base);
-        }
-        else if(is_function(rhs->type))
-        {
-            // implicitly convert function to pointer
-            node->type = new_type_pointer(rhs->type);
-        }
-        else
-        {
-            node->type = lhs->type;
-        }
-        break;
-
     case EXPR_ADD_EQ:
     case EXPR_PTR_ADD_EQ:
     case EXPR_SUB_EQ:
@@ -205,6 +181,12 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_XOR_EQ:
     case EXPR_OR_EQ:
         node->type = lhs->type;
+        break;
+
+    case EXPR_PTR_DIFF:
+        // The type of the result of pointer difference is 'ptrdiff_t'.
+        // This implementation regards 'ptrdiff_t' as 'long'.
+        node->type = new_type(TY_LONG, TQ_NONE);
         break;
 
     case EXPR_COMMA:
@@ -621,7 +603,6 @@ static Expression *multiplicative(void)
         Expression *lhs, *rhs;
         ExpressionKind kind;
         char *operator = NULL;
-        bool (*check_type)(const Type *type) = NULL;
 
         if(consume_reserved("*"))
         {
@@ -629,7 +610,6 @@ static Expression *multiplicative(void)
             rhs = cast();
             kind = EXPR_MUL;
             operator = "*";
-            check_type = is_arithmetic;
         }
         else if(consume_reserved("/"))
         {
@@ -637,7 +617,6 @@ static Expression *multiplicative(void)
             rhs = cast();
             kind = EXPR_DIV;
             operator = "/";
-            check_type = is_arithmetic;
         }
         else if(consume_reserved("%"))
         {
@@ -645,26 +624,23 @@ static Expression *multiplicative(void)
             rhs = cast();
             kind = EXPR_MOD;
             operator = "%";
-            check_type = is_integer;
         }
         else
         {
             return node;
         }
 
-        // check constraints
-        if(check_type(lhs->type) && check_type(rhs->type))
+        // make a new node
+        if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the usual arithmetic conversions
             apply_arithmetic_conversion(lhs, rhs);
+            node = new_node_binary(kind, lhs, rhs);
         }
         else
         {
             report_error(NULL, "invalid operands to binary %s", operator);
         }
-
-        // make a new node
-        node = new_node_binary(kind, lhs, rhs);
     }
 }
 
@@ -778,20 +754,18 @@ static Expression *shift(void)
             return node;
         }
 
-        // check constraints
-        if(is_integer(lhs->type) && is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the integer promotion on both operands
             lhs = apply_integer_promotion(lhs);
             rhs = apply_integer_promotion(rhs);
+            node = new_node_binary(kind, lhs, rhs);
         }
         else
         {
             report_error(NULL, "invalid operands to binary %s", operator);
         }
-
-        // make a new node
-        node = new_node_binary(kind, lhs, rhs);
     }
 }
 
@@ -968,8 +942,8 @@ static Expression *bitwise_and(void)
             Expression *lhs = node;
             Expression *rhs = equality();
 
-            // check constraints
-            if(is_integer(lhs->type) && is_integer(rhs->type))
+            // make a new node
+            if(check_constraint_binary(EXPR_BIT_AND, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
                 apply_arithmetic_conversion(lhs, rhs);
@@ -1006,8 +980,8 @@ static Expression *bitwise_xor(void)
             Expression *lhs = node;
             Expression *rhs = bitwise_and();
 
-            // check constraints
-            if(is_integer(lhs->type) && is_integer(rhs->type))
+            // make a new node
+            if(check_constraint_binary(EXPR_BIT_XOR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
                 apply_arithmetic_conversion(lhs, rhs);
@@ -1044,8 +1018,8 @@ static Expression *bitwise_or(void)
             Expression *lhs = node;
             Expression *rhs = bitwise_xor();
 
-            // check constraints
-            if(is_integer(lhs->type) && is_integer(rhs->type))
+            // make a new node
+            if(check_constraint_binary(EXPR_BIT_OR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
                 apply_arithmetic_conversion(lhs, rhs);
@@ -1083,8 +1057,8 @@ static Expression *logical_and(void)
             Expression *lhs = convert_array_to_pointer(node);
             Expression *rhs = convert_array_to_pointer(bitwise_or());
 
-            // check constraints
-            if(is_scalar(lhs->type) && is_scalar(rhs->type))
+            // make a new node
+            if(check_constraint_binary(EXPR_LOG_AND, lhs->type, rhs->type))
             {
                 node = new_node_binary(EXPR_LOG_AND, lhs, rhs);
             }
@@ -1120,8 +1094,8 @@ static Expression *logical_or(void)
             Expression *lhs = convert_array_to_pointer(node);
             Expression *rhs = convert_array_to_pointer(logical_and());
 
-            // check constraints
-            if(is_scalar(lhs->type) && is_scalar(rhs->type))
+            // make a new node
+            if(check_constraint_binary(EXPR_LOG_OR, lhs->type, rhs->type))
             {
                 node = new_node_binary(EXPR_LOG_OR, lhs, rhs);
             }
@@ -1239,52 +1213,56 @@ Expression *assign(void)
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_MUL_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_MUL_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment *=");
         }
-
-        node = new_node_binary(EXPR_MUL_EQ, lhs, rhs);
     }
     else if(consume_reserved("/="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_DIV_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_DIV_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment /=");
         }
-
-        node = new_node_binary(EXPR_DIV_EQ, lhs, rhs);
     }
     else if(consume_reserved("%="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_MOD_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_MOD_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment %=");
         }
-
-        node = new_node_binary(EXPR_MOD_EQ, lhs, rhs);
     }
     else if(consume_reserved("+="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(rhs->type))
-        {
-            report_error(NULL, "bad operand for compound assignment +=");
-        }
-
-        if(is_integer(lhs->type))
+        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
             node = new_node_binary(EXPR_ADD_EQ, lhs, rhs);
         }
-        else if(is_pointer(lhs->type))
+        else if(is_pointer(lhs->type) && lhs->type->base->complete && is_integer(rhs->type))
         {
             node = new_node_binary(EXPR_PTR_ADD_EQ, lhs, rhs);
         }
@@ -1298,22 +1276,17 @@ Expression *assign(void)
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(rhs->type))
-        {
-            report_error(NULL, "bad operand for compound assignment -=");
-        }
-
-        if(is_integer(lhs->type))
+        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
             node = new_node_binary(EXPR_SUB_EQ, lhs, rhs);
         }
-        else if(is_pointer(lhs->type))
+        else if(is_pointer(lhs->type) && lhs->type->base->complete && is_integer(rhs->type))
         {
             node = new_node_binary(EXPR_PTR_SUB_EQ, lhs, rhs);
         }
         else
         {
-            report_error(NULL, "bad operand for compound assignment -=");
+            report_error(NULL, "bad operand for compound assignment +=");
         }
     }
     else if(consume_reserved("<<="))
@@ -1321,60 +1294,75 @@ Expression *assign(void)
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_LSHIFT_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_LSHIFT_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment <<=");
         }
-
-        node = new_node_binary(EXPR_LSHIFT_EQ, lhs, rhs);
     }
     else if(consume_reserved(">>="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_RSHIFT_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_RSHIFT_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment >>=");
         }
-
-        node = new_node_binary(EXPR_RSHIFT_EQ, lhs, rhs);
     }
     else if(consume_reserved("&="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_AND_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_AND_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment &=");
         }
-
-        node = new_node_binary(EXPR_AND_EQ, lhs, rhs);
     }
     else if(consume_reserved("^="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_XOR_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_XOR_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment ^=");
         }
-
-        node = new_node_binary(EXPR_XOR_EQ, lhs, rhs);
     }
     else if(consume_reserved("|="))
     {
         Expression *lhs = node;
         Expression *rhs = assign();
 
-        if(!is_integer(lhs->type) || !is_integer(rhs->type))
+        // make a new node
+        if(check_constraint_binary(EXPR_OR_EQ, lhs->type, rhs->type))
+        {
+            node = new_node_binary(EXPR_OR_EQ, lhs, rhs);
+        }
+        else
         {
             report_error(NULL, "bad operand for compound assignment |=");
         }
-
-        node = new_node_binary(EXPR_OR_EQ, lhs, rhs);
     }
 
     return node;
@@ -1624,4 +1612,48 @@ static Expression *convert_array_to_pointer(Expression *expr)
     }
 
     return conv;
+}
+
+
+/*
+check constraints on binary operations
+*/
+static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type)
+{
+    bool valid = false;
+
+    switch(kind)
+    {
+    case EXPR_MUL:
+    case EXPR_DIV:
+    case EXPR_MUL_EQ:
+    case EXPR_DIV_EQ:
+        valid = (is_arithmetic(lhs_type) && is_arithmetic(rhs_type));
+        break;
+
+    case EXPR_MOD:
+    case EXPR_LSHIFT:
+    case EXPR_RSHIFT:
+    case EXPR_BIT_AND:
+    case EXPR_BIT_XOR:
+    case EXPR_BIT_OR:
+    case EXPR_MOD_EQ:
+    case EXPR_LSHIFT_EQ:
+    case EXPR_RSHIFT_EQ:
+    case EXPR_AND_EQ:
+    case EXPR_XOR_EQ:
+    case EXPR_OR_EQ:
+        valid = (is_integer(lhs_type) && is_integer(rhs_type));
+        break;
+
+    case EXPR_LOG_AND:
+    case EXPR_LOG_OR:
+        valid = (is_scalar(lhs_type) && is_scalar(rhs_type));
+        break;
+
+    default:
+        break;
+    }
+
+    return valid;
 }
