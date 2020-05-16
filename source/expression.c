@@ -1770,22 +1770,14 @@ check if a given expression is a modifiable lvalue
 */
 static bool is_modifiable_lvalue(const Expression *expr)
 {
-    if(!expr->lvalue)
+    if((!expr->lvalue) || is_array(expr->type) || (!expr->type->complete))
     {
         return false;
     }
-
-    if(is_array(expr->type))
+    else
     {
-        return false;
+        return !is_const_qualified(expr->type);
     }
-
-    if(!expr->type->complete)
-    {
-        return false;
-    }
-
-    return is_const_qualified(expr->type);
 }
 
 
@@ -1799,12 +1791,12 @@ static bool is_const_qualified(const Type *type)
     {
         for(Member *member = type->member; member != NULL; member = member->next)
         {
-            if(!is_const_qualified(member->type))
+            if(is_const_qualified(member->type))
             {
-                return false;
+                return true;
             }
         }
     }
 
-    return (type->qual & TQ_CONST) == 0;
+    return ((type->qual & TQ_CONST) == TQ_CONST);
 }
