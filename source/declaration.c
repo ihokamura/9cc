@@ -476,7 +476,7 @@ static TypeSpecifier type_specifier(Type **type)
         Identifier *ident = find_identifier(token);
         if((ident != NULL) && (ident->type_def != NULL))
         {
-            *type = ident->type_def;
+            *type = copy_type(ident->type_def);
             return TS_TYPEDEF;
         }
         else
@@ -1675,7 +1675,7 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             case TY_UNION:
             case TY_ENUM:
             case TY_TYPEDEF:
-                type->qual = qual;
+                type->qual |= qual;
                 return type;
 
             default:
