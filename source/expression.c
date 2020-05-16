@@ -39,7 +39,7 @@ static Expression *bitwise_or(void);
 static Expression *logical_and(void);
 static Expression *logical_or(void);
 static Expression *conditional(void);
-static Expression *apply_integer_promotion(Expression *expr);
+static void apply_integer_promotion(Expression *expr);
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
 static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
@@ -569,7 +569,7 @@ static Expression *unary(void)
         // check constraints
         if(is_arithmetic(operand->type))
         {
-            operand = apply_integer_promotion(operand);
+            apply_integer_promotion(operand);
             node = new_node_unary(EXPR_PLUS, operand);
         }
         else
@@ -584,7 +584,7 @@ static Expression *unary(void)
         // check constraints
         if(is_arithmetic(operand->type))
         {
-            operand = apply_integer_promotion(operand);
+            apply_integer_promotion(operand);
             node = new_node_unary(EXPR_MINUS, operand);
         }
         else
@@ -599,7 +599,7 @@ static Expression *unary(void)
         // check constraints
         if(is_integer(operand->type))
         {
-            operand = apply_integer_promotion(operand);
+            apply_integer_promotion(operand);
             node = new_node_unary(EXPR_COMPL, operand);
         }
         else
@@ -845,8 +845,8 @@ static Expression *shift(void)
         if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the integer promotion on both operands
-            lhs = apply_integer_promotion(lhs);
-            rhs = apply_integer_promotion(rhs);
+            apply_integer_promotion(lhs);
+            apply_integer_promotion(rhs);
             node = new_node_binary(kind, lhs, rhs);
         }
         else
@@ -1608,7 +1608,7 @@ apply integer promotion
     * The size of 'int' is 4 bytes.
     * Therefore, 'int' can represent 'char', 'unsigned char', 'short' and 'unsigned short'.
 */
-static Expression *apply_integer_promotion(Expression *expr)
+static void apply_integer_promotion(Expression *expr)
 {
     if((expr->type->kind == TY_CHAR)
     || (expr->type->kind == TY_SCHAR)
@@ -1618,8 +1618,6 @@ static Expression *apply_integer_promotion(Expression *expr)
     {
         expr->type = new_type(TY_INT, TQ_NONE);
     }
-
-    return expr;
 }
 
 
@@ -1629,8 +1627,8 @@ apply usual arithmetic conversion
 static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
 {
     // perform integer promotions on both operands at first
-    lhs = apply_integer_promotion(lhs);
-    rhs = apply_integer_promotion(rhs);
+    apply_integer_promotion(lhs);
+    apply_integer_promotion(rhs);
 
     if(lhs->type->kind == rhs->type->kind)
     {
