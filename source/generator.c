@@ -187,8 +187,8 @@ static void generate_store(const Type *type)
         size_t offset = 0;
         while(true)
         {
-            put_instruction("  mov rbx, [rdi]");
-            put_instruction("  mov [rax], rbx");
+            put_instruction("  mov rdx, [rdi]");
+            put_instruction("  mov [rax], rdx");
             if(offset + 8 < type->size)
             {
                 offset += 8;
@@ -200,8 +200,8 @@ static void generate_store(const Type *type)
         }
         while(true)
         {
-            put_instruction("  mov rbx, [rdi]");
-            put_instruction("  mov byte ptr [rax], bl");
+            put_instruction("  mov rdx, [rdi]");
+            put_instruction("  mov byte ptr [rax], dl");
             if(offset + 1 < type->size)
             {
                 offset++;
@@ -813,13 +813,13 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("[rsp]");
         generate_load(expr->operand->type);
         generate_pop("rax");
-        put_instruction("  mov rbx, rax");
+        put_instruction("  mov rdx, rax");
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
         generate_store(expr->type);
         generate_pop("rax");
-        generate_push_reg_or_mem("rbx");
+        generate_push_reg_or_mem("rdx");
         return;
 
     case EXPR_POST_DEC:
@@ -827,13 +827,13 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("[rsp]");
         generate_load(expr->operand->type);
         generate_pop("rax");
-        put_instruction("  mov rbx, rax");
+        put_instruction("  mov rdx, rax");
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
         generate_store(expr->type);
         generate_pop("rax");
-        generate_push_reg_or_mem("rbx");
+        generate_push_reg_or_mem("rdx");
         return;
 
     case EXPR_CAST:
@@ -1078,8 +1078,8 @@ static void generate_expression(const Expression *expr)
         {
             // call function through pointer
             generate_expression(expr->operand);
-            generate_pop("rbx");
-            put_instruction("  call rbx");
+            generate_pop("rax");
+            put_instruction("  call rax");
         }
 
         if(!aligned)
