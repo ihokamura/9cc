@@ -150,7 +150,7 @@ static void generate_load(const Type *type)
     {
         put_instruction("  movsxd rax, dword ptr [rax]");
     }
-    else
+    else if(type->size == 8)
     {
         put_instruction("  mov rax, [rax]");
     }
@@ -755,7 +755,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_VAR:
         generate_lvalue(expr);
-        if(!(is_array(expr->var->type) || is_function(expr->var->type) || is_struct(expr->var->type) || is_union(expr->var->type)))
+        if(!(is_array(expr->var->type) || is_function(expr->var->type)))
         {
             generate_load(expr->var->type);
         }
@@ -775,7 +775,7 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_MEMBER:
         generate_lvalue(expr);
-        if(!(is_array(expr->type) || is_struct(expr->type) || is_union(expr->type)))
+        if(!is_array(expr->type))
         {
             generate_load(expr->type);
         }

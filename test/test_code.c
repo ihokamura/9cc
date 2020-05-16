@@ -997,12 +997,13 @@ int test_struct()
 {
     put_title("struct type");
 
-    struct {int m1; int m2;} st1, *pst1;
+    struct st1_tag {int m1; int m2;} st1, *pst1;
     st1.m1 = 1; assert_int(1, st1.m1);
     st1.m2 = 2; assert_int(2, st1.m2);
     pst1 = &st1;
     pst1->m1 = 3; assert_int(3, st1.m1);
     pst1->m2 = 4; assert_int(4, st1.m2);
+    struct st1_tag st1_copy = st1; assert_int(3, st1_copy.m1); assert_int(8, sizeof(struct st1_tag));
 
     struct {char m1; int m2; short m3;} st2;
     st2.m1 = 1; assert_char(1, st2.m1);
