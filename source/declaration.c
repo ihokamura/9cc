@@ -1081,6 +1081,17 @@ static Type *parameter_declaration(Variable **arg_var)
     Token *arg_token = NULL;
     arg_type = declarator(arg_type, &arg_token, NULL);
 
+    // adjust array type to pointer type
+    if(is_array(arg_type))
+    {
+        arg_type = new_type_pointer(arg_type->base);
+    }
+    // adjust function type to pointer type
+    if(is_function(arg_type))
+    {
+        arg_type = new_type_pointer(arg_type);
+    }
+
     if(arg_token != NULL)
     {
         *arg_var = new_var(make_identifier(arg_token), arg_type, true);

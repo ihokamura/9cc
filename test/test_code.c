@@ -650,6 +650,21 @@ int func_def_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7
 {
     return a0 + a1*10 + a2*100 + a3*1000 + a4*10000 + a5*100000 + a6*1000000 + a7*10000000;
 }
+int func_def_arg_array(int a[10])
+{
+    int sum = 0;
+    int i;
+    for(i = 0; i < 10; i++)
+    {
+        sum += a[i];
+    }
+
+    return sum;
+}
+int func_def_arg_func(int f(void))
+{
+    return f();
+}
 int func_def_factorial(int n)
 {
     if(n == 0)
@@ -687,6 +702,8 @@ int test_function_definition()
     assert_int(543210, func_def_arg6(0, 1, 2, 3, 4, 5));
     assert_int(6543210, func_def_arg7(0, 1, 2, 3, 4, 5, 6));
     assert_int(76543210, func_def_arg8(0, 1, 2, 3, 4, 5, 6, 7));
+    int a[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; assert_int(45, func_def_arg_array(a));
+    assert_int(0, func_def_arg_func(func_def_return0));
     assert_int(6, func_def_factorial(3));    
     assert_int(21, func_def_fibonacci(8));
 
