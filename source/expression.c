@@ -261,7 +261,7 @@ static Expression *primary(void)
         {
             // implicitly assume that the token denotes a function which returns int
             Expression *node = new_expression(EXPR_VAR);
-            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_type_list(new_type(TY_VOID, TQ_NONE)));
+            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_list(Type)(new_type(TY_VOID, TQ_NONE)));
             Variable *var = new_gvar(token, type, false);
             node->type = type;
             node->var = var;

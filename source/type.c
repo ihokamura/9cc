@@ -212,19 +212,6 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
 
 
 /*
-make a new element of list of type
-*/
-TypeList *new_type_list(Type *element)
-{
-    TypeList *list = calloc(1, sizeof(TypeList));
-    list->next = NULL;
-    list->element = element;
-
-    return list;
-}
-
-
-/*
 copy a type
 */
 Type *copy_type(const Type *type)
@@ -479,8 +466,8 @@ bool is_compatible(const Type *self, const Type *other)
     {
         if(is_compatible(self->base, other->base))
         {
-            TypeList *cursor_self = self->args;
-            TypeList *cursor_other = other->args;
+            List(Type) *cursor_self = self->args;
+            List(Type) *cursor_other = other->args;
             while((cursor_self != NULL) && (cursor_other != NULL))
             {
                 if(!is_compatible(cursor_self->element, cursor_other->element))
@@ -555,7 +542,7 @@ Type *new_type_array(Type *base, size_t len)
 /*
 make a function type
 */
-Type *new_type_function(Type *base, TypeList *args)
+Type *new_type_function(Type *base, List(Type) *args)
 {
     Type *type = new_type(TY_FUNC, TQ_NONE);
     type->complete = true;

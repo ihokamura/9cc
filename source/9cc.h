@@ -9,6 +9,7 @@
 #define __9CC_H__
 
 #include <stdbool.h>
+#include <stddef.h>
 
 
 // indicator of feature enabled or disabled
@@ -143,11 +144,22 @@ typedef enum {
 } StorageClassSpecifier;
 
 
-// structure for type (forward declaration)
+// forward declaration of structure types
+typedef struct Token Token;
+typedef struct DataSegment DataSegment;
+typedef struct Member Member;
+typedef struct Tag Tag;
 typedef struct Type Type;
+typedef struct Statement Statement;
+typedef struct StringLiteral StringLiteral;
+typedef struct Variable Variable;
+typedef struct Expression Expression;
+typedef struct Declaration Declaration;
+typedef struct Function Function;
+typedef struct Identifier Identifier;
+#include "list.h"
 
 // structure for token
-typedef struct Token Token;
 struct Token {
     Token *next;    // next token
     TokenKind kind; // kind of token
@@ -158,7 +170,6 @@ struct Token {
 };
 
 // structure for contents in data segment
-typedef struct DataSegment DataSegment;
 struct DataSegment {
     DataSegment *next;   // next element
     const char *label;   // label (symbol)
@@ -168,23 +179,12 @@ struct DataSegment {
 };
 
 // structure for member
-typedef struct Member Member;
 struct Member {
     Member *next;     // next element
     Type *type;       // type of member
     const char *name; // name of member
     size_t offset;    // offset of member (only for TY_STRUCT, TY_UNION)
     int value;        // value of member (only for TY_ENUM)
-};
-
-// structure for tag (forward declaration)
-typedef struct Tag Tag;
-
-// structure for list of type
-typedef struct TypeList TypeList;
-struct TypeList {
-    TypeList *next; // pointer to the next element
-    Type *element;  // element of list
 };
 
 // structure for type
@@ -196,19 +196,12 @@ struct Type {
     bool complete;      // flag indicating that the tyee is complete or incomplete
     Type *base;         // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
     size_t len;         // length of array (only for TY_ARRAY)
-    TypeList *args;     // type of arguments (only for TY_FUNC)
+    List(Type) *args;   // type of arguments (only for TY_FUNC)
     Tag *tag;           // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
     Member *member;     // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
 };
 
-// structure for statement (forward declaration)
-typedef struct Statement Statement;
-
-// structure for string-literal (forward declaration)
-typedef struct StringLiteral StringLiteral;
-
 // structure for variable
-typedef struct Variable Variable;
 struct Variable {
     Variable *next;     // next element
     const char *name;   // name of variable
@@ -235,7 +228,6 @@ struct StringLiteral {
 };
 
 // structure for expression
-typedef struct Expression Expression;
 struct Expression {
     Expression *next;    // next element
     ExpressionKind kind; // kind of expression
@@ -252,7 +244,6 @@ struct Expression {
 };
 
 // structure for declaration
-typedef struct Declaration Declaration;
 struct Declaration {
     Declaration *next; // next element
     Variable *var;     // declared variable
@@ -279,7 +270,6 @@ struct Statement {
 };
 
 // structure for function
-typedef struct Function Function;
 struct Function {
     Function *next;    // next element
     char *name;        // name of function
@@ -297,7 +287,6 @@ typedef struct Program {
 } Program;
 
 // structure for identifier
-typedef struct Identifier Identifier;
 struct Identifier {
     Identifier *next; // next element
     const char *name; // identifier
