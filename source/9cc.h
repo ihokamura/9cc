@@ -180,6 +180,13 @@ struct Member {
 // structure for tag (forward declaration)
 typedef struct Tag Tag;
 
+// structure for list of type
+typedef struct TypeList TypeList;
+struct TypeList {
+    TypeList *next; // pointer to the next element
+    Type *element;  // element of list
+};
+
 // structure for type
 struct Type {
     TypeKind kind;      // kind of type
@@ -189,8 +196,7 @@ struct Type {
     bool complete;      // flag indicating that the tyee is complete or incomplete
     Type *base;         // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
     size_t len;         // length of array (only for TY_ARRAY)
-    Type *args;         // type of arguments (only for TY_FUNC)
-    Type *next;         // next element (only for TY_FUNC)
+    TypeList *args;     // type of arguments (only for TY_FUNC)
     Tag *tag;           // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
     Member *member;     // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
 };

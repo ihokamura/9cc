@@ -72,8 +72,8 @@ static int enumerator(int val, Member **member);
 static TypeQualifier type_qualifier(void);
 static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars);
 static Type *pointer(Type *base);
-static Type *parameter_type_list(Variable **arg_vars);
-static Type *parameter_list(Variable **arg_vars);
+static TypeList *parameter_type_list(Variable **arg_vars);
+static TypeList *parameter_list(Variable **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
@@ -984,9 +984,9 @@ make a parameter-type-list
 parameter-type-list ::= parameter-list ("," "...")?
 ```
 */
-static Type *parameter_type_list(Variable **arg_vars)
+static TypeList *parameter_type_list(Variable **arg_vars)
 {
-    Type *arg_types = parameter_list(arg_vars);
+    TypeList *arg_types = parameter_list(arg_vars);
 
     if(consume_reserved(","))
     {
@@ -1003,14 +1003,14 @@ make a parameter-list
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
 */
-static Type *parameter_list(Variable **arg_vars)
+static TypeList *parameter_list(Variable **arg_vars)
 {
-    Type arg_types_head = {};
-    Type *arg_types_cursor = &arg_types_head;
+    TypeList arg_types_head = {};
+    TypeList *arg_types_cursor = &arg_types_head;
     Variable *arg_var;
     Variable *arg_vars_cursor = (arg_vars != NULL) ? *arg_vars : NULL;
 
-    arg_types_cursor->next = parameter_declaration(&arg_var);
+    arg_types_cursor->next = new_type_list(parameter_declaration(&arg_var));
     arg_types_cursor = arg_types_cursor->next;
     if(arg_vars != NULL)
     {
@@ -1032,7 +1032,7 @@ static Type *parameter_list(Variable **arg_vars)
         {
             if(!consume_reserved("..."))
             {
-                arg_types_cursor->next = parameter_declaration(&arg_var);
+                arg_types_cursor->next = new_type_list(parameter_declaration(&arg_var));
                 arg_types_cursor = arg_types_cursor->next;
                 if(arg_vars != NULL)
                 {
@@ -1225,15 +1225,22 @@ static Type *declarator_suffixes(Type *type, Variable **arg_vars)
     else if(consume_reserved("("))
     {
         // parse parameter declarators
-        Type *arg_types = new_type(TY_VOID, TQ_NONE);
-        if(!consume_reserved(")"))
+        TypeList *arg_types;
+        if(consume_reserved(")"))
         {
-            if(!consume_reserved("void"))
-            {
-                arg_types = parameter_type_list(arg_vars);
-            }
+            arg_types = new_type_list(new_type(TY_VOID, TQ_NONE));
+        }
+        else if(consume_reserved("void"))
+        {
+            arg_types = new_type_list(new_type(TY_VOID, TQ_NONE));
             expect_reserved(")");
         }
+        else
+        {
+            arg_types = parameter_type_list(arg_vars);
+            expect_reserved(")");
+        }
+
         type = declarator_suffixes(type, arg_vars);
         type = new_type_function(type, arg_types);
     }

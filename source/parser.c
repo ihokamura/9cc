@@ -142,14 +142,11 @@ static Function *new_function(const Token *token, Type *type, Variable *args, St
 
     // set offset of arguments and local variables and accumulate stack size
     size_t offset = 0;
-    if(type->args->kind != TY_VOID)
+    for(Variable *arg = args; arg != NULL; arg = arg->next)
     {
-        for(Variable *arg = args; arg != NULL; arg = arg->next)
-        {
-            offset = adjust_alignment(offset, arg->type->align);
-            offset += arg->type->size;
-            arg->offset = offset;
-        }
+        offset = adjust_alignment(offset, arg->type->align);
+        offset += arg->type->size;
+        arg->offset = offset;
     }
     for(Variable *lvar = lvar_list; lvar != NULL; lvar = lvar->next)
     {

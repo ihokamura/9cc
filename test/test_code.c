@@ -616,6 +616,10 @@ int test_function_call()
     pf = &func_call_return1; assert_int(1, pf());
     pf = func_call_return2; assert_int(2, (**func_call_return2)()); assert_int(2, (*pf)()); assert_int(2, (***pf)());
     int (*af[3])(void) = {func_call_return0, func_call_return1, func_call_return2}; int i; for(i = 0; i < sizeof(af) / sizeof(af[0]); i++) {assert_int(i, af[i]());}
+
+    int (*pf2)(int, int);
+    pf2 = func_call_add; assert_int(3, pf2(1, 2));
+    pf2 = &func_call_add; assert_int(3, pf2(1, 2));
 }
 
 
