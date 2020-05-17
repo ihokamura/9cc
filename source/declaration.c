@@ -917,7 +917,7 @@ static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars)
         if(peek_declarator())
         {
             // parse declarator
-            Type *placeholder = new_type(TY_VOID, TQ_NONE);
+            Type *placeholder = calloc(1, sizeof(Type));
             Type *whole_type = declarator(placeholder, token, arg_vars);
             expect_reserved(")");
 
@@ -1170,7 +1170,7 @@ static Type *direct_abstract_declarator(Type *type)
         if(peek_abstract_declarator())
         {
             // parse abstract-declarator
-            Type *placeholder = new_type(TY_VOID, TQ_NONE);
+            Type *placeholder = calloc(1, sizeof(Type));
             Type *whole_type = abstract_declarator(placeholder);
             expect_reserved(")");
 

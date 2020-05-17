@@ -137,7 +137,7 @@ static Function *new_function(const Token *token, Type *type, Variable *args, St
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
-    new_func->type = new_type_function(type->base, type->args);
+    new_func->type = type;
     new_func->body = body;
 
     // set offset of arguments and local variables and accumulate stack size
@@ -394,7 +394,7 @@ static bool peek_func(void)
     if(is_func)
     {
         // make a function declarator
-        new_gvar(token, new_type_function(type->base, type->args), false);
+        new_gvar(token, type, false);
     }
 
     return is_func;

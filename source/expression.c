@@ -1283,178 +1283,108 @@ assign-op ::= "=" | "*=" | "/=" | "%=" | "+=" | "-=" | "<<=" | ">>=" | "&=" | "^
 Expression *assign(void)
 {
     Expression *node = conditional();
+    Expression *lhs, *rhs;
+    ExpressionKind kind;
+    char *operator = NULL;
 
     // parse assignment
     if(consume_reserved("="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(is_modifiable_lvalue(lhs))
-        {
-            node = new_node_binary(EXPR_ASSIGN, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "expected modifiable lvalue as left operand of assignment");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_ASSIGN;
+        operator = "=";
     }
     else if(consume_reserved("*="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_MUL_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_MUL_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment *=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_MUL_EQ;
+        operator = "*=";
     }
     else if(consume_reserved("/="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_DIV_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_DIV_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment /=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_DIV_EQ;
+        operator = "/=";
     }
     else if(consume_reserved("%="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_MOD_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_MOD_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment %=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_MOD_EQ;
+        operator = "%=";
     }
     else if(consume_reserved("+="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
-        {
-            node = new_node_binary(EXPR_ADD_EQ, lhs, rhs);
-        }
-        else if(is_pointer(lhs->type) && lhs->type->base->complete && is_integer(rhs->type))
-        {
-            node = new_node_binary(EXPR_PTR_ADD_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment +=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = is_arithmetic(lhs->type) ? EXPR_ADD_EQ : EXPR_PTR_ADD_EQ;
+        operator = "+=";
     }
     else if(consume_reserved("-="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
-        {
-            node = new_node_binary(EXPR_SUB_EQ, lhs, rhs);
-        }
-        else if(is_pointer(lhs->type) && lhs->type->base->complete && is_integer(rhs->type))
-        {
-            node = new_node_binary(EXPR_PTR_SUB_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment +=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = is_arithmetic(lhs->type) ? EXPR_SUB_EQ : EXPR_PTR_SUB_EQ;
+        operator = "-=";
     }
     else if(consume_reserved("<<="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_LSHIFT_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_LSHIFT_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment <<=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_LSHIFT_EQ;
+        operator = "<<=";
     }
     else if(consume_reserved(">>="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_RSHIFT_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_RSHIFT_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment >>=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_RSHIFT_EQ;
+        operator = ">>=";
     }
     else if(consume_reserved("&="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_AND_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_AND_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment &=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_AND_EQ;
+        operator = "&=";
     }
     else if(consume_reserved("^="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
-
-        // make a new node
-        if(check_constraint_binary(EXPR_XOR_EQ, lhs->type, rhs->type))
-        {
-            node = new_node_binary(EXPR_XOR_EQ, lhs, rhs);
-        }
-        else
-        {
-            report_error(NULL, "bad operand for compound assignment ^=");
-        }
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_XOR_EQ;
+        operator = "^=";
     }
     else if(consume_reserved("|="))
     {
-        Expression *lhs = node;
-        Expression *rhs = assign();
+        lhs = node;
+        rhs = apply_implicit_conversion(assign());
+        kind = EXPR_OR_EQ;
+        operator = "|=";
+    }
+    else
+    {
+        return node;
+    }
 
-        // make a new node
-        if(check_constraint_binary(EXPR_OR_EQ, lhs->type, rhs->type))
+    // make a new node
+    if(is_modifiable_lvalue(lhs))
+    {
+        if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
-            node = new_node_binary(EXPR_OR_EQ, lhs, rhs);
+            node = new_node_binary(kind, lhs, rhs);
         }
         else
         {
-            report_error(NULL, "bad operand for compound assignment |=");
+            report_error(NULL, "invalid operands to %s", operator);
         }
+    }
+    else
+    {
+        report_error(NULL, "expected modifiable lvalue as left operand of assignment");
     }
 
     return node;
@@ -1755,6 +1685,24 @@ static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, c
     case EXPR_LOG_AND:
     case EXPR_LOG_OR:
         valid = (is_scalar(lhs_type) && is_scalar(rhs_type));
+        break;
+
+    case EXPR_ASSIGN:
+        valid = (
+                    (is_arithmetic(lhs_type) && is_arithmetic(rhs_type))
+                 || ((is_struct(lhs_type) || is_union(lhs_type)) && is_compatible(lhs_type, rhs_type))
+                 || (is_pointer(lhs_type) && is_pointer(rhs_type) && is_compatible(lhs_type->base, rhs_type->base) && ((lhs_type->base->qual & rhs_type->base->qual) == rhs_type->base->qual))
+                );
+        break;
+
+    case EXPR_ADD_EQ:
+    case EXPR_SUB_EQ:
+        valid = (is_arithmetic(lhs_type) && is_arithmetic(rhs_type));
+        break;
+
+    case EXPR_PTR_ADD_EQ:
+    case EXPR_PTR_SUB_EQ:
+        valid = (is_pointer(lhs_type) && lhs_type->base->complete && is_integer(rhs_type));
         break;
 
     default:
