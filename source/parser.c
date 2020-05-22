@@ -23,7 +23,7 @@
 
 
 // function prototype
-static Function *new_function(const Token *token, Type *type, Variable *args, Statement *body);
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body);
 static char *new_string_label(void);
 static void program(void);
 static void function_def(void);
@@ -35,8 +35,8 @@ static int str_number = 0; // label number of string-literal
 static StringLiteral *str_list = NULL; // list of string-literals
 static StringLiteral *last_str = NULL; // last element of list of string-literals
 static Function *function_list = NULL; // list of functions
-static Variable *gvar_list = NULL; // list of global variables
-static Variable *lvar_list = NULL; // list of local variables of currently constructing function
+static List(Variable) *gvar_list = NULL; // list of global variables
+static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
 static Scope current_scope = {NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 
@@ -47,7 +47,6 @@ make a new variable
 Variable *new_var(const char *name, Type *type, bool local)
 {
     Variable *var = calloc(1, sizeof(Variable));
-    var->next = NULL;
     var->name = name;
     var->type = type;
     var->init = NULL;
@@ -69,8 +68,8 @@ Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
     Variable *gvar = new_var(make_identifier(token), type, false);
     gvar->entity = entity;
-    gvar_list->next = gvar;
-    gvar_list = gvar;
+    gvar_list->next = new_list(Variable)(gvar);
+    gvar_list = gvar_list->next;
 
     return gvar;
 }
@@ -82,8 +81,9 @@ make a new local variable
 Variable *new_lvar(const Token *token, Type *type)
 {
     Variable *lvar = new_var(make_identifier(token), type, true);
-    lvar->next = lvar_list;
-    lvar_list = lvar;
+    List(Variable) *list = new_list(Variable)(lvar);
+    list->next = lvar_list;
+    lvar_list = list;
 
     return lvar;
 }
@@ -116,8 +116,8 @@ StringLiteral *new_string(const Token *token)
     gvar->data = new_data_segment();
     gvar->data->label = label;
     gvar->entity = true;
-    gvar_list->next = gvar;
-    gvar_list = gvar;
+    gvar_list->next = new_list(Variable)(gvar);
+    gvar_list = gvar_list->next;
 
     StringLiteral *str = gvar->str;
     str->next = NULL;
@@ -133,7 +133,7 @@ StringLiteral *new_string(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, Variable *args, Statement *body)
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
@@ -142,14 +142,16 @@ static Function *new_function(const Token *token, Type *type, Variable *args, St
 
     // set offset of arguments and local variables and accumulate stack size
     size_t offset = 0;
-    for(Variable *arg = args; arg != NULL; arg = arg->next)
+    for_each(Variable, cursor, args)
     {
+        Variable *arg = get_entry(Variable)(cursor);
         offset = adjust_alignment(offset, arg->type->align);
         offset += arg->type->size;
         arg->offset = offset;
     }
-    for(Variable *lvar = lvar_list; lvar != NULL; lvar = lvar->next)
+    for_each(Variable, cursor, lvar_list)
     {
+        Variable *lvar = get_entry(Variable)(cursor);
         offset = adjust_alignment(offset, lvar->type->align);
         offset += lvar->type->size;
         lvar->offset = offset;
@@ -195,7 +197,7 @@ static void program(void)
     str_list = last_str = &str_head;
     Function func_head = {};
     function_list = &func_head;
-    Variable gvar_head = {};
+    List(Variable) gvar_head = {};
     gvar_list = &gvar_head;
 
     while(!at_eof())
@@ -236,8 +238,8 @@ static void function_def(void)
     StorageClassSpecifier sclass;
     Type *type = declaration_specifiers(&sclass);
     Token *token;
-    Variable args_head = {};
-    Variable *args = &args_head;
+    List(Variable) args_head = {};
+    List(Variable) *args = &args_head;
     type = declarator(type, &token, &args);
     args = args_head.next;
 

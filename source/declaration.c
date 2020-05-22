@@ -70,14 +70,14 @@ static Type *enum_specifier(void);
 static Member *enumerator_list(void);
 static int enumerator(int val, Member **member);
 static TypeQualifier type_qualifier(void);
-static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars);
+static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
-static List(Type) *parameter_type_list(Variable **arg_vars);
-static List(Type) *parameter_list(Variable **arg_vars);
+static List(Type) *parameter_type_list(List(Variable) **arg_vars);
+static List(Type) *parameter_list(List(Variable) **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
-static Type *declarator_suffixes(Type *type, Variable **arg_vars);
+static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars);
 static Initializer *initializer(void);
 static Initializer *initializer_list(void);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
@@ -881,7 +881,7 @@ make a declarator
 declarator ::= pointer? direct-declarator
 ```
 */
-Type *declarator(Type *type, Token **token, Variable **arg_vars)
+Type *declarator(Type *type, Token **token, List(Variable) **arg_vars)
 {
     if(peek_pointer())
     {
@@ -909,7 +909,7 @@ declarator-suffixes ::= declarator-suffix*
 declarator-suffix ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-list)? ")")
 ```
 */
-static Type *direct_declarator(Type *type, Token **token, Variable **arg_vars)
+static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars)
 {
     Token *saved_token = get_token();
     if(consume_reserved("("))
@@ -984,7 +984,7 @@ make a parameter-type-list
 parameter-type-list ::= parameter-list ("," "...")?
 ```
 */
-static List(Type) *parameter_type_list(Variable **arg_vars)
+static List(Type) *parameter_type_list(List(Variable) **arg_vars)
 {
     List(Type) *arg_types = parameter_list(arg_vars);
 
@@ -1003,12 +1003,12 @@ make a parameter-list
 parameter-list ::= parameter-declaration ("," parameter-declaration)*
 ```
 */
-static List(Type) *parameter_list(Variable **arg_vars)
+static List(Type) *parameter_list(List(Variable) **arg_vars)
 {
     List(Type) arg_types_head = {};
     List(Type) *arg_types_cursor = &arg_types_head;
     Variable *arg_var;
-    Variable *arg_vars_cursor = (arg_vars != NULL) ? *arg_vars : NULL;
+    List(Variable) *arg_vars_cursor = (arg_vars != NULL) ? *arg_vars : NULL;
 
     arg_types_cursor->next = new_list(Type)(parameter_declaration(&arg_var));
     arg_types_cursor = arg_types_cursor->next;
@@ -1020,7 +1020,7 @@ static List(Type) *parameter_list(Variable **arg_vars)
         }
         else
         {
-            arg_vars_cursor->next = arg_var;
+            arg_vars_cursor->next = new_list(Variable)(arg_var);
             arg_vars_cursor = arg_vars_cursor->next;
         }
     }
@@ -1042,7 +1042,7 @@ static List(Type) *parameter_list(Variable **arg_vars)
                     }
                     else
                     {
-                        arg_vars_cursor->next = arg_var;
+                        arg_vars_cursor->next = new_list(Variable)(arg_var);
                         arg_vars_cursor = arg_vars_cursor->next;
                     }
                 }
@@ -1207,7 +1207,7 @@ make a declarator-suffixes
 declarator-suffixes ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-list)? ")")*
 ```
 */
-static Type *declarator_suffixes(Type *type, Variable **arg_vars)
+static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars)
 {
     if(consume_reserved("["))
     {

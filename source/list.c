@@ -26,6 +26,12 @@ List(type) *new_list(type)(type *element)\
 \
     return list;\
 }\
+/* get the entry of list */\
+type *get_entry(type)(const List(type) *list)\
+{\
+    return list->element;\
+}\
 
 
 define_list_operations(Type)
+define_list_operations(Variable)

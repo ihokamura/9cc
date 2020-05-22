@@ -84,8 +84,9 @@ void generate(const Program *program)
 
     // generate global variables
     put_instruction(".data");
-    for(Variable *gvar = program->gvars; gvar != NULL; gvar = gvar->next)
+    for_each(Variable, cursor, program->gvars)
     {
+        Variable *gvar = get_entry(Variable)(cursor);
         if(gvar->entity)
         {
             generate_gvar(gvar);
@@ -325,8 +326,9 @@ static void generate_func(const Function *func)
 
     // arguments
     size_t argc = 0;
-    for(Variable *arg = func->args; arg != NULL; arg = arg->next)
+    for_each(Variable, cursor, func->args)
     {
+        Variable *arg = get_entry(Variable)(cursor);
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %lu", arg->offset);
 

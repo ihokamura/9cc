@@ -203,7 +203,6 @@ struct Type {
 
 // structure for variable
 struct Variable {
-    Variable *next;     // next element
     const char *name;   // name of variable
     Type *type;         // type of variable
     Statement *init;    // initializer
@@ -271,19 +270,19 @@ struct Statement {
 
 // structure for function
 struct Function {
-    Function *next;    // next element
-    char *name;        // name of function
-    Type *type;        // type of function
-    Variable *args;    // arguments
-    Statement *body;   // body of function definition
-    Variable *locals;  // list of local variables (including arguments)
-    size_t stack_size; // size of stack in bytes
+    Function *next;         // next element
+    char *name;             // name of function
+    Type *type;             // type of function
+    List(Variable) *args;   // arguments
+    Statement *body;        // body of function definition
+    List(Variable) *locals; // list of local variables (including arguments)
+    size_t stack_size;      // size of stack in bytes
 };
 
 // structure for program
 typedef struct Program {
-    Variable *gvars; // list of global variables
-    Function *funcs; // list of functions
+    List(Variable) *gvars; // list of global variables
+    Function *funcs;       // list of functions
 } Program;
 
 // structure for identifier
