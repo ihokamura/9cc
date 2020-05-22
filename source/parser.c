@@ -32,8 +32,8 @@ static bool peek_func(void);
 
 // global variable
 static int str_number = 0; // label number of string-literal
-static StringLiteral *str_list = NULL; // list of string-literals
-static StringLiteral *last_str = NULL; // last element of list of string-literals
+static List(StringLiteral) *str_list = NULL; // list of string-literals
+static List(StringLiteral) *last_str = NULL; // last element of list of string-literals
 static List(Function) *function_list = NULL; // list of functions
 static List(Variable) *gvar_list = NULL; // list of global variables
 static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
@@ -96,11 +96,12 @@ make a new string-literal
 StringLiteral *new_string(const Token *token)
 {
     // search existing string-literals
-    for(StringLiteral *cursor = str_list->next; cursor != NULL; cursor = cursor->next)
+    for_each(StringLiteral, cursor, str_list->next)
     {
-        if((strlen(cursor->content) == token->len) && (strncmp(cursor->content, token->str, token->len) == 0))
+        StringLiteral *str = get_entry(StringLiteral)(cursor);
+        if((strlen(str->content) == token->len) && (strncmp(str->content, token->str, token->len) == 0))
         {
-            return cursor;
+            return str;
         }
     }
 
@@ -120,11 +121,10 @@ StringLiteral *new_string(const Token *token)
     gvar_list = gvar_list->next;
 
     StringLiteral *str = gvar->str;
-    str->next = NULL;
     str->content = content;
     str->var = gvar;
-    last_str->next = str;
-    last_str = str;
+    last_str->next = new_list(StringLiteral)(str);
+    last_str = last_str->next;
 
     return str;
 }
@@ -193,7 +193,7 @@ program ::= (declaration | function-def)*
 */
 static void program(void)
 {
-    StringLiteral str_head = {};
+    List(StringLiteral) str_head = {};
     str_list = last_str = &str_head;
     List(Function) func_head = {};
     function_list = &func_head;

@@ -221,7 +221,6 @@ typedef struct Enumerator {
 
 // structure for string-literal
 struct StringLiteral {
-    StringLiteral *next; // next element
     Variable *var;       // global variable which points to string-literal
     const char *content; // array of characters consisting of string-literal
 };
