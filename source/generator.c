@@ -95,8 +95,9 @@ void generate(const Program *program)
 
     // generate functions
     put_instruction(".text");
-    for(Function *func = program->funcs; func != NULL; func = func->next)
+    for_each(Function, cursor, program->funcs)
     {
+        Function *func = get_entry(Function)(cursor);
         generate_func(func);
     }
 }

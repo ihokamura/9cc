@@ -31,5 +31,6 @@ type *get_entry(type)(const List(type) *list);\
 
 define_list(Type)
 define_list(Variable)
+define_list(Function)
 
 #endif /* !__LIST_H__ */

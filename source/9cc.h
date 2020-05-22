@@ -282,7 +282,7 @@ struct Function {
 // structure for program
 typedef struct Program {
     List(Variable) *gvars; // list of global variables
-    Function *funcs;       // list of functions
+    List(Function) *funcs; // list of functions
 } Program;
 
 // structure for identifier

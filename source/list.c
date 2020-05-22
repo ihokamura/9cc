@@ -35,3 +35,4 @@ type *get_entry(type)(const List(type) *list)\
 
 define_list_operations(Type)
 define_list_operations(Variable)
+define_list_operations(Function)

@@ -34,7 +34,7 @@ static bool peek_func(void);
 static int str_number = 0; // label number of string-literal
 static StringLiteral *str_list = NULL; // list of string-literals
 static StringLiteral *last_str = NULL; // last element of list of string-literals
-static Function *function_list = NULL; // list of functions
+static List(Function) *function_list = NULL; // list of functions
 static List(Variable) *gvar_list = NULL; // list of global variables
 static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
 static Scope current_scope = {NULL, NULL, 0}; // current scope
@@ -163,8 +163,8 @@ static Function *new_function(const Token *token, Type *type, List(Variable) *ar
     new_func->locals = lvar_list;
 
     // update list of functions
-    function_list->next = new_func;
-    function_list = new_func;
+    function_list->next = new_list(Function)(new_func);
+    function_list = function_list->next;
 
     return new_func;
 }
@@ -195,7 +195,7 @@ static void program(void)
 {
     StringLiteral str_head = {};
     str_list = last_str = &str_head;
-    Function func_head = {};
+    List(Function) func_head = {};
     function_list = &func_head;
     List(Variable) gvar_head = {};
     gvar_list = &gvar_head;
