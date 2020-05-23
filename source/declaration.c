@@ -68,7 +68,7 @@ static Type *specifier_qualifier_list(void);
 static List(Member) *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
-static int enumerator(int val, List(Member) **member);
+static Member *enumerator(int val);
 static TypeQualifier type_qualifier(void);
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
@@ -815,12 +815,11 @@ static List(Member) *enumerator_list(void)
     List(Member) head = {};
     List(Member) *cursor = &head;
 
-    int val = enumerator(0, &cursor->next);
-    cursor = cursor->next;
+    cursor = add_entry_tail(Member)(cursor, enumerator(0));
     while(consume_reserved(",") && peek_token(TK_IDENT, &token))
     {
-        val = enumerator(val, &cursor->next);
-        cursor = cursor->next;
+        Member *member = get_entry(Member)(cursor);
+        cursor = add_entry_tail(Member)(cursor, enumerator(member->value + 1));
     }
 
     return head.next;
@@ -833,16 +832,15 @@ make an enumerator
 enumerator ::= identifier ("=" const-expression)?
 ```
 */
-static int enumerator(int value, List(Member) **member)
+static Member *enumerator(int value)
 {
     Token *token = expect_identifier();
     if(consume_reserved("="))
     {
-        value = const_expression();
+        value = const_expression(); // overwrite the default value
     }
-    *member = new_list(Member)(new_enumerator(make_identifier(token), value));
 
-    return value + 1;
+    return new_enumerator(make_identifier(token), value);
 }
 
 
