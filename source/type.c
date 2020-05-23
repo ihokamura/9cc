@@ -203,7 +203,7 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type->base = NULL;
         type->len = 0;
         type->args = NULL;
-        type->member = NULL;
+        type->members = NULL;
         break;
     }
 
@@ -418,15 +418,18 @@ bool is_compatible(const Type *self, const Type *other)
             return (self->tag != NULL) && (self->tag == other->tag);
         }
 
-        Member *cursor_self = self->member;
-        Member *cursor_other = other->member;
+        List(Member) *cursor_self = self->members;
+        List(Member) *cursor_other = other->members;
         while((cursor_self != NULL) && (cursor_other != NULL))
         {
-            if(strcmp(cursor_self->name, cursor_other->name) != 0)
+            Member *member_self = get_entry(Member)(cursor_self);
+            Member *member_other = get_entry(Member)(cursor_other);
+
+            if(strcmp(member_self->name, member_other->name) != 0)
             {
                 return false;
             }
-            if(!is_compatible(cursor_self->type, cursor_other->type))
+            if(!is_compatible(member_self->type, member_other->type))
             {
                 return false;
             }
@@ -559,7 +562,6 @@ make a new member of structure
 Member *new_member(const char *name, Type *type)
 {
     Member *member = calloc(1, sizeof(Member));
-    member->next = NULL;
     member->type = type;
     member->name = name;
     member->offset = 0;
@@ -573,8 +575,9 @@ find member of structure
 */
 Member *find_member(const Token *token, const Type *type)
 {
-    for(Member *member = type->member; member != NULL; member = member->next)
+    for_each(Member, cursor, type->members)
     {
+        Member *member = get_entry(Member)(cursor);
         if(strncmp(token->str, member->name, token->len) == 0)
         {
             return member;

@@ -180,7 +180,6 @@ struct DataSegment {
 
 // structure for member
 struct Member {
-    Member *next;     // next element
     Type *type;       // type of member
     const char *name; // name of member
     size_t offset;    // offset of member (only for TY_STRUCT, TY_UNION)
@@ -189,16 +188,16 @@ struct Member {
 
 // structure for type
 struct Type {
-    TypeKind kind;      // kind of type
-    size_t size;        // size of type
-    size_t align;       // alignment of type
-    TypeQualifier qual; // qualification of type
-    bool complete;      // flag indicating that the tyee is complete or incomplete
-    Type *base;         // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
-    size_t len;         // length of array (only for TY_ARRAY)
-    List(Type) *args;   // type of arguments (only for TY_FUNC)
-    Tag *tag;           // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
-    Member *member;     // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    TypeKind kind;         // kind of type
+    size_t size;           // size of type
+    size_t align;          // alignment of type
+    TypeQualifier qual;    // qualification of type
+    bool complete;         // flag indicating that the tyee is complete or incomplete
+    Type *base;            // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;            // length of array (only for TY_ARRAY)
+    List(Type) *args;      // type of arguments (only for TY_FUNC)
+    Tag *tag;              // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    List(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
 };
 
 // structure for variable

@@ -1729,8 +1729,9 @@ static bool is_const_qualified(const Type *type)
 {
     if(is_struct(type) || is_union(type))
     {
-        for(Member *member = type->member; member != NULL; member = member->next)
+        for_each(Member, cursor, type->members)
         {
+            Member *member = get_entry(Member)(cursor);
             if(is_const_qualified(member->type))
             {
                 return true;

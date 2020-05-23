@@ -33,6 +33,7 @@ List(type) *add_entry_head(type)(List(type) *list, type *element);\
 List(type) *add_entry_tail(type)(List(type) *list, type *element);\
 
 
+define_list(Member)
 define_list(Type)
 define_list(Variable)
 define_list(StringLiteral)

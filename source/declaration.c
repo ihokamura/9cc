@@ -62,13 +62,13 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static Type *struct_or_union_specifier(void);
-static Member *struct_declaration_list(void);
-static Member *struct_declaration(void);
+static List(Member) *struct_declaration_list(void);
+static List(Member) *struct_declaration(void);
 static Type *specifier_qualifier_list(void);
-static Member *struct_declarator_list(Type *type);
+static List(Member) *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
-static Member *enumerator_list(void);
-static int enumerator(int val, Member **member);
+static List(Member) *enumerator_list(void);
+static int enumerator(int val, List(Member) **member);
 static TypeQualifier type_qualifier(void);
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
@@ -572,20 +572,21 @@ static Type *struct_or_union_specifier(void)
     if(parse_content)
     {
         // parse structure content or union content
-        type->member = struct_declaration_list();
+        type->members = struct_declaration_list();
 
         if(spec_kind == TS_STRUCT)
         {
             // set offset of members and determine size and alignment of the structure type
             size_t offset = 0;
             size_t alignment = 0;
-            for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+            for_each(Member, cursor, type->members)
             {
-                cursor->offset = adjust_alignment(offset, cursor->type->align);
-                offset = cursor->offset + cursor->type->size;
-                if(alignment < cursor->type->align)
+                Member *member = get_entry(Member)(cursor);
+                member->offset = adjust_alignment(offset, member->type->align);
+                offset = member->offset + member->type->size;
+                if(alignment < member->type->align)
                 {
-                    alignment = cursor->type->align;
+                    alignment = member->type->align;
                 }
             }
             type->size = adjust_alignment(offset, alignment);
@@ -596,17 +597,17 @@ static Type *struct_or_union_specifier(void)
             // determine size and alignment of the union type
             size_t size = 0;
             size_t alignment = 0;
-            for(Member *cursor = type->member; cursor != NULL; cursor = cursor->next)
+            for_each(Member, cursor, type->members)
             {
-                // offset is always 0
-                cursor->offset = 0;
-                if(size < cursor->type->size)
+                Member *member = get_entry(Member)(cursor);
+                member->offset = 0; // offset is always 0
+                if(size < member->type->size)
                 {
-                    size = cursor->type->size;
+                    size = member->type->size;
                 }
-                if(alignment < cursor->type->align)
+                if(alignment < member->type->align)
                 {
-                    alignment = cursor->type->align;
+                    alignment = member->type->align;
                 }
             }
             type->size = adjust_alignment(size, alignment);
@@ -627,10 +628,10 @@ make a struct-declaration-list
 struct-declaration-list ::= struct-declaration struct-declaration*
 ```
 */
-static Member *struct_declaration_list(void)
+static List(Member) *struct_declaration_list(void)
 {
-    Member *member = struct_declaration();
-    Member *cursor = member;
+    List(Member) *member = struct_declaration();
+    List(Member) *cursor = member;
     while(!peek_reserved("}"))
     {
         // move cursor until last element since a struct-declaration may have multiple declarators
@@ -651,10 +652,10 @@ make a struct-declaration
 struct-declaration ::= specifier-qualifier-list struct-declarator-list ";"
 ```
 */
-static Member *struct_declaration(void)
+static List(Member) *struct_declaration(void)
 {
     Type *type = specifier_qualifier_list();
-    Member *member = struct_declarator_list(type);
+    List(Member) *member = struct_declarator_list(type);
     expect_reserved(";");
 
     return member;
@@ -704,17 +705,16 @@ make a struct-declarator-list
 struct-declarator-list ::= declarator ("," declarator)*
 ```
 */
-static Member *struct_declarator_list(Type *type)
+static List(Member) *struct_declarator_list(Type *type)
 {
     Token *token;
     Type *decl_type = declarator(type, &token, false);
-    Member *member = new_member(make_identifier(token), decl_type);
-    Member *cursor = member;
+    List(Member) *member = new_list(Member)(new_member(make_identifier(token), decl_type));
+    List(Member) *cursor = member;
     while(consume_reserved(","))
     {
         decl_type = declarator(type, &token, false);
-        cursor->next = new_member(make_identifier(token), decl_type);
-        cursor = cursor->next;
+        cursor = add_entry_tail(Member)(cursor, new_member(make_identifier(token), decl_type));
     }
 
     return member;
@@ -790,7 +790,7 @@ static Type *enum_specifier(void)
     if(parse_content)
     {
         // parse enumeration content
-        type->member = enumerator_list();
+        type->members = enumerator_list();
         if(consume_reserved(","))
         {
             // do nothing (only consume the trailing ",")
@@ -809,11 +809,11 @@ make an enumerator-list
 enumerator-list ::= enumerator ("," enumerator)*
 ```
 */
-static Member *enumerator_list(void)
+static List(Member) *enumerator_list(void)
 {
     Token *token;
-    Member head = {};
-    Member *cursor = &head;
+    List(Member) head = {};
+    List(Member) *cursor = &head;
 
     int val = enumerator(0, &cursor->next);
     cursor = cursor->next;
@@ -833,14 +833,14 @@ make an enumerator
 enumerator ::= identifier ("=" const-expression)?
 ```
 */
-static int enumerator(int value, Member **member)
+static int enumerator(int value, List(Member) **member)
 {
     Token *token = expect_identifier();
     if(consume_reserved("="))
     {
         value = const_expression();
     }
-    *member = new_enumerator(make_identifier(token), value);
+    *member = new_list(Member)(new_enumerator(make_identifier(token), value));
 
     return value + 1;
 }
@@ -1371,24 +1371,26 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
             Statement stmt_head = {};
             Statement *stmt_cursor = &stmt_head;
             const Initializer *init_cursor = init->list;
-            Member *member = expr->type->member;
+            List(Member) *memb_cursor = expr->type->members;
 
-            while((init_cursor != NULL) && (member != NULL))
+            while((init_cursor != NULL) && (memb_cursor != NULL))
             {
+                Member *member = get_entry(Member)(memb_cursor);
                 Expression *dest = new_node_member(expr, member);
                 stmt_cursor->next = assign_initializer(dest, init_cursor);
                 stmt_cursor = stmt_cursor->next;
                 init_cursor = init_cursor->next;
-                member = member->next;
+                memb_cursor = memb_cursor->next;
             }
 
-            while(member != NULL)
+            while(memb_cursor != NULL)
             {
                 // handle the remainder
+                Member *member = get_entry(Member)(memb_cursor);
                 Expression *dest = new_node_member(expr, member);
                 stmt_cursor->next = assign_zero_initializer(dest);
                 stmt_cursor = stmt_cursor->next;
-                member = member->next;
+                memb_cursor = memb_cursor->next;
             }
 
             init_stmt->body = stmt_head.next;
@@ -1396,7 +1398,8 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         else if(is_union(expr->type))
         {
             const Initializer *init_cursor = init->list;
-            Expression *dest = new_node_member(expr, expr->type->member);
+            Member *member = get_entry(Member)(expr->type->members);
+            Expression *dest = new_node_member(expr, member);
             init_stmt->body = assign_initializer(dest, init_cursor);
         }
         else if(init->list->assign != NULL)
@@ -1462,8 +1465,9 @@ static Statement *assign_zero_initializer(Expression *expr)
     {
         Statement stmt_head = {};
         Statement *stmt_cursor = &stmt_head;
-        for(Member *member = expr->type->member; member != NULL; member = member->next)
+        for_each(Member, cursor, expr->type->members)
         {
+            Member *member = get_entry(Member)(cursor);
             Expression *dest = new_node_member(expr, member);
             stmt_cursor->next = assign_zero_initializer(dest);
             stmt_cursor = stmt_cursor->next;
@@ -1472,7 +1476,8 @@ static Statement *assign_zero_initializer(Expression *expr)
     }
     else if(is_union(expr->type))
     {
-        Expression *dest = new_node_member(expr, expr->type->member);
+        Member *member = get_entry(Member)(expr->type->members);
+        Expression *dest = new_node_member(expr, member);
         init_stmt->body = assign_zero_initializer(dest);
     }
     else
@@ -1548,10 +1553,11 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             DataSegment data_head = {};
             DataSegment *data_cursor = &data_head;
             const Initializer *init_cursor = init->list;
-            Member *member = type->member;
+            List(Member) *memb_cursor = type->members;
 
-            while((init_cursor != NULL) && (member != NULL))
+            while((init_cursor != NULL) && (memb_cursor != NULL))
             {
+                Member *member = get_entry(Member)(memb_cursor);
                 data_cursor->next = make_data_segment(member->type, init_cursor);
                 while(data_cursor->next != NULL)
                 {
@@ -1560,7 +1566,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
 
                 // fill padding by zero
                 size_t start = member->offset + member->type->size;
-                size_t end = (member->next == NULL ? type->size : member->next->offset);
+                size_t end = (memb_cursor->next == NULL ? type->size : get_entry(Member)(memb_cursor->next)->offset);
                 size_t padding_size = end - start;
                 if(padding_size > 0)
                 {
@@ -1571,12 +1577,13 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                     data_cursor = data_cursor->next;
                 }
                 init_cursor = init_cursor->next;
-                member = member->next;
+                memb_cursor = memb_cursor->next;
             }
 
             // fill the remainder by zero
-            if(member != NULL)
+            if(memb_cursor != NULL)
             {
+                Member *member = get_entry(Member)(memb_cursor);
                 size_t remainder = type->size - member->offset;
                 data_cursor->next = new_zero_data_segment(remainder);
                 data_cursor = data_cursor->next;
@@ -1587,7 +1594,8 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
         else if(is_union(type))
         {
             const Initializer *init_cursor = init->list;
-            data = make_data_segment(type->member->type, init_cursor);
+            Member *member = get_entry(Member)(type->members);
+            data = make_data_segment(member->type, init_cursor);
         }
         else if(init->list->assign != NULL)
         {

@@ -55,6 +55,7 @@ List(type) *add_entry_tail(type)(List(type) *list, type *element)\
 }\
 
 
+define_list_operations(Member)
 define_list_operations(Type)
 define_list_operations(Variable)
 define_list_operations(StringLiteral)
