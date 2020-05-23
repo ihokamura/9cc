@@ -271,12 +271,14 @@ push an identifier to the current scope
 Identifier *push_identifier_scope(const char *name)
 {
     Identifier *ident = calloc(1, sizeof(Identifier));
-    ident->next = current_scope.ident_list;
     ident->name = name;
     ident->var = NULL;
     ident->en = NULL;
     ident->depth = current_scope.depth;
-    current_scope.ident_list = ident;
+
+    List(Identifier) *ident_list = new_list(Identifier)(ident);
+    ident_list->next = current_scope.ident_list;
+    current_scope.ident_list = ident_list;
 
     return ident;
 }
@@ -288,11 +290,13 @@ push a tag to the current scope
 Tag *push_tag_scope(const char *name, Type *type)
 {
     Tag *tag = calloc(1, sizeof(Tag));
-    tag->next = current_scope.tag_list;
     tag->name = name;
     tag->type = type;
     tag->depth = current_scope.depth;
-    current_scope.tag_list = tag;
+
+    List(Tag) *tag_list = new_list(Tag)(tag);
+    tag_list->next = current_scope.tag_list;
+    current_scope.tag_list = tag_list;
 
     return tag;
 }
@@ -335,8 +339,9 @@ find an ordinary identifier in the current scope
 Identifier *find_identifier(const Token *token)
 {
     // search list of ordinary identifiers visible in the current scope
-    for(Identifier *ident = current_scope.ident_list; ident != NULL; ident = ident->next)
+    for_each(Identifier, cursor, current_scope.ident_list)
     {
+        Identifier *ident = get_entry(Identifier)(cursor);
         if((strlen(ident->name) == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
         {
             return ident;
@@ -355,8 +360,9 @@ find a tag in the current scope
 Tag *find_tag(const Token *token)
 {
     // search list of tags visible in the current scope
-    for(Tag *tag = current_scope.tag_list; tag != NULL; tag = tag->next)
+    for_each(Tag, cursor, current_scope.tag_list)
     {
+        Tag *tag = get_entry(Tag)(cursor);
         if((strlen(tag->name) == token->len) && (strncmp(token->str, tag->name, token->len) == 0))
         {
             return tag;

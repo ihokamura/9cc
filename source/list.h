@@ -34,5 +34,7 @@ define_list(Variable)
 define_list(StringLiteral)
 define_list(Expression)
 define_list(Function)
+define_list(Identifier)
+define_list(Tag)
 
 #endif /* !__LIST_H__ */

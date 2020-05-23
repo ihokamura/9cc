@@ -284,7 +284,6 @@ typedef struct Program {
 
 // structure for identifier
 struct Identifier {
-    Identifier *next; // next element
     const char *name; // identifier
     Variable *var;    // variable
     Enumerator *en;   // enumerator
@@ -294,7 +293,6 @@ struct Identifier {
 
 // structure for tag
 struct Tag {
-    Tag *next;        // next element
     const char *name; // name of tag
     Type *type;       // type 
     int depth;        // depth of scope
@@ -302,9 +300,9 @@ struct Tag {
 
 // structure for scope
 typedef struct Scope {
-    Identifier *ident_list; // list of ordinary identifiers visible in the current scope
-    Tag *tag_list;          // list of tags visible in the current scope
-    int depth;              // depth of the current scope
+    List(Identifier) *ident_list; // list of ordinary identifiers visible in the current scope
+    List(Tag) *tag_list;          // list of tags visible in the current scope
+    int depth;                    // depth of the current scope
 } Scope;
 
 #endif /* !__9CC_H__ */
