@@ -25,7 +25,7 @@
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
 static Expression *primary(void);
 static Expression *postfix(void);
-static Expression *arg_expr_list(void);
+static List(Expression) *arg_expr_list(void);
 static Expression *unary(void);
 static Expression *cast(void);
 static Expression *multiplicative(void);
@@ -53,7 +53,6 @@ make a new expression
 Expression *new_expression(ExpressionKind kind)
 {
     Expression *node = calloc(1, sizeof(Expression));
-    node->next = NULL;
     node->kind = kind;
     node->lhs = NULL;
     node->rhs = NULL;
@@ -440,12 +439,11 @@ make an argument expression list
 arg-expr-list ::= assign ("," assign)*
 ```
 */
-static Expression *arg_expr_list(void)
+static List(Expression) *arg_expr_list(void)
 {
-    Expression *arg;
-    Expression *cursor = NULL;
+    List(Expression) *arg = new_list(Expression)(assign());
+    List(Expression) *cursor = NULL;
 
-    arg = assign();
     arg->next = cursor;
     cursor = arg;
 
@@ -453,7 +451,7 @@ static Expression *arg_expr_list(void)
     while(consume_reserved(","))
     {
         // append the argument at the head in order to push arguments in reverse order when generating assembler code
-        arg = assign();
+        arg = new_list(Expression)(assign());
         arg->next = cursor;
         cursor = arg;
     }

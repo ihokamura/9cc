@@ -227,18 +227,17 @@ struct StringLiteral {
 
 // structure for expression
 struct Expression {
-    Expression *next;    // next element
-    ExpressionKind kind; // kind of expression
-    Type *type;          // type of expression
-    Expression *lhs;     // left hand side of binary operation
-    Expression *rhs;     // right hand side of binary operation
-    Expression *operand; // operand of unary operation or condition of conditional expression
-    long value;          // value of expression (only for EXPR_CONST)
-    StringLiteral *str;  // information of string-literal (only for EXPR_STR)
-    Variable *var;       // information of variable (only for EXPR_VAR)
-    Member *member;      // member (only for EXPR_MEMBER)
-    Expression *args;    // arguments (only for EXPR_FUNC)
-    bool lvalue;         // flag indicating that the expression is lvalue
+    ExpressionKind kind;    // kind of expression
+    Type *type;             // type of expression
+    Expression *lhs;        // left hand side of binary operation
+    Expression *rhs;        // right hand side of binary operation
+    Expression *operand;    // operand of unary operation or condition of conditional expression
+    long value;             // value of expression (only for EXPR_CONST)
+    StringLiteral *str;     // information of string-literal (only for EXPR_STR)
+    Variable *var;          // information of variable (only for EXPR_VAR)
+    Member *member;         // member (only for EXPR_MEMBER)
+    List(Expression) *args; // arguments (only for EXPR_FUNC)
+    bool lvalue;            // flag indicating that the expression is lvalue
 };
 
 // structure for declaration
@@ -269,7 +268,6 @@ struct Statement {
 
 // structure for function
 struct Function {
-    Function *next;         // next element
     char *name;             // name of function
     Type *type;             // type of function
     List(Variable) *args;   // arguments

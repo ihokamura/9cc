@@ -54,7 +54,7 @@ static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static size_t generate_args(const Expression *args);
+static size_t generate_args(List(Expression) *args);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
@@ -386,12 +386,13 @@ static void generate_func(const Function *func)
 generate assembler code of function arguments
 * This function returns number of arguments which are passed on the stack.
 */
-static size_t generate_args(const Expression *args)
+static size_t generate_args(List(Expression) *args)
 {
     // push arguments
     size_t argc = 0;
-    for(const Expression *arg = args; arg != NULL; arg = arg->next)
+    for_each(Expression, cursor, args)
     {
+        Expression *arg = get_entry(Expression)(cursor);
         generate_expression(arg);
         argc++;
     }
