@@ -25,7 +25,7 @@
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
 static Expression *primary(void);
 static Expression *postfix(void);
-static List(Expression) *arg_expr_list(void);
+static ListEntry(Expression) *arg_expr_list(void);
 static Expression *unary(void);
 static Expression *cast(void);
 static Expression *multiplicative(void);
@@ -260,7 +260,7 @@ static Expression *primary(void)
         {
             // implicitly assume that the token denotes a function which returns int
             Expression *node = new_expression(EXPR_VAR);
-            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_list(Type)(new_type(TY_VOID, TQ_NONE)));
+            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_list_entry(Type)(new_type(TY_VOID, TQ_NONE)));
             Variable *var = new_gvar(token, type, false);
             node->type = type;
             node->var = var;
@@ -439,9 +439,9 @@ make an argument expression list
 arg-expr-list ::= assign ("," assign)*
 ```
 */
-static List(Expression) *arg_expr_list(void)
+static ListEntry(Expression) *arg_expr_list(void)
 {
-    List(Expression) *cursor = add_entry_head(Expression)(NULL, assign());
+    ListEntry(Expression) *cursor = add_entry_head(Expression)(NULL, assign());
 
     // parse arguments
     while(consume_reserved(","))
@@ -1731,7 +1731,7 @@ static bool is_const_qualified(const Type *type)
     {
         for_each(Member, cursor, type->members)
         {
-            Member *member = get_entry(Member)(cursor);
+            Member *member = get_element(Member)(cursor);
             if(is_const_qualified(member->type))
             {
                 return true;

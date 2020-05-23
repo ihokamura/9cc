@@ -418,12 +418,12 @@ bool is_compatible(const Type *self, const Type *other)
             return (self->tag != NULL) && (self->tag == other->tag);
         }
 
-        List(Member) *cursor_self = self->members;
-        List(Member) *cursor_other = other->members;
+        ListEntry(Member) *cursor_self = self->members;
+        ListEntry(Member) *cursor_other = other->members;
         while((cursor_self != NULL) && (cursor_other != NULL))
         {
-            Member *member_self = get_entry(Member)(cursor_self);
-            Member *member_other = get_entry(Member)(cursor_other);
+            Member *member_self = get_element(Member)(cursor_self);
+            Member *member_other = get_element(Member)(cursor_other);
 
             if(strcmp(member_self->name, member_other->name) != 0)
             {
@@ -469,8 +469,8 @@ bool is_compatible(const Type *self, const Type *other)
     {
         if(is_compatible(self->base, other->base))
         {
-            List(Type) *cursor_self = self->args;
-            List(Type) *cursor_other = other->args;
+            ListEntry(Type) *cursor_self = self->args;
+            ListEntry(Type) *cursor_other = other->args;
             while((cursor_self != NULL) && (cursor_other != NULL))
             {
                 if(!is_compatible(cursor_self->element, cursor_other->element))
@@ -545,7 +545,7 @@ Type *new_type_array(Type *base, size_t len)
 /*
 make a function type
 */
-Type *new_type_function(Type *base, List(Type) *args)
+Type *new_type_function(Type *base, ListEntry(Type) *args)
 {
     Type *type = new_type(TY_FUNC, TQ_NONE);
     type->complete = true;
@@ -577,7 +577,7 @@ Member *find_member(const Token *token, const Type *type)
 {
     for_each(Member, cursor, type->members)
     {
-        Member *member = get_entry(Member)(cursor);
+        Member *member = get_element(Member)(cursor);
         if(strncmp(token->str, member->name, token->len) == 0)
         {
             return member;

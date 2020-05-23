@@ -54,7 +54,7 @@ static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static size_t generate_args(List(Expression) *args);
+static size_t generate_args(ListEntry(Expression) *args);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
@@ -86,7 +86,7 @@ void generate(const Program *program)
     put_instruction(".data");
     for_each(Variable, cursor, program->gvars)
     {
-        Variable *gvar = get_entry(Variable)(cursor);
+        Variable *gvar = get_element(Variable)(cursor);
         if(gvar->entity)
         {
             generate_gvar(gvar);
@@ -97,7 +97,7 @@ void generate(const Program *program)
     put_instruction(".text");
     for_each(Function, cursor, program->funcs)
     {
-        Function *func = get_entry(Function)(cursor);
+        Function *func = get_element(Function)(cursor);
         generate_func(func);
     }
 }
@@ -329,7 +329,7 @@ static void generate_func(const Function *func)
     size_t argc = 0;
     for_each(Variable, cursor, func->args)
     {
-        Variable *arg = get_entry(Variable)(cursor);
+        Variable *arg = get_element(Variable)(cursor);
         put_instruction("  mov rax, rbp");
         put_instruction("  sub rax, %lu", arg->offset);
 
@@ -386,13 +386,13 @@ static void generate_func(const Function *func)
 generate assembler code of function arguments
 * This function returns number of arguments which are passed on the stack.
 */
-static size_t generate_args(List(Expression) *args)
+static size_t generate_args(ListEntry(Expression) *args)
 {
     // push arguments
     size_t argc = 0;
     for_each(Expression, cursor, args)
     {
-        Expression *arg = get_entry(Expression)(cursor);
+        Expression *arg = get_element(Expression)(cursor);
         generate_expression(arg);
         argc++;
     }

@@ -17,28 +17,28 @@
 
 // macro
 #define define_list_operations(type) \
-/* make a new list */\
-List(type) *new_list(type)(type *element)\
+/* make a new entry of list */\
+ListEntry(type) *new_list_entry(type)(type *element)\
 {\
-    List(type) *list = calloc(1, sizeof(List(type)));\
-    list->next = NULL;\
-    list->element = element;\
+    ListEntry(type) *entry = calloc(1, sizeof(ListEntry(type)));\
+    entry->next = NULL;\
+    entry->element = element;\
 \
-    return list;\
+    return entry;\
 }\
 \
 \
 /* get the entry of list */\
-type *get_entry(type)(const List(type) *list)\
+type *get_element(type)(const ListEntry(type) *entry)\
 {\
-    return list->element;\
+    return entry->element;\
 }\
 \
 \
 /* add an entry at the head of list */\
-List(type) *add_entry_head(type)(List(type) *list, type *element)\
+ListEntry(type) *add_entry_head(type)(ListEntry(type) *list, type *element)\
 {\
-    List(type) *head = new_list(type)(element);\
+    ListEntry(type) *head = new_list_entry(type)(element);\
     head->next = list;\
 \
     return head;\
@@ -46,9 +46,9 @@ List(type) *add_entry_head(type)(List(type) *list, type *element)\
 \
 \
 /* add an entry at the tail of list */\
-List(type) *add_entry_tail(type)(List(type) *list, type *element)\
+ListEntry(type) *add_entry_tail(type)(ListEntry(type) *list, type *element)\
 {\
-    List(type) *tail = new_list(type)(element);\
+    ListEntry(type) *tail = new_list_entry(type)(element);\
     list->next = tail;\
 \
     return tail;\

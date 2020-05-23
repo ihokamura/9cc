@@ -188,16 +188,16 @@ struct Member {
 
 // structure for type
 struct Type {
-    TypeKind kind;         // kind of type
-    size_t size;           // size of type
-    size_t align;          // alignment of type
-    TypeQualifier qual;    // qualification of type
-    bool complete;         // flag indicating that the tyee is complete or incomplete
-    Type *base;            // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
-    size_t len;            // length of array (only for TY_ARRAY)
-    List(Type) *args;      // type of arguments (only for TY_FUNC)
-    Tag *tag;              // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
-    List(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    TypeKind kind;              // kind of type
+    size_t size;                // size of type
+    size_t align;               // alignment of type
+    TypeQualifier qual;         // qualification of type
+    bool complete;              // flag indicating that the tyee is complete or incomplete
+    Type *base;                 // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;                 // length of array (only for TY_ARRAY)
+    ListEntry(Type) *args;      // type of arguments (only for TY_FUNC)
+    Tag *tag;                   // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    ListEntry(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
 };
 
 // structure for variable
@@ -226,17 +226,17 @@ struct StringLiteral {
 
 // structure for expression
 struct Expression {
-    ExpressionKind kind;    // kind of expression
-    Type *type;             // type of expression
-    Expression *lhs;        // left hand side of binary operation
-    Expression *rhs;        // right hand side of binary operation
-    Expression *operand;    // operand of unary operation or condition of conditional expression
-    long value;             // value of expression (only for EXPR_CONST)
-    StringLiteral *str;     // information of string-literal (only for EXPR_STR)
-    Variable *var;          // information of variable (only for EXPR_VAR)
-    Member *member;         // member (only for EXPR_MEMBER)
-    List(Expression) *args; // arguments (only for EXPR_FUNC)
-    bool lvalue;            // flag indicating that the expression is lvalue
+    ExpressionKind kind;         // kind of expression
+    Type *type;                  // type of expression
+    Expression *lhs;             // left hand side of binary operation
+    Expression *rhs;             // right hand side of binary operation
+    Expression *operand;         // operand of unary operation or condition of conditional expression
+    long value;                  // value of expression (only for EXPR_CONST)
+    StringLiteral *str;          // information of string-literal (only for EXPR_STR)
+    Variable *var;               // information of variable (only for EXPR_VAR)
+    Member *member;              // member (only for EXPR_MEMBER)
+    ListEntry(Expression) *args; // arguments (only for EXPR_FUNC)
+    bool lvalue;                 // flag indicating that the expression is lvalue
 };
 
 // structure for declaration
@@ -267,18 +267,18 @@ struct Statement {
 
 // structure for function
 struct Function {
-    char *name;             // name of function
-    Type *type;             // type of function
-    List(Variable) *args;   // arguments
-    Statement *body;        // body of function definition
-    List(Variable) *locals; // list of local variables (including arguments)
-    size_t stack_size;      // size of stack in bytes
+    char *name;                  // name of function
+    Type *type;                  // type of function
+    ListEntry(Variable) *args;   // arguments
+    Statement *body;             // body of function definition
+    ListEntry(Variable) *locals; // list of local variables (including arguments)
+    size_t stack_size;           // size of stack in bytes
 };
 
 // structure for program
 typedef struct Program {
-    List(Variable) *gvars; // list of global variables
-    List(Function) *funcs; // list of functions
+    ListEntry(Variable) *gvars; // list of global variables
+    ListEntry(Function) *funcs; // list of functions
 } Program;
 
 // structure for identifier
@@ -299,9 +299,9 @@ struct Tag {
 
 // structure for scope
 typedef struct Scope {
-    List(Identifier) *ident_list; // list of ordinary identifiers visible in the current scope
-    List(Tag) *tag_list;          // list of tags visible in the current scope
-    int depth;                    // depth of the current scope
+    ListEntry(Identifier) *ident_list; // list of ordinary identifiers visible in the current scope
+    ListEntry(Tag) *tag_list;          // list of tags visible in the current scope
+    int depth;                         // depth of the current scope
 } Scope;
 
 #endif /* !__9CC_H__ */
