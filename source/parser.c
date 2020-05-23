@@ -68,8 +68,7 @@ Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
     Variable *gvar = new_var(make_identifier(token), type, false);
     gvar->entity = entity;
-    gvar_list->next = new_list(Variable)(gvar);
-    gvar_list = gvar_list->next;
+    gvar_list = add_entry_tail(Variable)(gvar_list, gvar);
 
     return gvar;
 }
@@ -81,9 +80,7 @@ make a new local variable
 Variable *new_lvar(const Token *token, Type *type)
 {
     Variable *lvar = new_var(make_identifier(token), type, true);
-    List(Variable) *list = new_list(Variable)(lvar);
-    list->next = lvar_list;
-    lvar_list = list;
+    lvar_list = add_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
 }
@@ -117,14 +114,12 @@ StringLiteral *new_string(const Token *token)
     gvar->data = new_data_segment();
     gvar->data->label = label;
     gvar->entity = true;
-    gvar_list->next = new_list(Variable)(gvar);
-    gvar_list = gvar_list->next;
+    gvar_list = add_entry_tail(Variable)(gvar_list, gvar);
 
     StringLiteral *str = gvar->str;
     str->content = content;
     str->var = gvar;
-    last_str->next = new_list(StringLiteral)(str);
-    last_str = last_str->next;
+    last_str = add_entry_tail(StringLiteral)(last_str, str);
 
     return str;
 }
@@ -163,8 +158,7 @@ static Function *new_function(const Token *token, Type *type, List(Variable) *ar
     new_func->locals = lvar_list;
 
     // update list of functions
-    function_list->next = new_list(Function)(new_func);
-    function_list = function_list->next;
+    function_list = add_entry_tail(Function)(function_list, new_func);
 
     return new_func;
 }
@@ -275,10 +269,7 @@ Identifier *push_identifier_scope(const char *name)
     ident->var = NULL;
     ident->en = NULL;
     ident->depth = current_scope.depth;
-
-    List(Identifier) *ident_list = new_list(Identifier)(ident);
-    ident_list->next = current_scope.ident_list;
-    current_scope.ident_list = ident_list;
+    current_scope.ident_list = add_entry_head(Identifier)(current_scope.ident_list, ident);
 
     return ident;
 }
@@ -293,10 +284,7 @@ Tag *push_tag_scope(const char *name, Type *type)
     tag->name = name;
     tag->type = type;
     tag->depth = current_scope.depth;
-
-    List(Tag) *tag_list = new_list(Tag)(tag);
-    tag_list->next = current_scope.tag_list;
-    current_scope.tag_list = tag_list;
+    current_scope.tag_list = add_entry_head(Tag)(current_scope.tag_list, tag);
 
     return tag;
 }

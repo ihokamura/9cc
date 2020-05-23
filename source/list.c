@@ -26,10 +26,32 @@ List(type) *new_list(type)(type *element)\
 \
     return list;\
 }\
+\
+\
 /* get the entry of list */\
 type *get_entry(type)(const List(type) *list)\
 {\
     return list->element;\
+}\
+\
+\
+/* add an entry at the head of list */\
+List(type) *add_entry_head(type)(List(type) *list, type *element)\
+{\
+    List(type) *head = new_list(type)(element);\
+    head->next = list;\
+\
+    return head;\
+}\
+\
+\
+/* add an entry at the tail of list */\
+List(type) *add_entry_tail(type)(List(type) *list, type *element)\
+{\
+    List(type) *tail = new_list(type)(element);\
+    list->next = tail;\
+\
+    return tail;\
 }\
 
 

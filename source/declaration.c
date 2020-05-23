@@ -1010,8 +1010,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
     Variable *arg_var;
     List(Variable) *arg_vars_cursor = (arg_vars != NULL) ? *arg_vars : NULL;
 
-    arg_types_cursor->next = new_list(Type)(parameter_declaration(&arg_var));
-    arg_types_cursor = arg_types_cursor->next;
+    arg_types_cursor = add_entry_tail(Type)(arg_types_cursor, parameter_declaration(&arg_var));
     if(arg_vars != NULL)
     {
         if(arg_var == NULL)
@@ -1020,8 +1019,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
         }
         else
         {
-            arg_vars_cursor->next = new_list(Variable)(arg_var);
-            arg_vars_cursor = arg_vars_cursor->next;
+            arg_vars_cursor = add_entry_tail(Variable)(arg_vars_cursor, arg_var);
         }
     }
 
@@ -1032,8 +1030,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
         {
             if(!consume_reserved("..."))
             {
-                arg_types_cursor->next = new_list(Type)(parameter_declaration(&arg_var));
-                arg_types_cursor = arg_types_cursor->next;
+                arg_types_cursor = add_entry_tail(Type)(arg_types_cursor, parameter_declaration(&arg_var));
                 if(arg_vars != NULL)
                 {
                     if(arg_var == NULL)
@@ -1042,8 +1039,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
                     }
                     else
                     {
-                        arg_vars_cursor->next = new_list(Variable)(arg_var);
-                        arg_vars_cursor = arg_vars_cursor->next;
+                        arg_vars_cursor = add_entry_tail(Variable)(arg_vars_cursor, arg_var);
                     }
                 }
                 continue;
