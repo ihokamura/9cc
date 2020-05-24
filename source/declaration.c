@@ -63,9 +63,9 @@ static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static Type *struct_or_union_specifier(void);
 static List(Member) *struct_declaration_list(void);
-static ListEntry(Member) *struct_declaration(void);
+static List(Member) *struct_declaration(void);
 static Type *specifier_qualifier_list(void);
-static ListEntry(Member) *struct_declarator_list(Type *type);
+static List(Member) *struct_declarator_list(Type *type);
 static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
 static Member *enumerator(int val);
@@ -630,28 +630,11 @@ struct-declaration-list ::= struct-declaration struct-declaration*
 */
 static List(Member) *struct_declaration_list(void)
 {
-    ListEntry(Member) *member = struct_declaration();
-    ListEntry(Member) *cursor = member;
+    List(Member) *list = struct_declaration();
     while(!peek_reserved("}"))
     {
-        // move cursor until last element since a struct-declaration may have multiple declarators
-        while(cursor->next != NULL)
-        {
-            cursor = cursor->next;
-        }
-        cursor->next = struct_declaration();
+        list = concatenate_list(Member)(list, struct_declaration());
     }
-
-    while(cursor->next != NULL)
-    {
-        cursor = cursor->next;
-    }
-
-    List(Member) *list = new_list(Member)();
-    list->head->next = member;
-    member->prev = list->head;
-    list->tail->prev = cursor;
-    cursor->next = list->tail;
 
     return list;
 }
@@ -663,13 +646,13 @@ make a struct-declaration
 struct-declaration ::= specifier-qualifier-list struct-declarator-list ";"
 ```
 */
-static ListEntry(Member) *struct_declaration(void)
+static List(Member) *struct_declaration(void)
 {
     Type *type = specifier_qualifier_list();
-    ListEntry(Member) *member = struct_declarator_list(type);
+    List(Member) *members = struct_declarator_list(type);
     expect_reserved(";");
 
-    return member;
+    return members;
 }
 
 
@@ -716,19 +699,19 @@ make a struct-declarator-list
 struct-declarator-list ::= declarator ("," declarator)*
 ```
 */
-static ListEntry(Member) *struct_declarator_list(Type *type)
+static List(Member) *struct_declarator_list(Type *type)
 {
     Token *token;
     Type *decl_type = declarator(type, &token, false);
-    ListEntry(Member) *member = new_list_entry(Member)(new_member(make_identifier(token), decl_type));
-    ListEntry(Member) *cursor = member;
+    List(Member) *members = new_list(Member)();
+    add_list_entry_tail(Member)(members, new_member(make_identifier(token), decl_type));
     while(consume_reserved(","))
     {
         decl_type = declarator(type, &token, false);
-        cursor = add_entry_tail(Member)(cursor, new_member(make_identifier(token), decl_type));
+        add_list_entry_tail(Member)(members, new_member(make_identifier(token), decl_type));
     }
 
-    return member;
+    return members;
 }
 
 

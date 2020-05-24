@@ -56,6 +56,13 @@ ListEntry(type) *get_first_entry(type)(const List(type) *list)\
 }\
 \
 \
+/* get the last entry of list */\
+ListEntry(type) *get_last_entry(type)(const List(type) *list)\
+{\
+    return list->tail->prev;\
+}\
+\
+\
 /* check if iteration is over */\
 bool end_iteration(type)(const List(type) *list, const ListEntry(type) *entry)\
 {\
@@ -105,6 +112,22 @@ ListEntry(type) *add_entry_tail(type)(ListEntry(type) *list, type *element)\
     list->next = tail;\
 \
     return tail;\
+}\
+\
+\
+/* concatenate lists */\
+List(type) *concatenate_list(type)(List(type) *self, List(type) *other)\
+{\
+    ListEntry(type) *self_last = get_last_entry(type)(self);\
+    ListEntry(type) *other_first = get_first_entry(type)(other);\
+    ListEntry(type) *other_last = get_last_entry(type)(other);\
+\
+    self_last->next = other_first;\
+    other_first->prev = self_last;\
+    other_last->next = self->tail;\
+    self->tail->prev = other_last;\
+\
+    return self;\
 }\
 
 
