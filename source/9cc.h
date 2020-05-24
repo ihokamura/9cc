@@ -145,6 +145,7 @@ typedef enum {
 
 // forward declaration of structure types
 typedef struct Token Token;
+typedef struct Initializer Initializer;
 typedef struct DataSegment DataSegment;
 typedef struct Member Member;
 typedef struct Tag Tag;
@@ -165,6 +166,11 @@ struct Token {
     size_t len;     // length of token string
     TypeKind type;  // type of token (only for TK_CONST)
     long value;     // value of token (only for TK_CONST)
+};
+
+struct Initializer {
+    List(Initializer) *list; // initializer-list
+    Expression *assign;      // assignment expression
 };
 
 // structure for contents in data segment

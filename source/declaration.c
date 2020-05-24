@@ -44,13 +44,6 @@ typedef enum {
     TS_TYPEDEF,  // typedef name
 } TypeSpecifier;
 
-typedef struct Initializer Initializer;
-struct Initializer {
-    Initializer *next;  // next element
-    Initializer *list;  // initializer-list
-    Expression *assign; // assignment expression
-};
-
 
 // function prototype
 static Declaration *new_declaration(Variable *var);
@@ -80,7 +73,7 @@ static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
 static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars);
 static Initializer *initializer(void);
-static Initializer *initializer_list(void);
+static List(Initializer) *initializer_list(void);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
 static Statement *assign_zero_initializer(Expression *expr);
 static List(DataSegment) *make_data_segment(Type *type, const Initializer *init);
@@ -177,7 +170,6 @@ make a new initializer
 static Initializer *new_initializer(void)
 {
     Initializer *init = calloc(1, sizeof(Initializer));
-    init->next = NULL;
     init->list = NULL;
     init->assign = NULL;
 
@@ -1284,13 +1276,10 @@ make an initializer-list
 initializer-list ::= initializer ("," initializer)*
 ```
 */
-static Initializer *initializer_list(void)
+static List(Initializer) *initializer_list(void)
 {
-    Initializer head = {};
-    Initializer *cursor = &head;
-
-    cursor->next = initializer();
-    cursor = cursor->next;
+    List(Initializer) *list = new_list(Initializer)();
+    add_list_entry_tail(Initializer)(list, initializer());
 
     while(true)
     {
@@ -1299,8 +1288,7 @@ static Initializer *initializer_list(void)
         {
             if(!consume_reserved("}"))
             {
-                cursor->next = initializer();
-                cursor = cursor->next;
+                add_list_entry_tail(Initializer)(list, initializer());
                 continue;
             }
             else
@@ -1311,7 +1299,7 @@ static Initializer *initializer_list(void)
         break;
     }
 
-    return head.next;
+    return list;
 }
 
 
@@ -1328,15 +1316,15 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         {
             Statement stmt_head = {};
             Statement *stmt_cursor = &stmt_head;
-            const Initializer *init_cursor = init->list;
+            const ListEntry(Initializer) *init_cursor = get_first_entry(Initializer)(init->list);
 
             if(expr->type->complete)
             {
                 size_t index = 0;
-                while((init_cursor != NULL) && (index < expr->type->len))
+                while((!end_iteration(Initializer)(init->list, init_cursor)) && (index < expr->type->len))
                 {
                     Expression *dest = new_node_subscript(expr, index);
-                    stmt_cursor->next = assign_initializer(dest, init_cursor);
+                    stmt_cursor->next = assign_initializer(dest, get_element(Initializer)(init_cursor));
                     stmt_cursor = stmt_cursor->next;
                     init_cursor = init_cursor->next;
                     index++;
@@ -1355,10 +1343,10 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
             {
                 // determine length of array by initializer-list
                 size_t len = 0;
-                while(init_cursor != NULL)
+                while(!end_iteration(Initializer)(init->list, init_cursor))
                 {
                     Expression *dest = new_node_subscript(expr, len);
-                    stmt_cursor->next = assign_initializer(dest, init_cursor);
+                    stmt_cursor->next = assign_initializer(dest, get_element(Initializer)(init_cursor));
                     stmt_cursor = stmt_cursor->next;
                     init_cursor = init_cursor->next;
                     len++;
@@ -1374,14 +1362,14 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         {
             Statement stmt_head = {};
             Statement *stmt_cursor = &stmt_head;
-            const Initializer *init_cursor = init->list;
+            const ListEntry(Initializer) *init_cursor = get_first_entry(Initializer)(init->list);
             ListEntry(Member) *memb_cursor = get_first_entry(Member)(expr->type->members);
 
-            while((init_cursor != NULL) && !end_iteration(Member)(expr->type->members, memb_cursor))
+            while((!end_iteration(Initializer)(init->list, init_cursor)) && !end_iteration(Member)(expr->type->members, memb_cursor))
             {
                 Member *member = get_element(Member)(memb_cursor);
                 Expression *dest = new_node_member(expr, member);
-                stmt_cursor->next = assign_initializer(dest, init_cursor);
+                stmt_cursor->next = assign_initializer(dest, get_element(Initializer)(init_cursor));
                 stmt_cursor = stmt_cursor->next;
                 init_cursor = init_cursor->next;
                 memb_cursor = memb_cursor->next;
@@ -1401,16 +1389,15 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         }
         else if(is_union(expr->type))
         {
-            const Initializer *init_cursor = init->list;
             Member *member = get_element(Member)(get_first_entry(Member)(expr->type->members));
             Expression *dest = new_node_member(expr, member);
-            init_stmt->body = assign_initializer(dest, init_cursor);
+            init_stmt->body = assign_initializer(dest, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
         }
-        else if(init->list->assign != NULL)
+        else if(get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
             init_stmt->body = new_statement(STMT_EXPR);
-            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, init->list->assign);
+            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign);
         }
         else
         {
@@ -1422,18 +1409,17 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         if(is_array(expr->type) && (expr->type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize array of char type by string-literal
-            Initializer head = {};
-            Initializer *cursor = &head;
+            List(Initializer) *init_list = new_list(Initializer)();
             const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
-                cursor->next = new_initializer();
-                cursor = cursor->next;
-                cursor->assign = new_node_constant(TY_INT, content[i]);
+                Initializer *init = new_initializer();
+                init->assign = new_node_constant(TY_INT, content[i]);
+                add_list_entry_tail(Initializer)(init_list, init);
             }
 
             Initializer *init_string = new_initializer();
-            init_string->list = head.next;
+            init_string->list = init_list;
             init_stmt->body = assign_initializer(expr, init_string);
         }
         else
@@ -1506,14 +1492,14 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         if(is_array(type))
         {
             data_list = new_list(DataSegment)();
-            const Initializer *init_cursor = init->list;
+            const ListEntry(Initializer) *init_cursor = get_first_entry(Initializer)(init->list);
 
             if(type->complete)
             {
                 size_t index = 0;
-                while((init_cursor != NULL) && (index < type->len))
+                while((!end_iteration(Initializer)(init->list, init_cursor)) && (index < type->len))
                 {
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_cursor));
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, get_element(Initializer)(init_cursor)));
                     init_cursor = init_cursor->next;
                     index++;
                 }
@@ -1529,9 +1515,9 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
             {
                 // determine length of array by initializer-list
                 size_t len = 0;
-                while(init_cursor != NULL)
+                while(!end_iteration(Initializer)(init->list, init_cursor))
                 {
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_cursor));
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, get_element(Initializer)(init_cursor)));
                     init_cursor = init_cursor->next;
                     len++;
                 }
@@ -1543,13 +1529,13 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         else if(is_struct(type))
         {
             data_list = new_list(DataSegment)();
-            const Initializer *init_cursor = init->list;
+            const ListEntry(Initializer) *init_cursor = get_first_entry(Initializer)(init->list);
             ListEntry(Member) *memb_cursor = get_first_entry(Member)(type->members);
 
-            while((init_cursor != NULL) && (!end_iteration(Member)(type->members, memb_cursor)))
+            while((!end_iteration(Initializer)(init->list, init_cursor)) && (!end_iteration(Member)(type->members, memb_cursor)))
             {
                 Member *member = get_element(Member)(memb_cursor);
-                data_list = concatenate_list(DataSegment)(data_list, make_data_segment(member->type, init_cursor));
+                data_list = concatenate_list(DataSegment)(data_list, make_data_segment(member->type, get_element(Initializer)(init_cursor)));
 
                 // fill padding by zero
                 size_t start = member->offset + member->type->size;
@@ -1573,14 +1559,13 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         }
         else if(is_union(type))
         {
-            const Initializer *init_cursor = init->list;
             Member *member = get_element(Member)(get_first_entry(Member)(type->members));
-            data_list = make_data_segment(member->type, init_cursor);
+            data_list = make_data_segment(member->type, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
         }
-        else if(init->list->assign != NULL)
+        else if(get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            data_list = make_data_segment(type, init->list);
+            data_list = make_data_segment(type, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
         }
         else
         {
@@ -1593,19 +1578,17 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         if(is_array(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize array of char type by string-literal
-            Initializer head = {};
-            Initializer *cursor = &head;
+            List(Initializer) *init_list = new_list(Initializer)();
             const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
-                cursor->next = new_initializer();
-                cursor = cursor->next;
-                cursor->assign = new_node_constant(TY_INT, content[i]);
+                Initializer *init  = new_initializer();
+                init->assign = new_node_constant(TY_INT, content[i]);
+                add_list_entry_tail(Initializer)(init_list, init);
             }
 
             Initializer *init_string = new_initializer();
-            init_string->list = head.next;
-
+            init_string->list = init_list;
             data_list = make_data_segment(type, init_string);
         }
         else if(is_pointer(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))

@@ -56,6 +56,7 @@ List(type) *concatenate_list(type)(List(type) *self, List(type) *other);\
 
 
 define_list(Token)
+define_list(Initializer)
 define_list(DataSegment)
 define_list(Member)
 define_list(Type)
