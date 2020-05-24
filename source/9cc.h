@@ -169,7 +169,6 @@ struct Token {
 
 // structure for contents in data segment
 struct DataSegment {
-    DataSegment *next;   // next element
     const char *label;   // label (symbol)
     size_t size;         // size of data
     bool zero;           // flag indicating that data is zero or non-zero
@@ -200,14 +199,14 @@ struct Type {
 
 // structure for variable
 struct Variable {
-    const char *name;   // name of variable
-    Type *type;         // type of variable
-    Statement *init;    // initializer
-    bool local;         // flag indicating that the variable is local or global
-    size_t offset;      // offset from base pointer (rbp) (only for local variable)
-    StringLiteral *str; // information of string-literal (only for string-literal)
-    bool entity;        // flag indicating that the variable has an entity in the current translation unit (only for global variable)
-    DataSegment *data;  // contents of data segment (only for global variable)
+    const char *name;        // name of variable
+    Type *type;              // type of variable
+    Statement *init;         // initializer
+    bool local;              // flag indicating that the variable is local or global
+    size_t offset;           // offset from base pointer (rbp) (only for local variable)
+    StringLiteral *str;      // information of string-literal (only for string-literal)
+    bool entity;             // flag indicating that the variable has an entity in the current translation unit (only for global variable)
+    List(DataSegment) *data; // contents of data segment (only for global variable)
 };
 
 // structure for enumerator

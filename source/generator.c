@@ -273,8 +273,9 @@ static void generate_gvar(const Variable *gvar)
     }
     else
     {
-        for(DataSegment *data = gvar->data; data != NULL; data = data->next)
+        for_each_entry(DataSegment, cursor, gvar->data)
         {
+            DataSegment *data = get_element(DataSegment)(cursor);
             if(data->label != NULL)
             {
                 // allocate memory with label

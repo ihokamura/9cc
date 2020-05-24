@@ -10,7 +10,7 @@
 
 #include "9cc.h"
 
-DataSegment *new_data_segment(void);
+DataSegment *new_string_data_segment(const char *label);
 Statement *declaration(bool is_local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);

@@ -110,8 +110,8 @@ StringLiteral *new_string(const Token *token)
 
     Variable *gvar = new_var(label, type, false);
     gvar->str = calloc(1, sizeof(StringLiteral));
-    gvar->data = new_data_segment();
-    gvar->data->label = label;
+    gvar->data = new_list(DataSegment)();
+    add_list_entry_tail(DataSegment)(gvar->data, new_string_data_segment(label));
     gvar->entity = true;
     add_list_entry_tail(Variable)(gvar_list, gvar);
 

@@ -56,6 +56,7 @@ struct Initializer {
 static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
+static DataSegment *new_data_segment(void);
 static DataSegment *new_zero_data_segment(size_t size);
 static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
@@ -82,7 +83,7 @@ static Initializer *initializer(void);
 static Initializer *initializer_list(void);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
 static Statement *assign_zero_initializer(Expression *expr);
-static DataSegment *make_data_segment(Type *type, const Initializer *init);
+static List(DataSegment) *make_data_segment(Type *type, const Initializer *init);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
 static bool is_string(const Expression *expr);
@@ -187,10 +188,9 @@ static Initializer *new_initializer(void)
 /*
 make a new data segment
 */
-DataSegment *new_data_segment(void)
+static DataSegment *new_data_segment(void)
 {
     DataSegment *data = calloc(1, sizeof(DataSegment));
-    data->next = NULL;
     data->label = NULL;
     data->size = 0;
     data->value = 0;
@@ -208,6 +208,18 @@ static DataSegment *new_zero_data_segment(size_t size)
     DataSegment *data = new_data_segment();
     data->size = size;
     data->zero = true;
+
+    return data;
+}
+
+
+/*
+make a new string data segment
+*/
+DataSegment *new_string_data_segment(const char *label)
+{
+    DataSegment *data = new_data_segment();
+    data->label = label;
 
     return data;
 }
@@ -361,7 +373,8 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
             }
             else
             {
-                expr->var->data = new_zero_data_segment(type->size);
+                expr->var->data = new_list(DataSegment)();
+                add_list_entry_tail(DataSegment)(expr->var->data, new_zero_data_segment(type->size));
             }
         }
 
@@ -1484,16 +1497,15 @@ static Statement *assign_zero_initializer(Expression *expr)
 /*
 make list of contents for data segment of global variable
 */
-static DataSegment *make_data_segment(Type *type, const Initializer *init)
+static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
 {
-    DataSegment *data = NULL;
+    List(DataSegment) *data_list = NULL;
 
     if(init->assign == NULL)
     {
         if(is_array(type))
         {
-            DataSegment data_head = {};
-            DataSegment *data_cursor = &data_head;
+            data_list = new_list(DataSegment)();
             const Initializer *init_cursor = init->list;
 
             if(type->complete)
@@ -1501,11 +1513,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                 size_t index = 0;
                 while((init_cursor != NULL) && (index < type->len))
                 {
-                    data_cursor->next = make_data_segment(type->base, init_cursor);
-                    while(data_cursor->next != NULL)
-                    {
-                        data_cursor = data_cursor->next;
-                    }
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_cursor));
                     init_cursor = init_cursor->next;
                     index++;
                 }
@@ -1514,8 +1522,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                 size_t remainder = (type->len - index) * type->base->size;
                 if(remainder > 0)
                 {
-                    data_cursor->next = new_zero_data_segment(remainder);
-                    data_cursor = data_cursor->next;
+                    add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(remainder));
                 }
             }
             else
@@ -1524,11 +1531,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                 size_t len = 0;
                 while(init_cursor != NULL)
                 {
-                    data_cursor->next = make_data_segment(type->base, init_cursor);
-                    while(data_cursor->next != NULL)
-                    {
-                        data_cursor = data_cursor->next;
-                    }
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_cursor));
                     init_cursor = init_cursor->next;
                     len++;
                 }
@@ -1536,24 +1539,17 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                 type->len = len;
                 type->complete = true;
             }
-
-            data = data_head.next;
         }
         else if(is_struct(type))
         {
-            DataSegment data_head = {};
-            DataSegment *data_cursor = &data_head;
+            data_list = new_list(DataSegment)();
             const Initializer *init_cursor = init->list;
             ListEntry(Member) *memb_cursor = get_first_entry(Member)(type->members);
 
             while((init_cursor != NULL) && (!end_iteration(Member)(type->members, memb_cursor)))
             {
                 Member *member = get_element(Member)(memb_cursor);
-                data_cursor->next = make_data_segment(member->type, init_cursor);
-                while(data_cursor->next != NULL)
-                {
-                    data_cursor = data_cursor->next;
-                }
+                data_list = concatenate_list(DataSegment)(data_list, make_data_segment(member->type, init_cursor));
 
                 // fill padding by zero
                 size_t start = member->offset + member->type->size;
@@ -1561,11 +1557,7 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
                 size_t padding_size = end - start;
                 if(padding_size > 0)
                 {
-                    DataSegment *data_zero = new_data_segment();
-                    data_zero->size = padding_size;
-                    data_zero->zero = true;
-                    data_cursor->next = data_zero;
-                    data_cursor = data_cursor->next;
+                    add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(padding_size));
                 }
                 init_cursor = init_cursor->next;
                 memb_cursor = memb_cursor->next;
@@ -1576,28 +1568,24 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             {
                 Member *member = get_element(Member)(memb_cursor);
                 size_t remainder = type->size - member->offset;
-                data_cursor->next = new_zero_data_segment(remainder);
-                data_cursor = data_cursor->next;
+                add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(remainder));
             }
-
-            data = data_head.next;
         }
         else if(is_union(type))
         {
             const Initializer *init_cursor = init->list;
             Member *member = get_element(Member)(get_first_entry(Member)(type->members));
-            data = make_data_segment(member->type, init_cursor);
+            data_list = make_data_segment(member->type, init_cursor);
         }
         else if(init->list->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            data = make_data_segment(type, init->list);
+            data_list = make_data_segment(type, init->list);
         }
         else
         {
-            data = new_data_segment();
-            data->size = type->size;
-            data->zero = true;
+            data_list = new_list(DataSegment)();
+            add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(type->size));
         }
     }
     else
@@ -1618,23 +1606,26 @@ static DataSegment *make_data_segment(Type *type, const Initializer *init)
             Initializer *init_string = new_initializer();
             init_string->list = head.next;
 
-            data = make_data_segment(type, init_string);
+            data_list = make_data_segment(type, init_string);
         }
         else if(is_pointer(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize string-literal
-            data = new_data_segment();
-            data->label = init->assign->var->name;
+            data_list = new_list(DataSegment)();
+            add_list_entry_tail(DataSegment)(data_list, new_string_data_segment(init->assign->var->name));
         }
         else
         {
-            data = new_data_segment();
+            DataSegment *data = new_data_segment();
             data->size = type->size;
             data->value = evaluate(init->assign);
+
+            data_list = new_list(DataSegment)();
+            add_list_entry_tail(DataSegment)(data_list, data);
         }
     }
 
-    return data;
+    return data_list;
 }
 
 

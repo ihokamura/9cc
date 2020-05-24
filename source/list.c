@@ -132,6 +132,7 @@ List(type) *concatenate_list(type)(List(type) *self, List(type) *other)\
 
 
 define_list_operations(Token)
+define_list_operations(DataSegment)
 define_list_operations(Member)
 define_list_operations(Type)
 define_list_operations(Variable)
