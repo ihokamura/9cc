@@ -544,8 +544,9 @@ static void generate_statement(const Statement *stmt)
         return;
 
     case STMT_DECL:
-        for(const Declaration *decl = stmt->decl; decl != NULL; decl = decl->next)
+        for_each_entry(Declaration, cursor, stmt->decl)
         {
+            Declaration *decl = get_element(Declaration)(cursor);
             if((decl->var != NULL) && (decl->var->init != NULL))
             {
                 generate_statement(decl->var->init);

@@ -244,7 +244,6 @@ struct Expression {
 
 // structure for declaration
 struct Declaration {
-    Declaration *next; // next element
     Variable *var;     // declared variable
 };
 
@@ -260,7 +259,7 @@ struct Statement {
     Statement *default_case; // default case (only for STMT_SWITCH)
     Statement *true_case;    // statements of true case (only for STMT_IF)
     Statement *false_case;   // statements of false case (only for STMT_IF)
-    Declaration *decl;       // declaration (only for STMT_DECL)
+    List(Declaration) *decl; // declaration (only for STMT_DECL)
     Expression *expr;        // expression (only for STMT_EXPR)
     Variable *var;           // information of variable (only for STMT_DECL)
     char *ident;             // identifier (only for STMT_LABEL, STMT_GOTO)

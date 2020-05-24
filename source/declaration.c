@@ -51,7 +51,7 @@ static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
 static DataSegment *new_data_segment(void);
 static DataSegment *new_zero_data_segment(size_t size);
-static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
+static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
@@ -141,7 +141,6 @@ make a new declaration
 static Declaration *new_declaration(Variable *var)
 {
     Declaration *decl = calloc(1, sizeof(Declaration));
-    decl->next = NULL;
     decl->var = var;
 
     return decl;
@@ -235,6 +234,10 @@ Statement *declaration(bool is_local)
     {
         stmt->decl = init_declarator_list(type, sclass, is_local);
     }
+    else
+    {
+        stmt->decl = new_list(Declaration)(); // make a dummy list
+    }
 
     expect_reserved(";");
 
@@ -297,18 +300,17 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static Declaration *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
+static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
 {
-    Declaration *decl = init_declarator(type, sclass, is_local);
-    Declaration *cursor = decl;
+    List(Declaration) *list = new_list(Declaration)();
+    add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, is_local));
 
     while(consume_reserved(","))
     {
-        cursor->next = init_declarator(type, sclass, is_local);
-        cursor = cursor->next;
+        add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, is_local));
     }
 
-    return decl;
+    return list;
 }
 
 
