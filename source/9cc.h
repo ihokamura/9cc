@@ -33,7 +33,6 @@ typedef enum {
     TK_IDENT,    // identifier
     TK_CONST,    // constant
     TK_STR,      // string-literal
-    TK_EOF,      // end of input
 } TokenKind;
 
 // kind of type
@@ -161,7 +160,6 @@ typedef struct Identifier Identifier;
 
 // structure for token
 struct Token {
-    Token *next;    // next token
     TokenKind kind; // kind of token
     char *str;      // pointer to token string
     size_t len;     // length of token string

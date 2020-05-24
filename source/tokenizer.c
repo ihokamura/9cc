@@ -33,7 +33,7 @@ typedef enum {
 
 
 // function prototype
-static Token *new_token(TokenKind kind, Token *cur, char *str, int len);
+static Token *new_token(TokenKind kind, char *str, int len);
 static int is_space(const char *str);
 static int is_comment(const char *str);
 static int is_reserved(const char *str);
@@ -174,7 +174,8 @@ static const struct {const char *string; IntegerSuffix suffix;} integer_suffix_l
 };
 static const size_t INTEGER_SUFFIX_LIST_SIZE = sizeof(integer_suffix_list) / sizeof(integer_suffix_list[0]); // number of integer suffixes
 static char *user_input; // input of compiler
-static Token *current_token; // currently parsing token
+static List(Token) *token_list; // list of tokens
+static ListEntry(Token) *current_token; // currently parsing token
 static int source_type; // type of source
 static const char *file_name; // name of source file
 
@@ -182,16 +183,14 @@ static const char *file_name; // name of source file
 /*
 make a new token and concatenate it to the current token
 */
-static Token *new_token(TokenKind kind, Token *cur, char *str, int len)
+static Token *new_token(TokenKind kind, char *str, int len)
 {
     Token *token = calloc(1, sizeof(Token));
-
     token->kind = kind;
     token->str = str;
     token->len = len;
     token->type = TY_INT;
     token->value = 0;
-    cur->next = token;
 
     return token;
 }
@@ -204,10 +203,12 @@ peek a reserved string
 */
 bool peek_reserved(const char *str)
 {
+    Token *current = get_element(Token)(current_token);
+
     return (
-           (current_token->kind == TK_RESERVED)
-        && (current_token->len == strlen(str))
-        && (strncmp(current_token->str, str, current_token->len) == 0));
+           (current->kind == TK_RESERVED)
+        && (current->len == strlen(str))
+        && (strncmp(current->str, str, current->len) == 0));
 }
 
 
@@ -218,9 +219,11 @@ peek a token
 */
 bool peek_token(TokenKind kind, Token **token)
 {
-    if(current_token->kind == kind)
+    Token *current = get_element(Token)(current_token);
+
+    if(current->kind == kind)
     {
-        *token = current_token;
+        *token = current;
         return true;
     }
     else
@@ -271,7 +274,7 @@ get the currently parsing token
 */
 Token *get_token(void)
 {
-    return current_token;
+    return get_element(Token)(current_token);
 }
 
 
@@ -280,7 +283,14 @@ set the currently parsing token
 */
 void set_token(Token *token)
 {
-    current_token = token;
+    for_each_entry(Token, cursor, token_list)
+    {
+        if(get_element(Token)(cursor) == token)
+        {
+            current_token = cursor;
+            return;
+        }
+    }
 }
 
 
@@ -293,7 +303,7 @@ void expect_reserved(const char *str)
 {
     if(!consume_reserved(str))
     {
-        report_error(current_token->str, "expected '%s'.", str);
+        report_error(get_element(Token)(current_token)->str, "expected '%s'.", str);
     }
 }
 
@@ -305,12 +315,13 @@ parse an identifier
 */
 Token *expect_identifier(void)
 {
-    if(current_token->kind != TK_IDENT)
+    Token *current = get_element(Token)(current_token);
+    if(current->kind != TK_IDENT)
     {
-        report_error(current_token->str, "expected an identifier.");
+        report_error(current->str, "expected an identifier.");
     }
 
-    Token *token = current_token;
+    Token *token = current;
     current_token = current_token->next;
 
     return token;
@@ -324,15 +335,15 @@ parse a constant
 */
 Token *expect_constant(void)
 {
-    if(current_token->kind != TK_CONST)
+    Token *current = get_element(Token)(current_token);
+    if(current->kind != TK_CONST)
     {
-        report_error(current_token->str, "expected a constant.");
+        report_error(current->str, "expected a constant.");
     }
 
-    Token *token = current_token;
     current_token = current_token->next;
 
-    return token;
+    return current;
 }
 
 
@@ -345,8 +356,7 @@ void tokenize(char *str)
     user_input = str;
 
     // initialize token stream
-    Token head = {};
-    Token *cursor = &head;
+    token_list = new_list(Token)();
 
     while(*str)
     {
@@ -372,7 +382,8 @@ void tokenize(char *str)
         len = is_reserved(str);
         if(len > 0)
         {
-            cursor = new_token(TK_RESERVED, cursor, str, len);
+            Token *token = new_token(TK_RESERVED, str, len);
+            current_token = add_list_entry_tail(Token)(token_list, token);
             str += len;
             continue;
         }
@@ -381,7 +392,8 @@ void tokenize(char *str)
         len = is_identifier(str);
         if(len > 0)
         {
-            cursor = new_token(TK_IDENT, cursor, str, len);
+            Token *token = new_token(TK_IDENT, str, len);
+            current_token = add_list_entry_tail(Token)(token_list, token);
             str += len;
             continue;
         }
@@ -390,7 +402,8 @@ void tokenize(char *str)
         len = is_string(str);
         if(len > 0)
         {
-            cursor = new_token(TK_STR, cursor, str + 1, len - 2);
+            Token *token = new_token(TK_STR, str + 1, len - 2);
+            current_token = add_list_entry_tail(Token)(token_list, token);
             str += len;
             continue;
         }
@@ -401,20 +414,20 @@ void tokenize(char *str)
         len = is_constant(str, &type, &value);
         if(len > 0)
         {
-            cursor = new_token(TK_CONST, cursor, str, len);
-            cursor->type = type;
-            cursor->value = value;
+            Token *token = new_token(TK_CONST, str, len);
+            current_token = add_list_entry_tail(Token)(token_list, token);
+            token->type = type;
+            token->value = value;
             str += len;
             continue;
         }
 
         // Other characters are not accepted as a token.
-        report_error(current_token->str, "cannot tokenize.");
+        report_error(str, "cannot tokenize.");
     }
 
-    // end token stream
-    new_token(TK_EOF, cursor, str, 0);
-    current_token = head.next;
+    // reset the currently parsing token
+    current_token = get_first_entry(Token)(token_list);
 }
 
 
@@ -423,7 +436,7 @@ check if the current token is the end of input
 */
 bool at_eof(void)
 {
-    return (current_token->kind == TK_EOF);
+    return end_iteration(Token)(token_list, current_token);
 }
 
 
