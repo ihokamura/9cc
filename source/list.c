@@ -56,6 +56,13 @@ ListEntry(type) *get_first_entry(type)(const List(type) *list)\
 }\
 \
 \
+/* get the element of the first entry of list */\
+type *get_first_element(type)(const List(type) *list)\
+{\
+    return get_element(type)(get_first_entry(type)(list));\
+}\
+\
+\
 /* get the last entry of list */\
 ListEntry(type) *get_last_entry(type)(const List(type) *list)\
 {\

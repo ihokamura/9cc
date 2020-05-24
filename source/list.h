@@ -18,6 +18,7 @@
 #define new_list_entry(type) new_##type##ListEntry // function name to make a new entry of list
 #define get_element(type) get_entry_##type // function name to get the element of an entry of list
 #define get_first_entry(type) get_first_entry_##type // function name to get the first entry of list
+#define get_first_element(type) get_first_element_##type // function name to get the element of the first entry of list
 #define get_last_entry(type) get_last_entry_##type // function name to get the last entry of list
 #define end_iteration(type) end_iteration_##type // function name to check if iteration is over
 #define add_list_entry_head(type) add_list_entry_head_##type // function name to add an entry at the head of list
@@ -46,6 +47,7 @@ List(type) *new_list(type)(void);\
 ListEntry(type) *new_list_entry(type)(type *element);\
 type *get_element(type)(const ListEntry(type) *entry);\
 ListEntry(type) *get_first_entry(type)(const List(type) *list);\
+type *get_first_element(type)(const List(type) *list);\
 ListEntry(type) *get_last_entry(type)(const List(type) *list);\
 bool end_iteration(type)(const List(type) *list, const ListEntry(type) *entry);\
 ListEntry(type) *add_list_entry_head(type)(List(type) *list, type *element);\

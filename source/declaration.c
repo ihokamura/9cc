@@ -1389,15 +1389,16 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         }
         else if(is_union(expr->type))
         {
-            Member *member = get_element(Member)(get_first_entry(Member)(expr->type->members));
-            Expression *dest = new_node_member(expr, member);
-            init_stmt->body = assign_initializer(dest, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
+            Initializer *first_init = get_first_element(Initializer)(init->list);
+            Member *first_member = get_first_element(Member)(expr->type->members);
+            Expression *dest = new_node_member(expr, first_member);
+            init_stmt->body = assign_initializer(dest, first_init);
         }
-        else if(get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign != NULL)
+        else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
             init_stmt->body = new_statement(STMT_EXPR);
-            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign);
+            init_stmt->body->expr = new_node_binary(EXPR_ASSIGN, expr, get_first_element(Initializer)(init->list)->assign);
         }
         else
         {
@@ -1409,17 +1410,15 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         if(is_array(expr->type) && (expr->type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize array of char type by string-literal
-            List(Initializer) *init_list = new_list(Initializer)();
+            Initializer *init_string = new_initializer();
+            init_string->list = new_list(Initializer)();
             const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
                 Initializer *init = new_initializer();
                 init->assign = new_node_constant(TY_INT, content[i]);
-                add_list_entry_tail(Initializer)(init_list, init);
+                add_list_entry_tail(Initializer)(init_string->list, init);
             }
-
-            Initializer *init_string = new_initializer();
-            init_string->list = init_list;
             init_stmt->body = assign_initializer(expr, init_string);
         }
         else
@@ -1466,8 +1465,8 @@ static Statement *assign_zero_initializer(Expression *expr)
     }
     else if(is_union(expr->type))
     {
-        Member *member = get_element(Member)(get_first_entry(Member)(expr->type->members));
-        Expression *dest = new_node_member(expr, member);
+        Member *first_member = get_first_element(Member)(expr->type->members);
+        Expression *dest = new_node_member(expr, first_member);
         init_stmt->body = assign_zero_initializer(dest);
     }
     else
@@ -1559,13 +1558,14 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         }
         else if(is_union(type))
         {
-            Member *member = get_element(Member)(get_first_entry(Member)(type->members));
-            data_list = make_data_segment(member->type, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
+            Initializer *first_init = get_first_element(Initializer)(init->list);
+            Member *first_member = get_first_element(Member)(type->members);
+            data_list = make_data_segment(first_member->type, first_init);
         }
-        else if(get_element(Initializer)(get_first_entry(Initializer)(init->list))->assign != NULL)
+        else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            data_list = make_data_segment(type, get_element(Initializer)(get_first_entry(Initializer)(init->list)));
+            data_list = make_data_segment(type, get_first_element(Initializer)(init->list));
         }
         else
         {
@@ -1578,17 +1578,15 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
         if(is_array(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize array of char type by string-literal
-            List(Initializer) *init_list = new_list(Initializer)();
+            Initializer *init_string = new_initializer();
+            init_string->list = new_list(Initializer)();
             const char *content = init->assign->var->str->content;
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
                 Initializer *init  = new_initializer();
                 init->assign = new_node_constant(TY_INT, content[i]);
-                add_list_entry_tail(Initializer)(init_list, init);
+                add_list_entry_tail(Initializer)(init_string->list, init);
             }
-
-            Initializer *init_string = new_initializer();
-            init_string->list = init_list;
             data_list = make_data_segment(type, init_string);
         }
         else if(is_pointer(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
