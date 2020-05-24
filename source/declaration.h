@@ -13,7 +13,7 @@
 DataSegment *new_data_segment(void);
 Statement *declaration(bool is_local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
-Type *declarator(Type *type, Token **token, ListEntry(Variable) **arg_vars);
+Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
 bool peek_declaration_specifiers(void);
 bool peek_type_name(void);

@@ -25,7 +25,7 @@
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
 static Expression *primary(void);
 static Expression *postfix(void);
-static ListEntry(Expression) *arg_expr_list(void);
+static List(Expression) *arg_expr_list(void);
 static Expression *unary(void);
 static Expression *cast(void);
 static Expression *multiplicative(void);
@@ -260,10 +260,14 @@ static Expression *primary(void)
         {
             // implicitly assume that the token denotes a function which returns int
             Expression *node = new_expression(EXPR_VAR);
-            Type *type = new_type_function(new_type(TY_INT, TQ_NONE), new_list_entry(Type)(new_type(TY_VOID, TQ_NONE)));
+            Type *base = new_type(TY_INT, TQ_NONE);
+            List(Type) *args = new_list(Type)();
+            add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
+            Type *type = new_type_function(base, args);
             Variable *var = new_gvar(token, type, false);
             node->type = type;
             node->var = var;
+            node->args = new_list(Expression)(); // make a dummy list
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
             report_warning(token->str, "implicit declaration of function '%s'\n", make_identifier(token));
 #endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
@@ -346,7 +350,11 @@ static Expression *postfix(void)
                 func_node->operand = node;
                 func_node->type = node->type->base->base; // dereference pointer and get type of return value
                 // parse arguments
-                if(!consume_reserved(")"))
+                if(consume_reserved(")"))
+                {
+                    func_node->args = new_list(Expression)(); // make a dummy list
+                }
+                else
                 {
                     func_node->args = arg_expr_list();
                     expect_reserved(")");
@@ -439,18 +447,19 @@ make an argument expression list
 arg-expr-list ::= assign ("," assign)*
 ```
 */
-static ListEntry(Expression) *arg_expr_list(void)
+static List(Expression) *arg_expr_list(void)
 {
-    ListEntry(Expression) *cursor = add_entry_head(Expression)(NULL, assign());
+    List(Expression) *args = new_list(Expression)();
+    add_list_entry_head(Expression)(args, assign());
 
     // parse arguments
     while(consume_reserved(","))
     {
         // append the argument at the head in order to push arguments in reverse order when generating assembler code
-        cursor = add_entry_head(Expression)(cursor, assign());
+        add_list_entry_head(Expression)(args, assign());
     }
 
-    return cursor;
+    return args;
 }
 
 
@@ -1729,7 +1738,7 @@ static bool is_const_qualified(const Type *type)
 {
     if(is_struct(type) || is_union(type))
     {
-        for_each(Member, cursor, type->members)
+        for_each_entry(Member, cursor, type->members)
         {
             Member *member = get_element(Member)(cursor);
             if(is_const_qualified(member->type))

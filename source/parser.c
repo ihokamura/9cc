@@ -23,7 +23,7 @@
 
 
 // function prototype
-static Function *new_function(const Token *token, Type *type, ListEntry(Variable) *args, Statement *body);
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body);
 static char *new_string_label(void);
 static void program(void);
 static void function_def(void);
@@ -32,11 +32,10 @@ static bool peek_func(void);
 
 // global variable
 static int str_number = 0; // label number of string-literal
-static ListEntry(StringLiteral) *str_list = NULL; // list of string-literals
-static ListEntry(StringLiteral) *last_str = NULL; // last element of list of string-literals
-static ListEntry(Function) *function_list = NULL; // list of functions
-static ListEntry(Variable) *gvar_list = NULL; // list of global variables
-static ListEntry(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
+static List(StringLiteral) *str_list = NULL; // list of string-literals
+static List(Function) *function_list = NULL; // list of functions
+static List(Variable) *gvar_list = NULL; // list of global variables
+static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
 static Scope current_scope = {NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 
@@ -68,7 +67,7 @@ Variable *new_gvar(const Token *token, Type *type, bool entity)
 {
     Variable *gvar = new_var(make_identifier(token), type, false);
     gvar->entity = entity;
-    gvar_list = add_entry_tail(Variable)(gvar_list, gvar);
+    add_list_entry_tail(Variable)(gvar_list, gvar);
 
     return gvar;
 }
@@ -80,7 +79,7 @@ make a new local variable
 Variable *new_lvar(const Token *token, Type *type)
 {
     Variable *lvar = new_var(make_identifier(token), type, true);
-    lvar_list = add_entry_head(Variable)(lvar_list, lvar);
+    add_list_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
 }
@@ -93,7 +92,7 @@ make a new string-literal
 StringLiteral *new_string(const Token *token)
 {
     // search existing string-literals
-    for_each(StringLiteral, cursor, str_list->next)
+    for_each_entry(StringLiteral, cursor, str_list)
     {
         StringLiteral *str = get_element(StringLiteral)(cursor);
         if((strlen(str->content) == token->len) && (strncmp(str->content, token->str, token->len) == 0))
@@ -114,12 +113,12 @@ StringLiteral *new_string(const Token *token)
     gvar->data = new_data_segment();
     gvar->data->label = label;
     gvar->entity = true;
-    gvar_list = add_entry_tail(Variable)(gvar_list, gvar);
+    add_list_entry_tail(Variable)(gvar_list, gvar);
 
     StringLiteral *str = gvar->str;
     str->content = content;
     str->var = gvar;
-    last_str = add_entry_tail(StringLiteral)(last_str, str);
+    add_list_entry_tail(StringLiteral)(str_list, str);
 
     return str;
 }
@@ -128,7 +127,7 @@ StringLiteral *new_string(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, ListEntry(Variable) *args, Statement *body)
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
@@ -137,14 +136,14 @@ static Function *new_function(const Token *token, Type *type, ListEntry(Variable
 
     // set offset of arguments and local variables and accumulate stack size
     size_t offset = 0;
-    for_each(Variable, cursor, args)
+    for_each_entry(Variable, cursor, args)
     {
         Variable *arg = get_element(Variable)(cursor);
         offset = adjust_alignment(offset, arg->type->align);
         offset += arg->type->size;
         arg->offset = offset;
     }
-    for_each(Variable, cursor, lvar_list)
+    for_each_entry(Variable, cursor, lvar_list)
     {
         Variable *lvar = get_element(Variable)(cursor);
         offset = adjust_alignment(offset, lvar->type->align);
@@ -158,7 +157,7 @@ static Function *new_function(const Token *token, Type *type, ListEntry(Variable
     new_func->locals = lvar_list;
 
     // update list of functions
-    function_list = add_entry_tail(Function)(function_list, new_func);
+    add_list_entry_tail(Function)(function_list, new_func);
 
     return new_func;
 }
@@ -187,12 +186,9 @@ program ::= (declaration | function-def)*
 */
 static void program(void)
 {
-    ListEntry(StringLiteral) str_head = {};
-    str_list = last_str = &str_head;
-    ListEntry(Function) func_head = {};
-    function_list = &func_head;
-    ListEntry(Variable) gvar_head = {};
-    gvar_list = &gvar_head;
+    str_list = new_list(StringLiteral)();
+    function_list = new_list(Function)();
+    gvar_list = new_list(Variable)();
 
     while(!at_eof())
     {
@@ -207,10 +203,6 @@ static void program(void)
             declaration(false);
         }
     }
-
-    str_list = str_head.next;
-    function_list = func_head.next;
-    gvar_list = gvar_head.next;
 }
 
 
@@ -223,7 +215,7 @@ function-def ::= declaration-specifiers declarator compound-statement
 static void function_def(void)
 {
     // clear list of local variables
-    lvar_list = NULL;
+    lvar_list = new_list(Variable)();
 
     // save the current scope
     Scope scope = enter_scope();
@@ -232,10 +224,8 @@ static void function_def(void)
     StorageClassSpecifier sclass;
     Type *type = declaration_specifiers(&sclass);
     Token *token;
-    ListEntry(Variable) args_head = {};
-    ListEntry(Variable) *args = &args_head;
+    List(Variable) *args = new_list(Variable)();
     type = declarator(type, &token, &args);
-    args = args_head.next;
 
     // parse body
     Statement *body = compound_statement();

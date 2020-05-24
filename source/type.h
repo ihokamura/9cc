@@ -31,7 +31,7 @@ bool is_compatible(const Type *self, const Type *other);
 Type *new_type_enum(void);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
-Type *new_type_function(Type *base, ListEntry(Type) *args);
+Type *new_type_function(Type *base, List(Type) *args);
 Member *new_member(const char *name, Type *type);
 Member *find_member(const Token *token, const Type *type);
 size_t adjust_alignment(size_t target, size_t alignment);

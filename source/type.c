@@ -418,9 +418,9 @@ bool is_compatible(const Type *self, const Type *other)
             return (self->tag != NULL) && (self->tag == other->tag);
         }
 
-        ListEntry(Member) *cursor_self = self->members;
-        ListEntry(Member) *cursor_other = other->members;
-        while((cursor_self != NULL) && (cursor_other != NULL))
+        ListEntry(Member) *cursor_self = get_first_entry(Member)(self->members);
+        ListEntry(Member) *cursor_other = get_first_entry(Member)(other->members);
+        while(!(end_iteration(Member)(self->members, cursor_self) || end_iteration(Member)(other->members, cursor_other)))
         {
             Member *member_self = get_element(Member)(cursor_self);
             Member *member_other = get_element(Member)(cursor_other);
@@ -438,7 +438,7 @@ bool is_compatible(const Type *self, const Type *other)
             cursor_other = cursor_other->next;
         }
 
-        return (cursor_self == NULL) && (cursor_other == NULL);
+        return (end_iteration(Member)(self->members, cursor_self) && end_iteration(Member)(other->members, cursor_other));
     }
 
     // Only one of types is an enumerated type.
@@ -469,9 +469,9 @@ bool is_compatible(const Type *self, const Type *other)
     {
         if(is_compatible(self->base, other->base))
         {
-            ListEntry(Type) *cursor_self = self->args;
-            ListEntry(Type) *cursor_other = other->args;
-            while((cursor_self != NULL) && (cursor_other != NULL))
+            ListEntry(Type) *cursor_self = get_first_entry(Type)(self->args);
+            ListEntry(Type) *cursor_other = get_first_entry(Type)(other->args);
+            while(!(end_iteration(Type)(self->args, cursor_self) || end_iteration(Type)(other->args, cursor_other)))
             {
                 if(!is_compatible(cursor_self->element, cursor_other->element))
                 {
@@ -482,7 +482,7 @@ bool is_compatible(const Type *self, const Type *other)
                 cursor_other = cursor_other->next;
             }
 
-            return (cursor_self == NULL) && (cursor_other == NULL);
+            return (end_iteration(Type)(self->args, cursor_self) && end_iteration(Type)(other->args, cursor_other));
         }
         else
         {
@@ -545,7 +545,7 @@ Type *new_type_array(Type *base, size_t len)
 /*
 make a function type
 */
-Type *new_type_function(Type *base, ListEntry(Type) *args)
+Type *new_type_function(Type *base, List(Type) *args)
 {
     Type *type = new_type(TY_FUNC, TQ_NONE);
     type->complete = true;
@@ -575,7 +575,7 @@ find member of structure
 */
 Member *find_member(const Token *token, const Type *type)
 {
-    for_each(Member, cursor, type->members)
+    for_each_entry(Member, cursor, type->members)
     {
         Member *member = get_element(Member)(cursor);
         if(strncmp(token->str, member->name, token->len) == 0)
