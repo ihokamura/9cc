@@ -1369,13 +1369,13 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
                 Member *member = get_element(Member)(memb_cursor);
                 Expression *dest = new_node_member(expr, member);
                 add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                memb_cursor = memb_cursor->next;
+                memb_cursor = next_entry(Member, memb_cursor);
                 if(end_iteration(Member)(expr->type->members, memb_cursor))
                 {
                     break;
                 }
             }
-            for(; !end_iteration(Member)(expr->type->members, memb_cursor); memb_cursor = memb_cursor->next)
+            for(; !end_iteration(Member)(expr->type->members, memb_cursor); memb_cursor = next_entry(Member, memb_cursor))
             {
                 // handle the remainder
                 Member *member = get_element(Member)(memb_cursor);
@@ -1541,13 +1541,13 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
 
                 // fill padding by zero
                 size_t start = member->offset + member->type->size;
-                size_t end = (end_iteration(Member)(type->members, memb_cursor->next) ? type->size : get_element(Member)(memb_cursor->next)->offset);
+                size_t end = (end_iteration(Member)(type->members, next_entry(Member, memb_cursor)) ? type->size : get_element(Member)(next_entry(Member, memb_cursor))->offset);
                 size_t padding_size = end - start;
                 if(padding_size > 0)
                 {
                     add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(padding_size));
                 }
-                memb_cursor = memb_cursor->next;
+                memb_cursor = next_entry(Member, memb_cursor);
                 if(end_iteration(Member)(type->members, memb_cursor))
                 {
                     break;

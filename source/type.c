@@ -434,8 +434,8 @@ bool is_compatible(const Type *self, const Type *other)
                 return false;
             }
 
-            cursor_self = cursor_self->next;
-            cursor_other = cursor_other->next;
+            cursor_self = next_entry(Member, cursor_self);
+            cursor_other = next_entry(Member, cursor_other);
         }
 
         return (end_iteration(Member)(self->members, cursor_self) && end_iteration(Member)(other->members, cursor_other));
@@ -478,8 +478,8 @@ bool is_compatible(const Type *self, const Type *other)
                     return false;
                 }
 
-                cursor_self = cursor_self->next;
-                cursor_other = cursor_other->next;
+                cursor_self = next_entry(Type, cursor_self);
+                cursor_other = next_entry(Type, cursor_other);
             }
 
             return (end_iteration(Type)(self->args, cursor_self) && end_iteration(Type)(other->args, cursor_other));

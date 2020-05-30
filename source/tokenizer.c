@@ -245,7 +245,7 @@ bool consume_reserved(const char *str)
         return false;
     }
 
-    current_token = current_token->next;
+    current_token = next_entry(Token, current_token);
 
     return true;
 }
@@ -263,7 +263,7 @@ bool consume_token(TokenKind kind, Token **token)
         return false;
     }
 
-    current_token = current_token->next;
+    current_token = next_entry(Token, current_token);
 
     return true;
 }
@@ -322,7 +322,7 @@ Token *expect_identifier(void)
     }
 
     Token *token = current;
-    current_token = current_token->next;
+    current_token = next_entry(Token, current_token);
 
     return token;
 }
@@ -341,7 +341,7 @@ Token *expect_constant(void)
         report_error(current->str, "expected a constant.");
     }
 
-    current_token = current_token->next;
+    current_token = next_entry(Token, current_token);
 
     return current;
 }

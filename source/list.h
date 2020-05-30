@@ -23,12 +23,10 @@
 #define set_first_entry(type) set_first_entry_##type // function name to set the first entry of list
 #define end_iteration(type) end_iteration_##type // function name to check if iteration is over
 #define add_list_entry_head(type) add_list_entry_head_##type // function name to add an entry at the head of list
-#define add_entry_head(type) add_entry_head_##type // function name to add an entry at the head of list
 #define add_list_entry_tail(type) add_list_entry_tail_##type // function name to add an entry at the tail of list
-#define add_entry_tail(type) add_entry_tail_##type // function name to add an entry at the tail of list
 #define concatenate_list(type) concatenate_list_##type // function name to concatenate lists
-#define for_each(type, cursor, list) for(ListEntry(type) *cursor = list; cursor != NULL; cursor = cursor->next) // iterator over list
-#define for_each_entry(type, cursor, list) for(ListEntry(type) *cursor = get_first_entry(type)(list); !end_iteration(type)(list, cursor); cursor = cursor->next) // iterator over list
+#define next_entry(type, entry) ((entry)->next) // get the next entry of list
+#define for_each_entry(type, cursor, list) for(ListEntry(type) *cursor = get_first_entry(type)(list); !end_iteration(type)(list, cursor); cursor = next_entry(type, cursor)) // iterator over list
 
 #define define_list(type) \
 /* definition of structure */\
@@ -53,9 +51,7 @@ ListEntry(type) *get_last_entry(type)(const List(type) *list);\
 void set_first_entry(type)(List(type) *list, ListEntry(type) *entry);\
 bool end_iteration(type)(const List(type) *list, const ListEntry(type) *entry);\
 ListEntry(type) *add_list_entry_head(type)(List(type) *list, type *element);\
-ListEntry(type) *add_entry_head(type)(ListEntry(type) *list, type *element);\
 ListEntry(type) *add_list_entry_tail(type)(List(type) *list, type *element);\
-ListEntry(type) *add_entry_tail(type)(ListEntry(type) *list, type *element);\
 List(type) *concatenate_list(type)(List(type) *self, List(type) *other);\
 
 
