@@ -602,8 +602,9 @@ static void generate_statement(const Statement *stmt)
         generate_expression(stmt->cond);
         generate_pop("rax");
 
-        for(Statement *s = stmt->next_case; s != NULL; s = s->next_case)
+        for_each_entry(Statement, cursor, stmt->case_list)
         {
+            Statement *s = get_element(Statement)(cursor);
             int case_label = lab_number;
             lab_number++;
 

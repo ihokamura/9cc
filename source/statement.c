@@ -43,7 +43,7 @@ Statement *new_statement(StatementKind kind)
     stmt->cond = NULL;
     stmt->preexpr = NULL;
     stmt->postexpr = NULL;
-    stmt->next_case = NULL;
+    stmt->case_list = NULL;
     stmt->default_case = NULL;
     stmt->true_case = NULL;
     stmt->false_case = NULL;
@@ -110,8 +110,7 @@ static Statement *statement(void)
 
         // save the value of label expression and update node of currently parsing switch statement
         stmt->value = value;
-        stmt->next_case = current_switch->next_case;
-        current_switch->next_case = stmt;
+        add_list_entry_head(Statement)(current_switch->case_list, stmt);
     }
     else if(consume_reserved("continue"))
     {
@@ -224,6 +223,7 @@ static Statement *statement(void)
 
         // update node of currently parsing switch statement and parse body
         current_switch = stmt;
+        current_switch->case_list = new_list(Statement)();
         stmt->body = statement();
 
         // restore node of previous switch statement
