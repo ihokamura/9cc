@@ -70,6 +70,14 @@ ListEntry(type) *get_last_entry(type)(const List(type) *list)\
 }\
 \
 \
+/* set the first entry of list */\
+void set_first_entry(type)(List(type) *list, ListEntry(type) *entry)\
+{\
+    list->head->next = entry;\
+    entry->prev = list->head;\
+}\
+\
+\
 /* check if iteration is over */\
 bool end_iteration(type)(const List(type) *list, const ListEntry(type) *entry)\
 {\

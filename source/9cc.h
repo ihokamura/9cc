@@ -301,8 +301,10 @@ struct Tag {
 
 // structure for scope
 typedef struct Scope {
-    ListEntry(Identifier) *ident_list; // list of ordinary identifiers visible in the current scope
-    ListEntry(Tag) *tag_list;          // list of tags visible in the current scope
+    List(Identifier) *ident_list;      // list of ordinary identifiers visible in the current scope
+    ListEntry(Identifier) *ident_head; // head of list of ordinary identifiers in the previous scope
+    List(Tag) *tag_list;               // list of tags visible in the current scope
+    ListEntry(Tag) *tag_head;          // head of list of tags in the previous scope
     int depth;                         // depth of the current scope
 } Scope;
 

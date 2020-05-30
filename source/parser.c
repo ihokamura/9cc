@@ -36,7 +36,7 @@ static List(StringLiteral) *str_list = NULL; // list of string-literals
 static List(Function) *function_list = NULL; // list of functions
 static List(Variable) *gvar_list = NULL; // list of global variables
 static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
-static Scope current_scope = {NULL, NULL, 0}; // current scope
+static Scope current_scope = {NULL, NULL, NULL, NULL, 0}; // current scope
 static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 
 
@@ -189,6 +189,8 @@ static void program(void)
     str_list = new_list(StringLiteral)();
     function_list = new_list(Function)();
     gvar_list = new_list(Variable)();
+    current_scope.ident_list = new_list(Identifier)();
+    current_scope.tag_list = new_list(Tag)();
 
     while(!at_eof())
     {
@@ -259,7 +261,7 @@ Identifier *push_identifier_scope(const char *name)
     ident->var = NULL;
     ident->en = NULL;
     ident->depth = current_scope.depth;
-    current_scope.ident_list = add_entry_head(Identifier)(current_scope.ident_list, ident);
+    add_list_entry_head(Identifier)(current_scope.ident_list, ident);
 
     return ident;
 }
@@ -274,7 +276,7 @@ Tag *push_tag_scope(const char *name, Type *type)
     tag->name = name;
     tag->type = type;
     tag->depth = current_scope.depth;
-    current_scope.tag_list = add_entry_head(Tag)(current_scope.tag_list, tag);
+    add_list_entry_head(Tag)(current_scope.tag_list, tag);
 
     return tag;
 }
@@ -286,6 +288,8 @@ enter a new scope
 Scope enter_scope(void)
 {
     current_scope.depth++;
+    current_scope.ident_head = get_first_entry(Identifier)(current_scope.ident_list);
+    current_scope.tag_head = get_first_entry(Tag)(current_scope.tag_list);
     return current_scope;
 }
 
@@ -296,6 +300,8 @@ leave the current scope
 void leave_scope(Scope scope)
 {
     current_scope = scope;
+    set_first_entry(Identifier)(current_scope.ident_list, current_scope.ident_head);
+    set_first_entry(Tag)(current_scope.tag_list, current_scope.tag_head);
     current_scope.depth--;
 }
 
@@ -317,7 +323,7 @@ find an ordinary identifier in the current scope
 Identifier *find_identifier(const Token *token)
 {
     // search list of ordinary identifiers visible in the current scope
-    for_each(Identifier, cursor, current_scope.ident_list)
+    for_each_entry(Identifier, cursor, current_scope.ident_list)
     {
         Identifier *ident = get_element(Identifier)(cursor);
         if((strlen(ident->name) == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
@@ -338,7 +344,7 @@ find a tag in the current scope
 Tag *find_tag(const Token *token)
 {
     // search list of tags visible in the current scope
-    for_each(Tag, cursor, current_scope.tag_list)
+    for_each_entry(Tag, cursor, current_scope.tag_list)
     {
         Tag *tag = get_element(Tag)(cursor);
         if((strlen(tag->name) == token->len) && (strncmp(token->str, tag->name, token->len) == 0))
@@ -359,7 +365,7 @@ static bool peek_func(void)
     // save the currently parsing token and the current scope
     // since the parser twice reads declaration specifiers and/or declarators in external definitions
     Token *saved_token = get_token();
-    Scope scope = current_scope;
+    Scope scope = enter_scope();
 
     // parse declaration specifier and declarator
     StorageClassSpecifier sclass;
@@ -372,7 +378,7 @@ static bool peek_func(void)
 
     // restore the saved token and scope
     set_token(saved_token);
-    current_scope = scope;
+    leave_scope(scope);
 
     if(is_func)
     {
