@@ -23,7 +23,7 @@
 
 
 // function prototype
-static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body);
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, List(Statement) *body);
 static char *new_string_label(void);
 static void program(void);
 static void function_def(void);
@@ -127,7 +127,7 @@ StringLiteral *new_string(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, List(Variable) *args, Statement *body)
+static Function *new_function(const Token *token, Type *type, List(Variable) *args, List(Statement) *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
@@ -228,7 +228,7 @@ static void function_def(void)
     type = declarator(type, &token, &args);
 
     // parse body
-    Statement *body = compound_statement();
+    List(Statement) *body = compound_statement();
 
     // restore the scope
     leave_scope(scope);

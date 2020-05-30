@@ -11,6 +11,6 @@
 #include "9cc.h"
 
 Statement *new_statement(StatementKind kind);
-Statement *compound_statement(void);
+List(Statement) *compound_statement(void);
 
 #endif /* !__STATEMENT_H__ */

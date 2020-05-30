@@ -249,22 +249,22 @@ struct Declaration {
 
 // structure for statement
 struct Statement {
-    Statement *next;         // next element
-    StatementKind kind;      // kind of statement
-    Statement *body;         // body of compound statements
-    Expression *cond;        // condition (only for STMT_IF, STMT_WHILE, STMT_DO, STMT_FOR)
-    Expression *preexpr;     // pre-expression (only for STMT_FOR)
-    Expression *postexpr;    // post-expression (only for STMT_FOR)
-    Statement *next_case;    // next case (only for STMT_SWITCH, STMT_CASE)
-    Statement *default_case; // default case (only for STMT_SWITCH)
-    Statement *true_case;    // statements of true case (only for STMT_IF)
-    Statement *false_case;   // statements of false case (only for STMT_IF)
-    List(Declaration) *decl; // declaration (only for STMT_DECL)
-    Expression *expr;        // expression (only for STMT_EXPR)
-    Variable *var;           // information of variable (only for STMT_DECL)
-    char *ident;             // identifier (only for STMT_LABEL, STMT_GOTO)
-    long value;              // value of node (only for STMT_CASE)
-    int case_label;          // sequential number of case label (only for STMT_CASE)
+    StatementKind kind;        // kind of statement
+    Statement *body;           // body of compound statements
+    Expression *cond;          // condition (only for STMT_IF, STMT_WHILE, STMT_DO, STMT_FOR)
+    Expression *preexpr;       // pre-expression (only for STMT_FOR)
+    Expression *postexpr;      // post-expression (only for STMT_FOR)
+    Statement *next_case;      // next case (only for STMT_SWITCH, STMT_CASE)
+    Statement *default_case;   // default case (only for STMT_SWITCH)
+    Statement *true_case;      // statements of true case (only for STMT_IF)
+    Statement *false_case;     // statements of false case (only for STMT_IF)
+    List(Statement) *compound; // compound statement
+    List(Declaration) *decl;   // declaration (only for STMT_DECL)
+    Expression *expr;          // expression (only for STMT_EXPR)
+    Variable *var;             // information of variable (only for STMT_DECL)
+    char *ident;               // identifier (only for STMT_LABEL, STMT_GOTO)
+    long value;                // value of node (only for STMT_CASE)
+    int case_label;            // sequential number of case label (only for STMT_CASE)
 };
 
 // structure for function
@@ -272,7 +272,7 @@ struct Function {
     char *name;             // name of function
     Type *type;             // type of function
     List(Variable) *args;   // arguments
-    Statement *body;        // body of function definition
+    List(Statement) *body;  // body of function definition
     List(Variable) *locals; // list of local variables (including arguments)
     size_t stack_size;      // size of stack in bytes
 };

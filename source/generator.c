@@ -371,8 +371,9 @@ static void generate_func(const Function *func)
     }
 
     // body
-    for(Statement *stmt = func->body; stmt != NULL; stmt = stmt->next)
+    for_each_entry(Statement, cursor, func->body)
     {
+        Statement *stmt = get_element(Statement)(cursor);
         generate_statement(stmt);
     }
 
@@ -537,9 +538,10 @@ static void generate_statement(const Statement *stmt)
         return;
 
     case STMT_COMPOUND:
-        for(Statement *n = stmt->body; n != NULL; n = n->next)
+        for_each_entry(Statement, cursor, stmt->compound)
         {
-            generate_statement(n);
+            Statement *s = get_element(Statement)(cursor);
+            generate_statement(s);
         }
         return;
 

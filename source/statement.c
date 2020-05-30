@@ -38,14 +38,22 @@ make a new statement
 Statement *new_statement(StatementKind kind)
 {
     Statement *stmt = calloc(1, sizeof(Statement));
-    stmt->next = NULL;
     stmt->kind = kind;
-    stmt->value = 0;
+    stmt->body = NULL;
     stmt->cond = NULL;
     stmt->preexpr = NULL;
     stmt->postexpr = NULL;
-    stmt->body = NULL;
+    stmt->next_case = NULL;
+    stmt->default_case = NULL;
+    stmt->true_case = NULL;
+    stmt->false_case = NULL;
+    stmt->compound = NULL;
+    stmt->decl = NULL;
+    stmt->expr = NULL;
+    stmt->var = NULL;
     stmt->ident = NULL;
+    stmt->value = 0;
+    stmt->case_label = 0;
 
     return stmt;
 }
@@ -80,7 +88,7 @@ static Statement *statement(void)
         Scope scope = enter_scope();
 
         stmt = new_statement(STMT_COMPOUND);
-        stmt->body = compound_statement();
+        stmt->compound = compound_statement();
 
         // restore the scope
         leave_scope(scope);
@@ -277,27 +285,25 @@ make a compound statement
 compound-statement ::= "{" (declaration | statement)* "}"
 ```
 */
-Statement *compound_statement(void)
+List(Statement) *compound_statement(void)
 {
     expect_reserved("{");
 
     // parse declaration and/or statement until reaching '}'
-    Statement head = {};
-    Statement *cursor = &head;
+    List(Statement) *list = new_list(Statement)();
     while(!consume_reserved("}"))
     {
         if(peek_declaration_specifiers())
         {
             // declaration
-            cursor->next = declaration(true);
+            add_list_entry_tail(Statement)(list, declaration(true));
         }
         else
         {
             // statement
-            cursor->next = statement();
+            add_list_entry_tail(Statement)(list, statement());
         }
-        cursor = cursor->next;
     }
 
-    return head.next;
+    return list;
 }
