@@ -327,10 +327,9 @@ Token *expect_identifier(void)
         report_error(current->str, "expected an identifier.");
     }
 
-    Token *token = current;
     current_token = next_entry(Token, current_token);
 
-    return token;
+    return current;
 }
 
 
@@ -520,17 +519,14 @@ report a warning
 void report_warning(const char *loc, const char *fmt, ...)
 {
     // report the position where an error is detected
-    if(loc == NULL)
-    {
-        loc = get_token()->str;
-    }
-    report_position(loc);
+    const char *pos = (loc == NULL ? get_token()->str : loc);
+    report_position(pos);
 
-    // print the warning message
+    // print the message
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
 }
 
 
@@ -540,19 +536,12 @@ report an error
 */
 void report_error(const char *loc, const char *fmt, ...)
 {
-    // report the position where an error is detected
-    if(loc == NULL)
-    {
-        loc = get_token()->str;
-    }
-    report_position(loc);
-
-    // print the error message
+    // print the message
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
+    report_warning(loc, fmt, ap);
 
+    // stop compiling
     exit(1);
 }
 
