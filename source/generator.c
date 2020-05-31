@@ -13,7 +13,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "declaration.h"
+#include "expression.h"
 #include "generator.h"
+#include "parser.h"
+#include "statement.h"
 #include "tokenizer.h"
 #include "type.h"
 

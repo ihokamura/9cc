@@ -20,6 +20,9 @@
 #include "tokenizer.h"
 #include "type.h"
 
+// definition of list operations
+#include "list.h"
+define_list_operations(Expression)
 
 // function prototype
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);

@@ -23,14 +23,22 @@
 #include "tokenizer.h"
 #include "type.h"
 
+// definition of list operations
+#include "list.h"
+typedef struct Initializer Initializer;
+define_list(Initializer)
+define_list_operations(DataSegment)
+define_list_operations(Declaration)
+define_list_operations(Initializer)
 
 // macro
 #define INVALID_DECLSPEC (-1) // invalid declaration specifier
 #define TYPESPEC_SIZE ((size_t)11) // number of type specifiers
 
-
-// type definition
-typedef enum {
+// kind of type specifiers
+typedef enum TypeSpecifier TypeSpecifier;
+enum TypeSpecifier
+{
     TS_VOID,     // "void"
     TS_CHAR,     // "char"
     TS_SHORT,    // "short"
@@ -42,8 +50,14 @@ typedef enum {
     TS_UNION,    // union
     TS_ENUM,     // enumeration
     TS_TYPEDEF,  // typedef name
-} TypeSpecifier;
+};
 
+// structure for initializer
+struct Initializer
+{
+    List(Initializer) *list; // initializer-list
+    Expression *assign;      // assignment expression
+};
 
 // function prototype
 static Declaration *new_declaration(Variable *var);

@@ -10,7 +10,35 @@
 
 #include <stddef.h>
 
-#include "9cc.h"
+#include "type.h"
+
+// type of source code
+typedef enum SourceType SourceType;
+enum SourceType
+{
+    SRC_FILE, // file
+    SRC_CMD,  // command line
+};
+
+// kind of token
+typedef enum TokenKind TokenKind;
+enum TokenKind
+{
+    TK_RESERVED, // reserved token
+    TK_IDENT,    // identifier
+    TK_CONST,    // constant
+    TK_STR,      // string-literal
+};
+
+// structure for token
+struct Token
+{
+    TokenKind kind; // kind of token
+    char *str;      // pointer to token string
+    size_t len;     // length of token string
+    TypeKind type;  // type of token (only for TK_CONST)
+    long value;     // value of token (only for TK_CONST)
+};
 
 bool peek_reserved(const char *str);
 bool peek_token(TokenKind kind, Token **token);

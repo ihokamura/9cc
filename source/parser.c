@@ -21,6 +21,13 @@
 #include "tokenizer.h"
 #include "type.h"
 
+// definition of list operations
+#include "list.h"
+define_list_operations(Function)
+define_list_operations(Identifier)
+define_list_operations(StringLiteral)
+define_list_operations(Tag)
+define_list_operations(Variable)
 
 // function prototype
 static Function *new_function(const Token *token, Type *type, List(Variable) *args, List(Statement) *body);

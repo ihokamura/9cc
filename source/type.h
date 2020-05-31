@@ -10,6 +10,63 @@
 
 #include "9cc.h"
 
+// kind of types
+typedef enum TypeKind TypeKind;
+enum TypeKind
+{
+    TY_VOID,    // void
+    TY_CHAR,    // char
+    TY_SCHAR,   // signed char
+    TY_UCHAR,   // unsigned char
+    TY_SHORT,   // short
+    TY_USHORT,  // unsigned short
+    TY_INT,     // int
+    TY_UINT,    // unsigned int
+    TY_LONG,    // long
+    TY_ULONG,   // unsigned long
+    TY_PTR,     // pointer
+    TY_ARRAY,   // array
+    TY_STRUCT,  // structure
+    TY_UNION,   // union
+    TY_ENUM,    // enumeration
+    TY_TYPEDEF, // typedef name
+    TY_FUNC,    // function
+};
+
+// kind of type qualifiers
+typedef enum TypeQualifier TypeQualifier;
+enum TypeQualifier
+{
+    TQ_NONE     = 0,      // no qualifier
+    TQ_CONST    = 1 << 0, // const
+    TQ_RESTRICT = 1 << 1, // restrict
+    TQ_VOLATILE = 1 << 2, // volatile
+};
+
+// structure for member
+struct Member
+{
+    Type *type;       // type of member
+    const char *name; // name of member
+    size_t offset;    // offset of member (only for TY_STRUCT, TY_UNION)
+    int value;        // value of member (only for TY_ENUM)
+};
+
+// structure for type
+struct Type
+{
+    TypeKind kind;         // kind of type
+    size_t size;           // size of type
+    size_t align;          // alignment of type
+    TypeQualifier qual;    // qualification of type
+    bool complete;         // flag indicating that the tyee is complete or incomplete
+    Type *base;            // base type (only for TY_PTR, TY_ARRAY, TY_FUNC)
+    size_t len;            // length of array (only for TY_ARRAY)
+    List(Type) *args;      // type of arguments (only for TY_FUNC)
+    Tag *tag;              // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    List(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
+};
+
 Type *new_type(TypeKind kind, TypeQualifier qual);
 ListEntry(Type) *new_type_list(Type *element);
 Type *copy_type(const Type *type);

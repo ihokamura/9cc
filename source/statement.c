@@ -16,13 +16,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parser.h"
 #include "declaration.h"
 #include "expression.h"
 #include "parser.h"
 #include "statement.h"
 #include "tokenizer.h"
 
+// definition of list operations
+#include "list.h"
+define_list_operations(Statement)
 
 // function prototype
 static Statement *statement(void);

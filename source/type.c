@@ -17,6 +17,10 @@
 #include "tokenizer.h"
 #include "type.h"
 
+// definition of list operations
+#include "list.h"
+define_list_operations(Member)
+define_list_operations(Type)
 
 // macro
 #define SIZEOF_VOID     (1)

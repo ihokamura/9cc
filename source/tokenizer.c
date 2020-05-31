@@ -22,14 +22,20 @@
 #include "tokenizer.h"
 #include "type.h"
 
+// definition of list
+#include "list.h"
+define_list(Token)
+define_list_operations(Token)
 
 // type definition
-typedef enum {
+typedef enum IntegerSuffix IntegerSuffix;
+enum IntegerSuffix
+{
     IS_NONE,          // none
     IS_UNSIGNED,      // unsigned-suffix
     IS_LONG,          // long-suffix
     IS_UNSIGNED_LONG, // unsigned-suffix and long-suffix
-} IntegerSuffix;
+};
 
 
 // function prototype
