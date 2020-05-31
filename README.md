@@ -137,6 +137,7 @@ statement ::= identifier ":" statement
             | "while" "(" expression ")" statement
             | "do" statement "while" "(" expression ")" ";"
             | "for" "(" expression? ";" expression? ";" expression? ")" statement
+            | "for" "(" declaration expression? ";" expression? ")" statement
             | "goto" identifier ";"
             | "continue" ";"
             | "break" ";"

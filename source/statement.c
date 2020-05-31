@@ -44,6 +44,7 @@ Statement *new_statement(StatementKind kind)
     stmt->body = NULL;
     stmt->cond = NULL;
     stmt->preexpr = NULL;
+    stmt->predecl = NULL;
     stmt->postexpr = NULL;
     stmt->case_list = NULL;
     stmt->default_case = NULL;
@@ -52,7 +53,6 @@ Statement *new_statement(StatementKind kind)
     stmt->compound = NULL;
     stmt->decl = NULL;
     stmt->expr = NULL;
-    stmt->var = NULL;
     stmt->ident = NULL;
     stmt->value = 0;
     stmt->case_label = 0;
@@ -74,6 +74,7 @@ statement ::= identifier ":" statement
             | "while" "(" expression ")" statement
             | "do" statement "while" "(" expression ")" ";"
             | "for" "(" expression? ";" expression? ";" expression? ")" statement
+            | "for" "(" declaration expression? ";" expression? ")" statement
             | "goto" identifier ";"
             | "continue" ";"
             | "break" ";"
@@ -150,14 +151,23 @@ static Statement *statement(void)
     {
         // for statement should be of the form `for(clause-1; expression-2; expression-3) statement`
         // clause-1, expression-2 and/or expression-3 may be empty.
+        Scope scope;
         stmt = new_statement(STMT_FOR);
         expect_reserved("(");
 
         // parse clause-1
         if(!consume_reserved(";"))
         {
-            stmt->preexpr = expression();
-            expect_reserved(";");
+            if(peek_declaration_specifiers())
+            {
+                scope = enter_scope();
+                stmt->predecl = declaration(true);
+            }
+            else
+            {
+                stmt->preexpr = expression();
+                expect_reserved(";");
+            }
         }
 
         // parse expression-2
@@ -176,6 +186,10 @@ static Statement *statement(void)
 
         // parse loop body
         stmt->body = statement();
+        if(stmt->predecl != NULL)
+        {
+            leave_scope(scope);
+        }
     }
     else if(consume_reserved("goto"))
     {

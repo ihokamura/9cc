@@ -588,6 +588,7 @@ int test_for_statement()
     sum = 0; for(i = 0; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
     sum = 0; i = 0; for(; i < 10; i = i + 1){sum = sum + i;} assert_int(45, sum);
     sum = 0; for(i = 0; i < 10; ){sum = sum + i; i = i + 1;} assert_int(45, sum);
+    sum = 0; for(int i = 1; i <= 10; i++){sum = sum + i;} assert_int(55, sum); assert_int(10, i);
     sum = 0; i = 0; for( ; ; ){sum = sum + i; if(++i >= 10){break;}} assert_int(45, sum);
     sum = 0; i = 0; for( ; ; i++){if(i >= 100){sum += i; break;} else if(i >= 10){continue;} else{sum = sum + i;}} assert_int(145, sum);
     sum = 0; for(i = 0; ; i++){if(i >= 5){break;} for(j = 0; ; j++){if(j >= 10){break;} sum += j;}} assert_int(225, sum);

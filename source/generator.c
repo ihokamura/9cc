@@ -691,6 +691,10 @@ static void generate_statement(const Statement *stmt)
         {
             generate_expression(stmt->preexpr);
         }
+        if(stmt->predecl != NULL)
+        {
+            generate_statement(stmt->predecl);
+        }
         put_instruction(".Lbegin%d:", lab);
         if(stmt->cond != NULL)
         {
