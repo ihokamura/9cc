@@ -28,7 +28,9 @@
 
 
 // type definition
-typedef enum {
+typedef enum BinaryOperationKind BinaryOperationKind;
+enum BinaryOperationKind
+{
     BINOP_ADD,      // addition
     BINOP_PTR_ADD,  // pointer addition
     BINOP_SUB,      // subtraction
@@ -46,12 +48,12 @@ typedef enum {
     BINOP_AND,      // bitwise AND
     BINOP_XOR,      // exclusive OR
     BINOP_OR,       // inclusive OR
-} BinaryOperationKind;
-
+};
 
 // function prototype
 static void generate_push_imm(int value);
 static void generate_push_reg_or_mem(const char *reg_or_mem);
+static void generate_push_struct(const Type *type);
 static void generate_pop(const char *reg_or_mem);
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
@@ -125,6 +127,20 @@ static void generate_push_reg_or_mem(const char *reg_or_mem)
 {
     put_instruction("  push %s", reg_or_mem);
     stack_size += STACK_CHANGE_UNIT;
+}
+
+
+/*
+generate assembler code to push contents of a structure to the stack
+*/
+static void generate_push_struct(const Type *type)
+{
+    generate_pop("rax");
+    for(size_t offset = adjust_alignment(type->size, STACK_CHANGE_UNIT); offset > 0; offset -= STACK_CHANGE_UNIT)
+    {
+        put_instruction("  push [rax+%lu]", offset - STACK_CHANGE_UNIT);
+        stack_size += STACK_CHANGE_UNIT;
+    }
 }
 
 
@@ -390,27 +406,97 @@ static void generate_func(const Function *func)
 
 /*
 generate assembler code of function arguments
-* This function returns number of arguments which are passed on the stack.
+* This function returns size of the stack allocated for arguments.
 */
 static size_t generate_args(List(Expression) *args)
 {
-    // push arguments
-    size_t argc = 0;
+    // separate arguments which are passed by registers from those passed by the stack
+    size_t argc_reg = 0;
+    List(Expression) *args_reg = new_list(Expression)();
+    List(Expression) *args_stack = new_list(Expression)();
     for_each_entry(Expression, cursor, args)
     {
         Expression *arg = get_element(Expression)(cursor);
-        generate_expression(arg);
-        argc++;
+
+        // pass up to ARG_REGISTERS_SIZE arguments by registers
+        if(argc_reg >= ARG_REGISTERS_SIZE)
+        {
+            add_list_entry_tail(Expression)(args_stack, arg);
+            continue;
+        }
+
+        // pass arguments classified as MEMORY by the stack
+        ParameterClassKind param_class = get_parameter_class(arg->type);
+        if(param_class == PC_MEMORY)
+        {
+            add_list_entry_tail(Expression)(args_stack, arg);
+            continue;
+        }
+
+        if(is_struct(arg->type) || is_union(arg->type))
+        {
+            // check if there is enough registers to pass the whole of structure or union
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_CHANGE_UNIT) / STACK_CHANGE_UNIT;
+            if(argc_reg + argc_struct < ARG_REGISTERS_SIZE)
+            {
+                add_list_entry_tail(Expression)(args_reg, arg);
+                argc_reg += argc_struct;
+            }
+            else
+            {
+                add_list_entry_tail(Expression)(args_stack, arg);
+            }
+            continue;
+        }
+
+        add_list_entry_tail(Expression)(args_reg, arg);
+        argc_reg++;
     }
 
-    // pop up to ARG_REGISTERS_SIZE arguments to registers
-    size_t argc_reg = (argc < ARG_REGISTERS_SIZE) ? argc : ARG_REGISTERS_SIZE;
-    for(size_t i = 0; i < argc_reg; i++)
+    // evaluate and pass arguments in reverse order
+    // because rdi (register for the 1st argument) may be modified when generating assembler code of arguments
+    for_each_entry_reversed(Expression, cursor, args_reg)
     {
-        generate_pop(arg_registers64[i]);
+        Expression *arg = get_element(Expression)(cursor);
+
+        generate_expression(arg);
+        if(is_struct(arg->type) || is_union(arg->type))
+        {
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_CHANGE_UNIT) / STACK_CHANGE_UNIT;
+            argc_reg -= argc_struct;
+
+            generate_push_struct(arg->type);
+            for(size_t i = 0; i < argc_struct; i++)
+            {
+                generate_pop(arg_registers64[argc_reg + i]);
+            }
+        }
+        else
+        {
+            argc_reg--;
+            generate_pop(arg_registers64[argc_reg]);
+        }
     }
 
-    return argc - argc_reg;
+    // push arguments to the stack in reverse order
+    size_t stack_args = 0;
+    for_each_entry_reversed(Expression, cursor, args_stack)
+    {
+        Expression *arg = get_element(Expression)(cursor);
+
+        generate_expression(arg);
+        if(is_struct(arg->type))
+        {
+            generate_push_struct(arg->type);
+            stack_args += adjust_alignment(arg->type->size, STACK_CHANGE_UNIT);
+        }
+        else
+        {
+            stack_args += STACK_CHANGE_UNIT;
+        }
+    }
+
+    return stack_args;
 }
 
 
@@ -1107,7 +1193,7 @@ static void generate_expression(const Expression *expr)
 #endif /* CHECK_STACK_SIZE */
         }
 #if(CHECK_STACK_SIZE == ENABLED)
-        stack_size -= STACK_CHANGE_UNIT * stack_args;
+        stack_size -= stack_args;
         assert(stack_size == current_stack);
 #endif /* CHECK_STACK_SIZE */
 

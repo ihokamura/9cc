@@ -13,6 +13,7 @@
 #define ListEntry(type) type##ListEntry // type-name of entry of list
 #define new_list(type) new_##type##List // function name to make a new list
 #define new_list_entry(type) new_##type##ListEntry // function name to make a new entry of list
+#define get_length(type) get_length_##type // function name to get the length of list
 #define get_element(type) get_entry_##type // function name to get the element of an entry of list
 #define get_first_entry(type) get_first_entry_##type // function name to get the first entry of list
 #define get_first_element(type) get_first_element_##type // function name to get the element of the first entry of list
@@ -22,8 +23,10 @@
 #define add_list_entry_head(type) add_list_entry_head_##type // function name to add an entry at the head of list
 #define add_list_entry_tail(type) add_list_entry_tail_##type // function name to add an entry at the tail of list
 #define concatenate_list(type) concatenate_list_##type // function name to concatenate lists
+#define prev_entry(type, entry) ((entry)->prev) // get the previous entry of list
 #define next_entry(type, entry) ((entry)->next) // get the next entry of list
 #define for_each_entry(type, cursor, list) for(ListEntry(type) *cursor = get_first_entry(type)(list); !end_iteration(type)(list, cursor); cursor = next_entry(type, cursor)) // iterator over list
+#define for_each_entry_reversed(type, cursor, list) for(ListEntry(type) *cursor = get_last_entry(type)(list); !end_iteration(type)(list, cursor); cursor = prev_entry(type, cursor)) // iterator over list in reverse order
 
 #define define_list(type) \
 /* definition of structure */\
@@ -41,6 +44,7 @@ struct ListEntry(type) {\
 /* function prototypes */\
 List(type) *new_list(type)(void);\
 ListEntry(type) *new_list_entry(type)(type *element);\
+size_t get_length(type)(const List(type) *list);\
 type *get_element(type)(const ListEntry(type) *entry);\
 ListEntry(type) *get_first_entry(type)(const List(type) *list);\
 type *get_first_element(type)(const List(type) *list);\
@@ -74,6 +78,19 @@ ListEntry(type) *new_list_entry(type)(type *element)\
     entry->element = element;\
 \
     return entry;\
+}\
+\
+\
+/* get the length of list */\
+size_t get_length(type)(const List(type) *list)\
+{\
+    size_t len = 0;\
+    for_each_entry(type, cursor, list)\
+    {\
+        len++;\
+    }\
+\
+    return len;\
 }\
 \
 \
@@ -126,6 +143,7 @@ ListEntry(type) *add_list_entry_head(type)(List(type) *list, type *element)\
     ListEntry(type) *head = new_list_entry(type)(element);\
     head->prev = list->head;\
     head->next = list->head->next;\
+    list->head->next->prev = head;\
     list->head->next = head;\
 \
     return head;\

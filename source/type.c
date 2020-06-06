@@ -280,6 +280,33 @@ Type *discard_sign(const Type *type)
 /*
 check if a given type is a void type
 */
+ParameterClassKind get_parameter_class(const Type *type)
+{
+    if(is_integer(type) || is_pointer(type))
+    {
+        return PC_INTEGER;
+    }
+    if(is_struct(type) || is_union(type))
+    {
+        if(type->size > 2 * 8)
+        {
+            return PC_MEMORY;
+        }
+        else
+        {
+            return PC_INTEGER;
+        }
+    }
+    else
+    {
+        return PC_NO_CLASS;
+    }
+}
+
+
+/*
+check if a given type is a void type
+*/
 bool is_void(const Type *type)
 {
     return (type->kind == TY_VOID);

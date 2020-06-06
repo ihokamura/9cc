@@ -43,6 +43,15 @@ enum TypeQualifier
     TQ_VOLATILE = 1 << 2, // volatile
 };
 
+// kind of parameter class
+typedef enum ParameterClassKind ParameterClassKind;
+enum ParameterClassKind
+{
+    PC_INTEGER,  // INTEGER
+    PC_NO_CLASS, // NO_CLASS
+    PC_MEMORY,   // MEMORY
+};
+
 // structure for member
 struct Member
 {
@@ -72,6 +81,7 @@ ListEntry(Type) *new_type_list(Type *element);
 Type *copy_type(const Type *type);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
+ParameterClassKind get_parameter_class(const Type *type);
 bool is_void(const Type *type);
 bool is_signed(const Type *type);
 bool is_unsigned(const Type *type);

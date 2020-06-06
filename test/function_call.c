@@ -55,6 +55,38 @@ int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a
 }
 
 
+// function with structure (classified as MEMORY)
+struct param_t1 {long m0; long m1; char m2;};
+long func_call_struct1(struct param_t1 s)
+{
+    return s.m0 + s.m1*10 + s.m2*100;
+}
+
+
+// function with structure (classified as INTEGER and passed by registers)
+struct param_t2 {int m0; char m1; long m2;};
+long func_call_struct2(struct param_t2 s)
+{
+    return s.m0 + s.m1*10 + s.m2*100;
+}
+
+
+// function with structure (classified as INTEGER and passed by the stack)
+struct param_t3 {int m0; char m1; long m2;};
+long func_call_struct3(int a0, int a1, int a2, int a3, int a4, struct param_t3 s, int a5, int a6)
+{
+    return a0 + a1*10 + a2*100 + a3*1000 + a4*10000 + a5*100000 + a6*1000000 + 10000000*(s.m0 + s.m1*10 + s.m2*100);
+}
+
+
+// function with structure (classified as INTEGER and passed by registers)
+struct param_t4 {char m0; char m1; char m2;};
+long func_call_struct4(struct param_t4 s)
+{
+    return s.m0 + s.m1*10 + s.m2*100;
+}
+
+
 // allocate 4 integers
 void alloc4(int **p, int a0, int a1, int a2, int a3)
 {

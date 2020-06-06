@@ -12,8 +12,12 @@ extern int func_call_return1();
 extern int func_call_return2();
 extern int func_call_add(int x, int y);
 extern int func_call_arg6(int a0, int a1, int a2, int a3, int a4, int a5);
-extern int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
 extern int func_call_arg7(int a0, int a1, int a2, int a3, int a4, int a5, int a6);
+extern int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
+struct param_t1 {long m0; long m1; char m2;}; extern long func_call_struct1(struct param_t1 s);
+struct param_t2 {int m0; char m1; long m2;}; extern long func_call_struct2(struct param_t2 s);
+struct param_t3 {int m0; char m1; long m2;}; extern long func_call_struct3(int a0, int a1, int a2, int a3, int a4, struct param_t3 s, int a5, int a6);
+struct param_t4 {char m0; char m1; char m2;}; extern long func_call_struct4(struct param_t4 s);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 
 
@@ -611,6 +615,10 @@ int test_function_call()
     assert_int(543210, func_call_arg6(0, 1, 2, 3, 4, 5));
     assert_int(6543210, func_call_arg7(0, 1, 2, 3, 4, 5, 6));
     assert_int(76543210, func_call_arg8(0, 1, 2, 3, 4, 5, 6, 7));
+    struct param_t1 s1 = {0, 1, 2}; assert_long(210, func_call_struct1(s1));
+    struct param_t2 s2 = {0, 1, 2}; assert_long(210, func_call_struct2(s2));
+    struct param_t3 s3 = {7, 8, 9}; assert_long(9876543210, func_call_struct3(0, 1, 2, 3, 4, s3, 5, 6));
+    struct param_t4 s4 = {0, 1, 2}; assert_long(210, func_call_struct4(s4));
 
     int (*pf)(void);
     pf = func_call_return0; assert_int(0, pf());

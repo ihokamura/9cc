@@ -453,13 +453,13 @@ arg-expr-list ::= assign ("," assign)*
 static List(Expression) *arg_expr_list(void)
 {
     List(Expression) *args = new_list(Expression)();
-    add_list_entry_head(Expression)(args, assign());
+    add_list_entry_tail(Expression)(args, apply_implicit_conversion(assign()));
 
     // parse arguments
     while(consume_reserved(","))
     {
         // append the argument at the head in order to push arguments in reverse order when generating assembler code
-        add_list_entry_head(Expression)(args, assign());
+        add_list_entry_tail(Expression)(args, apply_implicit_conversion(assign()));
     }
 
     return args;
