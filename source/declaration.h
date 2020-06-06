@@ -44,11 +44,13 @@ struct Enumerator
 };
 
 DataSegment *new_string_data_segment(const char *label);
-Statement *declaration(bool is_local);
+Statement *declaration(bool local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
 bool peek_declaration_specifiers(void);
 bool peek_type_name(void);
+
+extern const char *STATIC_VARIABLE_PUNCTUATOR;
 
 #endif /* !__DECLARATION_H__ */

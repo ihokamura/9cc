@@ -65,8 +65,8 @@ static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
 static DataSegment *new_data_segment(void);
 static DataSegment *new_zero_data_segment(size_t size);
-static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local);
-static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local);
+static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local);
+static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static Type *struct_or_union_specifier(void);
@@ -105,9 +105,11 @@ static bool peek_typedef_name(void);
 static bool peek_abstract_declarator(void);
 static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
+static char *add_block_scope_label(const char *name);
 
 
 // global variable
+const char *STATIC_VARIABLE_PUNCTUATOR = ".";
 static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
     {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
@@ -236,7 +238,7 @@ make a declaration
 declaration ::= declaration-specifiers init-declarator-list? ";"
 ```
 */
-Statement *declaration(bool is_local)
+Statement *declaration(bool local)
 {
     // parse declaration specifier
     StorageClassSpecifier sclass;
@@ -246,7 +248,7 @@ Statement *declaration(bool is_local)
     Statement *stmt = new_statement(STMT_DECL);
     if(peek_declarator())
     {
-        stmt->decl = init_declarator_list(type, sclass, is_local);
+        stmt->decl = init_declarator_list(type, sclass, local);
     }
     else
     {
@@ -314,14 +316,14 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool is_local)
+static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local)
 {
     List(Declaration) *list = new_list(Declaration)();
-    add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, is_local));
+    add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, local));
 
     while(consume_reserved(","))
     {
-        add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, is_local));
+        add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, local));
     }
 
     return list;
@@ -334,7 +336,7 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool is_local)
+static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local)
 {
     // parse declarator
     Token *token;
@@ -342,15 +344,46 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
 
     // check duplicated declaration
     Identifier *ident = find_identifier(token);
-    if((ident != NULL) && (ident->depth == get_current_scope_depth()))
+    if(ident != NULL)
     {
-        report_error(token->str, "duplicated declaration of '%s'\n", make_identifier(token));
+        bool duplicated = false;
+
+        if(sclass == SC_EXTERN)
+        {
+            // return the prior declaration of identifier with external linkage
+            return new_declaration(ident->var);
+        }
+
+        if(!local && (sclass == SC_STATIC))
+        {
+            if(consume_reserved("="))
+            {
+                if(!get_first_element(DataSegment)(ident->var->data)->zero)
+                {
+                    duplicated = true;
+                    goto report_duplicated_declaration;
+                }
+                // initialize the prior declaration of identifier with internal linkage
+                ident->var->data = make_data_segment(ident->var->type, initializer());
+            }
+            // return the prior declaration of identifier with internal linkage
+            return new_declaration(ident->var);
+        }
+
+        duplicated = (local && (ident->depth == get_current_scope_depth()));
+
+report_duplicated_declaration:
+        if(duplicated)
+        {
+            report_error(token->str, "duplicated declaration of '%s'\n", ident->name);
+        }
     }
 
+    char *name = make_identifier(token);
     if(sclass == SC_TYPEDEF)
     {
         // make a dummy declaration
-        push_identifier_scope(make_identifier(token))->type_def = type;
+        push_identifier_scope(name)->type_def = type;
         return new_declaration(NULL);
     }
     else
@@ -359,9 +392,10 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
         Expression *expr = new_expression(EXPR_VAR);
         expr->type = type;
 
-        if(is_local)
+        if(local && !((sclass == SC_EXTERN) || (sclass == SC_STATIC)))
         {
-            expr->var = new_lvar(token, type);
+            // block scope identifier for an object with automatic storage duration
+            expr->var = new_lvar(name, type);
 
             // parse initializer
             if(consume_reserved("="))
@@ -371,8 +405,13 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
         }
         else
         {
+            if(local && (sclass == SC_STATIC))
+            {
+                // block scope identifier for an object with static storage duration
+                name = add_block_scope_label(name);
+            }
             bool emit = (type->kind != TY_FUNC);
-            expr->var = new_gvar(token, type, emit);
+            expr->var = new_gvar(name, type, emit);
 
             // parse initializer
             if(consume_reserved("="))
@@ -1857,4 +1896,26 @@ peek a declarator-suffix
 static bool peek_declarator_suffix(void)
 {
     return peek_reserved("[") || peek_reserved("(");
+}
+
+
+/*
+add label for a block scope identifier for an object with static storage duration
+*/
+static char *add_block_scope_label(const char *name)
+{
+    static int lab_number = 0;
+    lab_number++;
+
+    // count digits
+    int count = 0;
+    for(int current = lab_number; current > 0; count++, current /= 10)
+    {
+        count++;
+    }
+
+    char *ident = calloc(strlen(name) + count + 1, sizeof(char)); // add 1 for '\n'
+    sprintf(ident, "%s%s%d", name, STATIC_VARIABLE_PUNCTUATOR, lab_number);
+
+    return ident;
 }

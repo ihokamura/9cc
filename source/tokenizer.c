@@ -536,10 +536,15 @@ report an error
 */
 void report_error(const char *loc, const char *fmt, ...)
 {
+    // report the position where an error is detected
+    const char *pos = (loc == NULL ? get_token()->str : loc);
+    report_position(pos);
+
     // print the message
     va_list ap;
     va_start(ap, fmt);
-    report_warning(loc, fmt, ap);
+    vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
 
     // stop compiling
     exit(1);

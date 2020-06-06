@@ -1288,6 +1288,35 @@ int test_scope(void)
 storage class specifier
 */
 typedef int int_type;
+static int static_int;
+int func_def_static_var0(void)
+{
+    extern int static_int;
+
+    static_int++;
+
+    return static_int;
+}
+int func_def_static_var1(void)
+{
+    static int static_int = 10;
+
+    static_int++;
+
+    return static_int;
+}
+int func_def_static_var2(void)
+{
+    static int static_int = 100;
+
+    static_int++;
+
+    return static_int;
+}
+static int static_int = 1000;
+extern int static_int;
+static int static_int;
+
 int test_storage_class(void)
 {
     put_title("storage_class");
@@ -1310,6 +1339,30 @@ int test_storage_class(void)
     }
 
     assert_int(1, sizeof(type));
+
+    assert_int(1001, func_def_static_var0());
+    assert_int(1002, func_def_static_var0());
+    assert_int(1002, static_int);
+
+    assert_int(11, func_def_static_var1());
+    assert_int(12, func_def_static_var1());
+    assert_int(1002, static_int);
+
+    assert_int(101, func_def_static_var2());
+    assert_int(102, func_def_static_var2());
+    assert_int(1002, static_int);
+
+    {
+        static int static_int = 1;
+        assert_int(1, static_int);
+    }
+    assert_int(1002, static_int);
+
+    {
+        extern int static_int;
+        static_int = 0;
+    }
+    assert_int(0, static_int);
 
     return 0;
 }

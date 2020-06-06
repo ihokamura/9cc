@@ -267,7 +267,7 @@ static Expression *primary(void)
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args);
-            Variable *var = new_gvar(token, type, false);
+            Variable *var = new_gvar(make_identifier(token), type, false);
             node->type = type;
             node->var = var;
             node->args = new_list(Expression)(); // make a dummy list

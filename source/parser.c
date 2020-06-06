@@ -70,9 +70,9 @@ Variable *new_var(const char *name, Type *type, bool local)
 /*
 make a new global variable
 */
-Variable *new_gvar(const Token *token, Type *type, bool entity)
+Variable *new_gvar(const char *name, Type *type, bool entity)
 {
-    Variable *gvar = new_var(make_identifier(token), type, false);
+    Variable *gvar = new_var(name, type, false);
     gvar->entity = entity;
     add_list_entry_tail(Variable)(gvar_list, gvar);
 
@@ -83,9 +83,9 @@ Variable *new_gvar(const Token *token, Type *type, bool entity)
 /*
 make a new local variable
 */
-Variable *new_lvar(const Token *token, Type *type)
+Variable *new_lvar(const char *name, Type *type)
 {
-    Variable *lvar = new_var(make_identifier(token), type, true);
+    Variable *lvar = new_var(name, type, true);
     add_list_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
@@ -333,7 +333,9 @@ Identifier *find_identifier(const Token *token)
     for_each_entry(Identifier, cursor, current_scope.ident_list)
     {
         Identifier *ident = get_element(Identifier)(cursor);
-        if((strlen(ident->name) == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
+        char *punctuator = strstr(ident->name, STATIC_VARIABLE_PUNCTUATOR);
+        size_t len = ((punctuator == NULL) ? strlen(ident->name) : punctuator - ident->name);
+        if((len == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
         {
             return ident;
         }
@@ -390,7 +392,7 @@ static bool peek_func(void)
     if(is_func)
     {
         // make a function declarator
-        new_gvar(token, type, false);
+        new_gvar(make_identifier(token), type, false);
     }
 
     return is_func;
