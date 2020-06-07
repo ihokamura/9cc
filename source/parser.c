@@ -38,13 +38,13 @@ static bool peek_func(void);
 
 
 // global variable
+const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 static int str_number = 0; // label number of string-literal
 static List(StringLiteral) *str_list = NULL; // list of string-literals
 static List(Function) *function_list = NULL; // list of functions
 static List(Variable) *gvar_list = NULL; // list of global variables
 static List(Variable) *lvar_list = NULL; // list of local variables of currently constructing function
 static Scope current_scope = {NULL, NULL, NULL, NULL, 0}; // current scope
-static const size_t STACK_ALIGNMENT = 8; // alignment of function stack
 
 
 /*
@@ -147,7 +147,7 @@ static Function *new_function(const Token *token, Type *type, List(Variable) *ar
     {
         Variable *arg = get_element(Variable)(cursor);
         offset = adjust_alignment(offset, arg->type->align);
-        offset += arg->type->size;
+        offset += (is_struct_or_union(arg->type) ? adjust_alignment(arg->type->size, STACK_ALIGNMENT) : arg->type->size);
         arg->offset = offset;
     }
     for_each_entry(Variable, cursor, lvar_list)
@@ -157,7 +157,7 @@ static Function *new_function(const Token *token, Type *type, List(Variable) *ar
         offset += lvar->type->size;
         lvar->offset = offset;
     }
-    new_func->stack_size = adjust_alignment(offset, STACK_ALIGNMENT);;
+    new_func->stack_size = adjust_alignment(offset, STACK_ALIGNMENT);
 
     // save list of arguments and list of local variables
     new_func->args = args;

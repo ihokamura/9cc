@@ -89,4 +89,6 @@ int get_current_scope_depth(void);
 Identifier *find_identifier(const Token *token);
 Tag *find_tag(const Token *token);
 
+extern const size_t STACK_ALIGNMENT;
+
 #endif /* !__PARSER_H__ */

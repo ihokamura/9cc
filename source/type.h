@@ -93,6 +93,7 @@ bool is_scalar(const Type *type);
 bool is_array(const Type *type);
 bool is_struct(const Type *type);
 bool is_union(const Type *type);
+bool is_struct_or_union(const Type *type);
 bool is_function(const Type *type);
 bool is_compatible(const Type *self, const Type *other);
 Type *new_type_enum(void);

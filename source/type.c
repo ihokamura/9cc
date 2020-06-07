@@ -286,7 +286,7 @@ ParameterClassKind get_parameter_class(const Type *type)
     {
         return PC_INTEGER;
     }
-    if(is_struct(type) || is_union(type))
+    else if(is_struct_or_union(type))
     {
         if(type->size > 2 * 8)
         {
@@ -419,6 +419,15 @@ check if a given type is an union type
 bool is_union(const Type *type)
 {
     return (type->kind == TY_UNION);
+}
+
+
+/*
+check if a given type is a structure type or an union type
+*/
+bool is_struct_or_union(const Type *type)
+{
+    return is_struct(type) || is_union(type);
 }
 
 

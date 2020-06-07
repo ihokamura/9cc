@@ -375,7 +375,7 @@ static Expression *postfix(void)
             Token *token = expect_identifier();
 
             // check constraints
-            if(is_struct(node->type) || is_union(node->type))
+            if(is_struct_or_union(node->type))
             {
                 Expression *struct_node = node;
                 node = new_node_member(struct_node, find_member(token, struct_node->type));
@@ -391,7 +391,7 @@ static Expression *postfix(void)
             // access to member (by pointer)
             Token *token = expect_identifier();
 
-            if(is_pointer(node->type) && (is_struct(node->type->base) || is_union(node->type->base)))
+            if(is_pointer(node->type) && is_struct_or_union(node->type->base))
             {
                 Expression *struct_node = new_node_unary(EXPR_DEREF, node);
                 node = new_node_member(struct_node, find_member(token, struct_node->type));
@@ -1694,7 +1694,7 @@ static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, c
     case EXPR_ASSIGN:
         valid = (
                     (is_arithmetic(lhs_type) && is_arithmetic(rhs_type))
-                 || ((is_struct(lhs_type) || is_union(lhs_type)) && is_compatible(lhs_type, rhs_type))
+                 || (is_struct_or_union(lhs_type) && is_compatible(lhs_type, rhs_type))
                  || (is_pointer(lhs_type) && is_pointer(rhs_type) && is_compatible(lhs_type->base, rhs_type->base) && ((lhs_type->base->qual & rhs_type->base->qual) == rhs_type->base->qual))
                 );
         break;
@@ -1739,7 +1739,7 @@ check if a given type is const-qualified
 */
 static bool is_const_qualified(const Type *type)
 {
-    if(is_struct(type) || is_union(type))
+    if(is_struct_or_union(type))
     {
         for_each_entry(Member, cursor, type->members)
         {

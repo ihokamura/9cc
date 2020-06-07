@@ -68,12 +68,11 @@ static void put_instruction(const char *fmt, ...);
 
 
 // global variable
-const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
-const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for function arguments
-const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
-const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
-const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
-const size_t STACK_CHANGE_UNIT = 8; // number of bytes by which the stack grows or shrinks in one push or pop operation
+static const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
+static const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for function arguments
+static const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
+static const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
+static const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
 static int lab_number; // sequential number for labels
 static int brk_number; // sequential number for break statements
 static int cnt_number; // sequential number for continue statements
@@ -116,7 +115,7 @@ generate assembler code to push an immediate value to the stack
 static void generate_push_imm(int value)
 {
     put_instruction("  push %d", value);
-    stack_size += STACK_CHANGE_UNIT;
+    stack_size += STACK_ALIGNMENT;
 }
 
 
@@ -126,7 +125,7 @@ generate assembler code to push a register or memory contents to the stack
 static void generate_push_reg_or_mem(const char *reg_or_mem)
 {
     put_instruction("  push %s", reg_or_mem);
-    stack_size += STACK_CHANGE_UNIT;
+    stack_size += STACK_ALIGNMENT;
 }
 
 
@@ -136,10 +135,10 @@ generate assembler code to push contents of a structure to the stack
 static void generate_push_struct(const Type *type)
 {
     generate_pop("rax");
-    for(size_t offset = adjust_alignment(type->size, STACK_CHANGE_UNIT); offset > 0; offset -= STACK_CHANGE_UNIT)
+    for(size_t offset = adjust_alignment(type->size, STACK_ALIGNMENT); offset > 0; offset -= STACK_ALIGNMENT)
     {
-        put_instruction("  push [rax+%lu]", offset - STACK_CHANGE_UNIT);
-        stack_size += STACK_CHANGE_UNIT;
+        put_instruction("  push [rax+%lu]", offset - STACK_ALIGNMENT);
+        stack_size += STACK_ALIGNMENT;
     }
 }
 
@@ -150,7 +149,7 @@ generate assembler code to pop from the stack to a register or memory
 static void generate_pop(const char *reg_or_mem)
 {
     put_instruction("  pop %s", reg_or_mem);
-    stack_size -= STACK_CHANGE_UNIT;
+    stack_size -= STACK_ALIGNMENT;
 }
 
 
@@ -207,31 +206,25 @@ static void generate_store(const Type *type)
     {
         // copy bytes from rdi to rax
         size_t offset = 0;
-        while(true)
+        for(; offset + 8 <= type->size; offset += 8)
         {
-            put_instruction("  mov rdx, [rdi]");
-            put_instruction("  mov [rax], rdx");
-            if(offset + 8 < type->size)
-            {
-                offset += 8;
-                put_instruction("  add rax, 8");
-                put_instruction("  add rdi, 8");
-                continue;
-            }
-            break;
+            put_instruction("  mov r11, [rdi+%lu]", offset);
+            put_instruction("  mov [rax+%lu], r11", offset);
         }
-        while(true)
+        for(; offset + 4 <= type->size; offset += 4)
         {
-            put_instruction("  mov rdx, [rdi]");
-            put_instruction("  mov byte ptr [rax], dl");
-            if(offset + 1 < type->size)
-            {
-                offset++;
-                put_instruction("  add rax, 1");
-                put_instruction("  add rdi, 1");
-                continue;
-            }
-            break;
+            put_instruction("  mov r11, [rdi+%lu]", offset);
+            put_instruction("  mov dword ptr [rax+%lu], r11d", offset);
+        }
+        for(; offset + 2 <= type->size; offset += 2)
+        {
+            put_instruction("  mov r11, [rdi+%lu]", offset);
+            put_instruction("  mov word ptr [rax+%lu], r11w", offset);
+        }
+        for(; offset + 1 <= type->size; offset += 1)
+        {
+            put_instruction("  mov r11, [rdi+%lu]", offset);
+            put_instruction("  mov byte ptr [rax+%lu], r11b", offset);
         }
     }
     generate_push_reg_or_mem("rdi");
@@ -347,47 +340,106 @@ static void generate_func(const Function *func)
     stack_size = func->stack_size; // initialize stack size
 
     // arguments
-    size_t argc = 0;
+    // separate arguments which are passed by registers from those passed by the stack
+    size_t argc_reg = 0;
+    List(Variable) *args_reg = new_list(Variable)();
+    List(Variable) *args_stack = new_list(Variable)();
     for_each_entry(Variable, cursor, func->args)
     {
         Variable *arg = get_element(Variable)(cursor);
-        put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %lu", arg->offset);
 
-        if(argc < ARG_REGISTERS_SIZE)
+        // pass up to ARG_REGISTERS_SIZE arguments by registers
+        if(argc_reg >= ARG_REGISTERS_SIZE)
         {
-            // load argument from a register
-            if(arg->type->size == 1)
+            add_list_entry_tail(Variable)(args_stack, arg);
+            continue;
+        }
+
+        // pass arguments classified as MEMORY by the stack
+        ParameterClassKind param_class = get_parameter_class(arg->type);
+        if(param_class == PC_MEMORY)
+        {
+            add_list_entry_tail(Variable)(args_stack, arg);
+            continue;
+        }
+
+        if(is_struct_or_union(arg->type))
+        {
+            // check if there is enough registers to pass the whole of structure or union
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
+            if(argc_reg + argc_struct < ARG_REGISTERS_SIZE)
             {
-                put_instruction("  mov byte ptr [rax], %s", arg_registers8[argc]);
-            }
-            else if(arg->type->size == 2)
-            {
-                put_instruction("  mov word ptr [rax], %s", arg_registers16[argc]);
-            }
-            else if(arg->type->size == 4)
-            {
-                put_instruction("  mov dword ptr [rax], %s", arg_registers32[argc]);
+                add_list_entry_tail(Variable)(args_reg, arg);
+                argc_reg += argc_struct;
             }
             else
             {
-                put_instruction("  mov [rax], %s", arg_registers64[argc]);
+                add_list_entry_tail(Variable)(args_stack, arg);
             }
+            continue;
+        }
+
+        add_list_entry_tail(Variable)(args_reg, arg);
+        argc_reg++;
+    }
+
+    argc_reg = 0;
+    for_each_entry(Variable, cursor, args_reg)
+    {
+        // load argument from a register
+        Variable *arg = get_element(Variable)(cursor);
+
+        put_instruction("  mov rax, rbp");
+        put_instruction("  sub rax, %lu", arg->offset);
+        if(is_struct_or_union(arg->type))
+        {
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
+            for(size_t i = 0; i < argc_struct; i++)
+            {
+                put_instruction("  mov [rax+%lu], %s", i * STACK_ALIGNMENT, arg_registers64[argc_reg + i]);
+            }
+            argc_reg += argc_struct;
         }
         else
         {
-            // load argument from the stack
-            generate_push_reg_or_mem("rax");
-            put_instruction("  mov rax, rbp");
-            put_instruction("  add rax, %lu", (argc - ARG_REGISTERS_SIZE + 2) * 8);
-            generate_push_reg_or_mem("rax");
-            generate_load(arg->type);
-            generate_store(arg->type);
-            generate_pop("rdi");
+            if(arg->type->size == 1)
+            {
+                put_instruction("  mov byte ptr [rax], %s", arg_registers8[argc_reg]);
+            }
+            else if(arg->type->size == 2)
+            {
+                put_instruction("  mov word ptr [rax], %s", arg_registers16[argc_reg]);
+            }
+            else if(arg->type->size == 4)
+            {
+                put_instruction("  mov dword ptr [rax], %s", arg_registers32[argc_reg]);
+            }
+            else
+            {
+                put_instruction("  mov [rax], %s", arg_registers64[argc_reg]);
+            }
+            argc_reg++;
         }
+    }
+        
+    size_t stack_args = 0;
+    for_each_entry(Variable, cursor, args_stack)
+    {
+        // load argument from the stack
+        Variable *arg = get_element(Variable)(cursor);
 
-        // count number of arguments
-        argc++;
+        put_instruction("  mov rax, rbp");
+        put_instruction("  sub rax, %lu", arg->offset);
+        generate_push_reg_or_mem("rax");
+
+        put_instruction("  mov rax, rbp");
+        put_instruction("  add rax, %lu", stack_args + 2 * STACK_ALIGNMENT);
+        generate_push_reg_or_mem("rax");
+
+        generate_load(arg->type);
+        generate_store(arg->type);
+
+        stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
 
     // body
@@ -433,10 +485,10 @@ static size_t generate_args(List(Expression) *args)
             continue;
         }
 
-        if(is_struct(arg->type) || is_union(arg->type))
+        if(is_struct_or_union(arg->type))
         {
             // check if there is enough registers to pass the whole of structure or union
-            size_t argc_struct = adjust_alignment(arg->type->size, STACK_CHANGE_UNIT) / STACK_CHANGE_UNIT;
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
             if(argc_reg + argc_struct < ARG_REGISTERS_SIZE)
             {
                 add_list_entry_tail(Expression)(args_reg, arg);
@@ -460,9 +512,9 @@ static size_t generate_args(List(Expression) *args)
         Expression *arg = get_element(Expression)(cursor);
 
         generate_expression(arg);
-        if(is_struct(arg->type) || is_union(arg->type))
+        if(is_struct_or_union(arg->type))
         {
-            size_t argc_struct = adjust_alignment(arg->type->size, STACK_CHANGE_UNIT) / STACK_CHANGE_UNIT;
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
             argc_reg -= argc_struct;
 
             generate_push_struct(arg->type);
@@ -488,11 +540,11 @@ static size_t generate_args(List(Expression) *args)
         if(is_struct(arg->type))
         {
             generate_push_struct(arg->type);
-            stack_args += adjust_alignment(arg->type->size, STACK_CHANGE_UNIT);
+            stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
         }
         else
         {
-            stack_args += STACK_CHANGE_UNIT;
+            stack_args += STACK_ALIGNMENT;
         }
     }
 
@@ -878,9 +930,9 @@ static void generate_expression(const Expression *expr)
 
     case EXPR_MEMBER:
         generate_lvalue(expr);
-        if(!is_array(expr->type))
+        if(!is_array(expr->member->type))
         {
-            generate_load(expr->type);
+            generate_load(expr->member->type);
         }
         return;
 
@@ -1158,9 +1210,9 @@ static void generate_expression(const Expression *expr)
         bool aligned = ((stack_size % 16) == 0);
         if(!aligned)
         {
-            put_instruction("  sub rsp, %d", STACK_CHANGE_UNIT);
+            put_instruction("  sub rsp, %d", STACK_ALIGNMENT);
 #if(CHECK_STACK_SIZE == ENABLED)
-            stack_size += STACK_CHANGE_UNIT;
+            stack_size += STACK_ALIGNMENT;
 #endif /* CHECK_STACK_SIZE */
         }
 
@@ -1187,9 +1239,9 @@ static void generate_expression(const Expression *expr)
 
         if(!aligned)
         {
-            put_instruction("  add rsp, %d", STACK_CHANGE_UNIT);
+            put_instruction("  add rsp, %d", STACK_ALIGNMENT);
 #if(CHECK_STACK_SIZE == ENABLED)
-            stack_size -= STACK_CHANGE_UNIT;
+            stack_size -= STACK_ALIGNMENT;
 #endif /* CHECK_STACK_SIZE */
         }
 #if(CHECK_STACK_SIZE == ENABLED)
