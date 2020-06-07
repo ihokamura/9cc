@@ -696,6 +696,30 @@ long func_def_struct4(struct param_t4 s)
 {
     return s.m0 + s.m1*10 + s.m2*100;
 }
+struct param_t5 func_def_struct5(char a0, char a1, int a2)
+{
+    struct param_t5 s = {a0, a1, a2};
+
+    return s;
+}
+struct param_t6 func_def_struct6(long a0, long a1)
+{
+    struct param_t6 s = {a0, a1};
+
+    return s;
+}
+struct param_t7 func_def_struct7(long a0, long a1, char a2)
+{
+    struct param_t7 s = {a0, a1, a2};
+
+    return s;
+}
+struct param_t8 func_def_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6)
+{
+    struct param_t8 s = {a0 + a3 + a6, a1 + a4, a2 + a5};
+
+    return s;
+}
 int func_def_arg_array(int a[10])
 {
     int sum = 0;
@@ -752,6 +776,10 @@ int test_function_definition()
     struct param_t2 s2 = {0, 1, 2}; assert_long(210, func_def_struct2(s2));
     struct param_t3 s3 = {7, 8, 9}; assert_long(9876543210, func_def_struct3(0, 1, 2, 3, 4, s3, 5, 6));
     struct param_t4 s4 = {0, 1, 2}; assert_long(210, func_def_struct4(s4));
+    struct param_t5 s5 = func_def_struct5(11, 22, 33); assert_char(11, s5.m0); assert_char(22, s5.m1); assert_int(33, s5.m2);
+    struct param_t6 s6 = func_def_struct6(11, 22); assert_long(11, s6.m0); assert_long(22, s6.m1);
+    struct param_t7 s7 = func_def_struct7(11, 22, 33); assert_long(11, s7.m0); assert_long(22, s7.m1); assert_char(33, s7.m2);
+    struct param_t8 s8 = func_def_struct8(1, 2, 3, 10, 20, 30, 100); assert_long(111, s8.m0); assert_long(22, s8.m1); assert_long(33, s8.m2);
     int a[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; assert_int(45, func_def_arg_array(a));
     assert_int(0, func_def_arg_func(func_def_return0));
     assert_int(6, func_def_factorial(3));    

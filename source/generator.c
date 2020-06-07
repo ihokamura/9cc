@@ -334,14 +334,20 @@ static void generate_func(const Function *func)
     put_instruction("%s:", func->name);
 
     // prologue: allocate stack for arguments and local variables and copy arguments
+    bool pass_address = (get_parameter_class(func->type->base) == PC_MEMORY);
+    stack_size = func->stack_size + pass_address * STACK_ALIGNMENT; // initialize stack size
     generate_push_reg_or_mem("rbp");
     put_instruction("  mov rbp, rsp");
-    put_instruction("  sub rsp, %lu", func->stack_size);
-    stack_size = func->stack_size; // initialize stack size
+    put_instruction("  sub rsp, %lu", stack_size);
+    if(pass_address)
+    {
+        // save the hidden argument
+        put_instruction("  mov [rbp-%lu], rdi", stack_size);
+    }
 
     // arguments
     // separate arguments which are passed by registers from those passed by the stack
-    size_t argc_reg = 0;
+    size_t argc_reg = (pass_address ? 1 : 0);
     List(Variable) *args_reg = new_list(Variable)();
     List(Variable) *args_stack = new_list(Variable)();
     for_each_entry(Variable, cursor, func->args)
@@ -383,7 +389,7 @@ static void generate_func(const Function *func)
         argc_reg++;
     }
 
-    argc_reg = 0;
+    argc_reg = (pass_address ? 1 : 0);
     for_each_entry(Variable, cursor, args_reg)
     {
         // load argument from a register
@@ -421,7 +427,7 @@ static void generate_func(const Function *func)
             argc_reg++;
         }
     }
-        
+
     size_t stack_args = 0;
     for_each_entry(Variable, cursor, args_stack)
     {
@@ -450,6 +456,11 @@ static void generate_func(const Function *func)
     }
 
     // epilogue: release stack
+    if(pass_address)
+    {
+        // return the address passed by the hidden argument
+        put_instruction("  mov rax, [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
+    }
     put_instruction("  mov rsp, rbp");
     generate_pop("rbp");
     put_instruction("  ret");
@@ -873,7 +884,16 @@ static void generate_statement(const Statement *stmt)
         {
             // return value
             generate_expression(stmt->expr);
-            generate_pop("rax");
+            if(is_struct_or_union(stmt->expr->type) && (adjust_alignment(stmt->expr->type->size, STACK_ALIGNMENT) == 2 * STACK_ALIGNMENT))
+            {
+                generate_push_struct(stmt->expr->type);
+                generate_pop("rax");
+                generate_pop("rdx");
+            }
+            else
+            {
+                generate_pop("rax");
+            }
         }
         put_instruction("  mov rsp, rbp");
         generate_pop("rbp");
