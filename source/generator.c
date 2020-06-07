@@ -167,13 +167,19 @@ static void generate_load(const Type *type)
     {
         put_instruction("  movsxw rax, word ptr [rax]");
     }
-    else if(type->size == 4)
+    else if(type->size <= 4)
     {
         put_instruction("  movsxd rax, dword ptr [rax]");
     }
-    else if(type->size == 8)
+    else if(type->size <= 8)
     {
         put_instruction("  mov rax, [rax]");
+    }
+    else if(type->size <= 16)
+    {
+        put_instruction("  mov r11, [rax+8]");
+        put_instruction("  mov rax, [rax]");
+        generate_push_reg_or_mem("r11");
     }
     generate_push_reg_or_mem("rax");
 }
@@ -184,26 +190,41 @@ generate assembler code to store value
 */
 static void generate_store(const Type *type)
 {
-    generate_pop("rdi");
-    generate_pop("rax");
-    if(type->size == 1)
+    if(type->size <= 8)
     {
-        put_instruction("  mov byte ptr [rax], dil");
+        generate_pop("rdi");
+        generate_pop("rax");
+        if(type->size == 1)
+        {
+            put_instruction("  mov byte ptr [rax], dil");
+        }
+        else if(type->size <= 2)
+        {
+            put_instruction("  mov word ptr [rax], di");
+        }
+        else if(type->size <= 4)
+        {
+            put_instruction("  mov dword ptr [rax], edi");
+        }
+        else
+        {
+            put_instruction("  mov [rax], rdi");
+        }
     }
-    else if(type->size == 2)
+    else if(type->size <= 16)
     {
-        put_instruction("  mov word ptr [rax], di");
-    }
-    else if(type->size == 4)
-    {
-        put_instruction("  mov dword ptr [rax], edi");
-    }
-    else if(type->size == 8)
-    {
+        generate_pop("rdi");
+        generate_pop("r11");
+        generate_pop("rax");
         put_instruction("  mov [rax], rdi");
+        put_instruction("  mov [rax+8], r11");
     }
     else
     {
+        // pop source address (rdi) and destination address (rax)
+        generate_pop("rdi");
+        generate_pop("rax");
+
         // copy bytes from rdi to rax
         size_t offset = 0;
         for(; offset + 8 <= type->size; offset += 8)
@@ -528,7 +549,6 @@ static size_t generate_args(const List(Expression) *args, bool pass_address)
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
             argc_reg -= argc_struct;
 
-            generate_push_struct(arg->type);
             for(size_t i = 0; i < argc_struct; i++)
             {
                 generate_pop(arg_registers64[argc_reg + i]);
@@ -548,15 +568,11 @@ static size_t generate_args(const List(Expression) *args, bool pass_address)
         Expression *arg = get_element(Expression)(cursor);
 
         generate_expression(arg);
-        if(is_struct(arg->type))
+        if(get_parameter_class(arg->type) == PC_MEMORY)
         {
             generate_push_struct(arg->type);
-            stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
         }
-        else
-        {
-            stack_args += STACK_ALIGNMENT;
-        }
+        stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
 
     return stack_args;
@@ -884,9 +900,8 @@ static void generate_statement(const Statement *stmt)
         {
             // return value
             generate_expression(stmt->expr);
-            if(is_struct_or_union(stmt->expr->type) && (adjust_alignment(stmt->expr->type->size, STACK_ALIGNMENT) == 2 * STACK_ALIGNMENT))
+            if(is_struct_or_union(stmt->expr->type) && (adjust_alignment(stmt->expr->type->size, STACK_ALIGNMENT) == 16))
             {
-                generate_push_struct(stmt->expr->type);
                 generate_pop("rax");
                 generate_pop("rdx");
             }
@@ -1228,20 +1243,14 @@ static void generate_expression(const Expression *expr)
 #endif /* CHECK_STACK_SIZE */
 
         size_t space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
-        bool allocate_space = is_struct_or_union(expr->type) && ((space - STACK_ALIGNMENT) > STACK_ALIGNMENT);
         bool pass_address = (get_parameter_class(expr->type) == PC_MEMORY);
-        if(allocate_space)
+        if(pass_address)
         {
             // provide space for the return value
             put_instruction("  sub rsp, %d", space);
-#if(CHECK_STACK_SIZE == ENABLED)
             stack_size += space;
-#endif /* CHECK_STACK_SIZE */
-            if(pass_address)
-            {
-                // pass the address of the space as the hidden 1st argument
-                put_instruction("  mov rdi, rsp");
-            }
+            // pass the address of the space as the hidden 1st argument
+            put_instruction("  mov rdi, rsp");
         }
 
         // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
@@ -1284,15 +1293,8 @@ static void generate_expression(const Expression *expr)
         stack_size -= stack_args;
 #endif /* CHECK_STACK_SIZE */
 
-        if(allocate_space)
+        if(pass_address)
         {
-            if(!pass_address)
-            {
-                put_instruction("  mov [rsp+8], rdx");
-                put_instruction("  mov [rsp], rax");
-                put_instruction("  mov rax, rsp"); // save address
-            }
-
             put_instruction("  add rsp, %d", space); // restore stack
 #if(CHECK_STACK_SIZE == ENABLED)
             stack_size -= space;
@@ -1303,6 +1305,10 @@ static void generate_expression(const Expression *expr)
 #endif /* CHECK_STACK_SIZE */
 
         // push return value
+        if(expr->type->size == 16)
+        {
+            generate_push_reg_or_mem("rdx");
+        }
         generate_push_reg_or_mem("rax");
 
         return;

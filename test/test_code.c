@@ -1083,10 +1083,11 @@ int test_struct()
     pst1->m2 = 4; assert_int(4, st1.m2);
     struct st1_tag st1_copy = st1; assert_int(3, st1_copy.m1); assert_int(8, sizeof(struct st1_tag));
 
-    struct {char m1; int m2; short m3;} st2;
+    struct {char m1; int m2; short m3;} st2, st2_copy;
     st2.m1 = 1; assert_char(1, st2.m1);
     st2.m2 = 2; assert_int(2, st2.m2);
     st2.m3 = 3; assert_int(3, st2.m3);
+    st2_copy = st2; assert_char(1, st2_copy.m1); assert_int(2, st2_copy.m2); assert_short(3, st2_copy.m3);
 
     struct {char m1; struct {char mm1; int mm2; short mm3;} m2; short m3;} st3, st3_copy;
     st3.m1 = 1; assert_char(1, st3.m1);
