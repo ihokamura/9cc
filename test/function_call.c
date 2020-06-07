@@ -87,6 +87,45 @@ long func_call_struct4(struct param_t4 s)
 }
 
 
+// function with structure (classified as INTEGER and returned by 1 register)
+struct param_t5 {char m0; char m1; int m2;};
+struct param_t5 func_call_struct5(char a0, char a1, int a2)
+{
+    struct param_t5 s = {a0, a1, a2};
+
+    return s;
+}
+
+// function with structure (classified as INTEGER and returned by 2 registers)
+struct param_t6 {long m0; long m1;};
+struct param_t6 func_call_struct6(long a0, long a1)
+{
+    struct param_t6 s = {a0, a1};
+
+    return s;
+}
+
+
+// function with structure (classified as MEMORY and returned by the hidden argument)
+struct param_t7 {long m0; long m1; char m2;};
+struct param_t7 func_call_struct7(long a0, long a1, char a2)
+{
+    struct param_t7 s = {a0, a1, a2};
+
+    return s;
+}
+
+
+// function with structure (classified as MEMORY and returned by the hidden argument)
+struct param_t8 {long m0; long m1; long m2;};
+struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6)
+{
+    struct param_t8 s = {a0 + a3 + a6, a1 + a4, a2 + a5};
+
+    return s;
+}
+
+
 // allocate 4 integers
 void alloc4(int **p, int a0, int a1, int a2, int a3)
 {

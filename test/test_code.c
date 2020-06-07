@@ -7,6 +7,10 @@ struct param_t1 {long m0; long m1; char m2;};
 struct param_t2 {int m0; char m1; long m2;};
 struct param_t3 {int m0; char m1; long m2;};
 struct param_t4 {char m0; char m1; char m2;};
+struct param_t5 {char m0; char m1; int m2;};
+struct param_t6 {long m0; long m1;};
+struct param_t7 {long m0; long m1; char m2;};
+struct param_t8 {long m0; long m1; long m2;};
 
 // function declaration
 extern int printf(char *format, ...);
@@ -23,6 +27,10 @@ extern long func_call_struct1(struct param_t1 s);
 extern long func_call_struct2(struct param_t2 s);
 extern long func_call_struct3(int a0, int a1, int a2, int a3, int a4, struct param_t3 s, int a5, int a6);
 extern long func_call_struct4(struct param_t4 s);
+struct param_t5 func_call_struct5(char a0, char a1, int a2);
+struct param_t6 func_call_struct6(long a0, long a1);
+struct param_t7 func_call_struct7(long a0, long a1, char a2);
+struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 
 
@@ -624,6 +632,10 @@ int test_function_call()
     struct param_t2 s2 = {0, 1, 2}; assert_long(210, func_call_struct2(s2));
     struct param_t3 s3 = {7, 8, 9}; assert_long(9876543210, func_call_struct3(0, 1, 2, 3, 4, s3, 5, 6));
     struct param_t4 s4 = {0, 1, 2}; assert_long(210, func_call_struct4(s4));
+    struct param_t5 s5 = func_call_struct5(11, 22, 33); assert_char(11, s5.m0); assert_char(22, s5.m1); assert_int(33, s5.m2);
+    struct param_t6 s6 = func_call_struct6(11, 22); assert_long(11, s6.m0); assert_long(22, s6.m1);
+    struct param_t7 s7 = func_call_struct7(11, 22, 33); assert_long(11, s7.m0); assert_long(22, s7.m1); assert_char(33, s7.m2);
+    struct param_t8 s8 = func_call_struct8(1, 2, 3, 10, 20, 30, 100); assert_long(111, s8.m0); assert_long(22, s8.m1); assert_long(33, s8.m2);
 
     int (*pf)(void);
     pf = func_call_return0; assert_int(0, pf());

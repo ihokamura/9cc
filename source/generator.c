@@ -60,7 +60,7 @@ static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static size_t generate_args(List(Expression) *args);
+static size_t generate_args(const List(Expression) *args, bool pass_address);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
@@ -460,10 +460,10 @@ static void generate_func(const Function *func)
 generate assembler code of function arguments
 * This function returns size of the stack allocated for arguments.
 */
-static size_t generate_args(List(Expression) *args)
+static size_t generate_args(const List(Expression) *args, bool pass_address)
 {
     // separate arguments which are passed by registers from those passed by the stack
-    size_t argc_reg = 0;
+    size_t argc_reg = (pass_address ? 1 : 0);
     List(Expression) *args_reg = new_list(Expression)();
     List(Expression) *args_stack = new_list(Expression)();
     for_each_entry(Expression, cursor, args)
@@ -1203,10 +1203,28 @@ static void generate_expression(const Expression *expr)
         // * Arguments be passed in rdi, rsi, rdx, rcx, r8, r9, and further ones be passed on the stack in reverse order.
         // * The number of floating point arguments be set to al if the callee is a variadic function.
 
-        // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
 #if(CHECK_STACK_SIZE == ENABLED)
         int current_stack = stack_size;
 #endif /* CHECK_STACK_SIZE */
+
+        size_t space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
+        bool allocate_space = is_struct_or_union(expr->type) && ((space - STACK_ALIGNMENT) > STACK_ALIGNMENT);
+        bool pass_address = (get_parameter_class(expr->type) == PC_MEMORY);
+        if(allocate_space)
+        {
+            // provide space for the return value
+            put_instruction("  sub rsp, %d", space);
+#if(CHECK_STACK_SIZE == ENABLED)
+            stack_size += space;
+#endif /* CHECK_STACK_SIZE */
+            if(pass_address)
+            {
+                // pass the address of the space as the hidden 1st argument
+                put_instruction("  mov rdi, rsp");
+            }
+        }
+
+        // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
         bool aligned = ((stack_size % 16) == 0);
         if(!aligned)
         {
@@ -1216,11 +1234,7 @@ static void generate_expression(const Expression *expr)
 #endif /* CHECK_STACK_SIZE */
         }
 
-#if(CHECK_STACK_SIZE == ENABLED)
-        size_t stack_args = generate_args(expr->args);
-#else
-        generate_args(expr->args);
-#endif /* CHECK_STACK_SIZE */
+        size_t stack_args = generate_args(expr->args, pass_address);
         put_instruction("  mov rax, 0");
 
         Expression *body = expr->operand->operand;
@@ -1244,8 +1258,27 @@ static void generate_expression(const Expression *expr)
             stack_size -= STACK_ALIGNMENT;
 #endif /* CHECK_STACK_SIZE */
         }
+
+        put_instruction("  add rsp, %d", stack_args);
 #if(CHECK_STACK_SIZE == ENABLED)
         stack_size -= stack_args;
+#endif /* CHECK_STACK_SIZE */
+
+        if(allocate_space)
+        {
+            if(!pass_address)
+            {
+                put_instruction("  mov [rsp+8], rdx");
+                put_instruction("  mov [rsp], rax");
+                put_instruction("  mov rax, rsp"); // save address
+            }
+
+            put_instruction("  add rsp, %d", space); // restore stack
+#if(CHECK_STACK_SIZE == ENABLED)
+            stack_size -= space;
+#endif /* CHECK_STACK_SIZE */
+        }
+#if(CHECK_STACK_SIZE == ENABLED)
         assert(stack_size == current_stack);
 #endif /* CHECK_STACK_SIZE */
 
