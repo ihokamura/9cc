@@ -1241,29 +1241,28 @@ static void generate_expression(const Expression *expr)
 #if(CHECK_STACK_SIZE == ENABLED)
         int current_stack = stack_size;
 #endif /* CHECK_STACK_SIZE */
-
+        int stack_adjustment = 0;
         size_t space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
         bool pass_address = (get_parameter_class(expr->type) == PC_MEMORY);
         if(pass_address)
         {
-            // provide space for the return value
-            put_instruction("  sub rsp, %d", space);
+            // provide space for the return value and pass the address of the space as the hidden 1st argument
             stack_size += space;
-            // pass the address of the space as the hidden 1st argument
-            put_instruction("  mov rdi, rsp");
+            stack_adjustment += space;
+            put_instruction("  lea rdi, [rsp-%lu]", space);
         }
 
         // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
         bool aligned = ((stack_size % 16) == 0);
         if(!aligned)
         {
-            put_instruction("  sub rsp, %d", STACK_ALIGNMENT);
-#if(CHECK_STACK_SIZE == ENABLED)
             stack_size += STACK_ALIGNMENT;
-#endif /* CHECK_STACK_SIZE */
+            stack_adjustment += STACK_ALIGNMENT;
         }
+        put_instruction("  sub rsp, %d", stack_adjustment);
 
-        size_t stack_args = generate_args(expr->args, pass_address);
+        // generate arguments
+        stack_adjustment += generate_args(expr->args, pass_address);
         put_instruction("  mov rax, 0");
 
         Expression *body = expr->operand->operand;
@@ -1280,26 +1279,9 @@ static void generate_expression(const Expression *expr)
             put_instruction("  call rax");
         }
 
-        if(!aligned)
-        {
-            put_instruction("  add rsp, %d", STACK_ALIGNMENT);
-#if(CHECK_STACK_SIZE == ENABLED)
-            stack_size -= STACK_ALIGNMENT;
-#endif /* CHECK_STACK_SIZE */
-        }
-
-        put_instruction("  add rsp, %d", stack_args);
-#if(CHECK_STACK_SIZE == ENABLED)
-        stack_size -= stack_args;
-#endif /* CHECK_STACK_SIZE */
-
-        if(pass_address)
-        {
-            put_instruction("  add rsp, %d", space); // restore stack
-#if(CHECK_STACK_SIZE == ENABLED)
-            stack_size -= space;
-#endif /* CHECK_STACK_SIZE */
-        }
+        // restore the stack
+        put_instruction("  add rsp, %d", stack_adjustment);
+        stack_size -= stack_adjustment;
 #if(CHECK_STACK_SIZE == ENABLED)
         assert(stack_size == current_stack);
 #endif /* CHECK_STACK_SIZE */
