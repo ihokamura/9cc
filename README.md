@@ -106,7 +106,7 @@ declarator ::= pointer? direct-declarator
 direct-declarator ::= identifier
                     | "(" declarator ")"
                     | direct-declarator "[" const-expression* "]"
-                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
+                    | direct-declarator "(" parameter-type-list? ")"
 pointer ::= "*" ("*" | type-qualifier)*
 parameter-type-list ::= parameter-list ("," "...")?
 parameter-list ::= parameter-declaration ("," parameter-declaration)*

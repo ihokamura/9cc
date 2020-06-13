@@ -14,7 +14,7 @@
 #define new_list(type) new_##type##List // function name to make a new list
 #define new_list_entry(type) new_##type##ListEntry // function name to make a new entry of list
 #define get_length(type) get_length_##type // function name to get the length of list
-#define get_element(type) get_entry_##type // function name to get the element of an entry of list
+#define get_element(type) get_element_##type // function name to get the element of an entry of list
 #define get_first_entry(type) get_first_entry_##type // function name to get the first entry of list
 #define get_first_element(type) get_first_element_##type // function name to get the element of the first entry of list
 #define get_last_entry(type) get_last_entry_##type // function name to get the last entry of list

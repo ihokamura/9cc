@@ -951,7 +951,7 @@ make a direct declarator
 direct-declarator ::= identifier
                     | "(" declarator ")"
                     | direct-declarator "[" const-expression* "]"
-                    | direct-declarator "(" ("void" | parameter-type-list)? ")"
+                    | direct-declarator "(" parameter-type-list? ")"
 ```
 * This is equivalent to the following.
 ```
@@ -1060,6 +1060,13 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
     Variable *arg_var;
 
     add_list_entry_tail(Type)(arg_types, parameter_declaration(&arg_var));
+
+    if(is_void(get_first_element(Type)(arg_types)))
+    {
+        // stop to parse parameters
+        goto parameter_list_end;
+    }
+
     if(arg_vars != NULL)
     {
         if(arg_var == NULL)
@@ -1101,6 +1108,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
         break;
     }
 
+parameter_list_end:
     return arg_types;
 }
 
@@ -1249,7 +1257,7 @@ direct_abstract_declarator_end:
 /*
 make a declarator-suffixes
 ```
-declarator-suffixes ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-list)? ")")*
+declarator-suffixes ::= ("[" const-expression* "]" | "(" parameter-type-list? ")")*
 ```
 */
 static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars)
@@ -1275,12 +1283,6 @@ static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars)
         {
             arg_types = new_list(Type)();
             add_list_entry_tail(Type)(arg_types, new_type(TY_VOID, TQ_NONE));
-        }
-        else if(consume_reserved("void"))
-        {
-            arg_types = new_list(Type)();
-            add_list_entry_tail(Type)(arg_types, new_type(TY_VOID, TQ_NONE));
-            expect_reserved(")");
         }
         else
         {
