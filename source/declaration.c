@@ -142,6 +142,14 @@ static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPE
     // synonym of 'unsigned long'
     {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
     {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
+    // synonym of 'long long', which is equivalent to 'long' in this implementation
+    {{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long
+    {{0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long
+    {{0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long int
+    {{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long int
+    // synonym of 'unsigned long long', which is equivalent to 'unsigned long' in this implementation
+    {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
+    {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
     // other type specifiers
     {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
     {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union

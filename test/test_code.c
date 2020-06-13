@@ -116,6 +116,24 @@ int assert_long(long expected, long actual)
 
 
 /*
+assertion for long long type
+*/
+int assert_longlong(long long expected, long long actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%lld expected, but got %lld\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}
+
+
+/*
 number
 */
 int test_number()
@@ -1069,6 +1087,22 @@ int test_long()
 
 
 /*
+long long type
+*/
+int test_longlong()
+{
+    put_title("long long type");
+
+    long long ll = -1; assert_longlong(-1, ll);
+    signed long long sll = -2; assert_longlong(-2, sll);
+    long long int lli = -3; assert_longlong(-3, lli);
+    signed long long int slli = -4; assert_longlong(-4, slli);
+
+    return 0;
+}
+
+
+/*
 struct type
 */
 int test_struct()
@@ -1502,6 +1536,7 @@ int main()
     test_short();
     test_int();
     test_long();
+    test_longlong();
     test_struct();
     test_union();
     test_enum();
