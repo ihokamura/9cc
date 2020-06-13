@@ -548,7 +548,7 @@ static TypeSpecifier type_specifier(Type **type)
         Identifier *ident = find_identifier(token);
         if((ident != NULL) && (ident->type_def != NULL))
         {
-            *type = copy_type(ident->type_def);
+            *type = ident->type_def;
             return TS_TYPEDEF;
         }
         else

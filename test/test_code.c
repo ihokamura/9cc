@@ -1170,6 +1170,10 @@ int test_struct()
     struct {int a1[5];} st5, st5_copy;
     int i; for(i = 0; i < 5; i++) st5.a1[i] = i; st5_copy = st5; for(i = 0; i < 5; i++) assert_int(i, st5_copy.a1[i]); assert_int(20, sizeof(st5.a1));
 
+    typedef struct st6_tag st6_type;
+    struct st6_tag {st6_type *next; int val;} st6_1, st6_2;
+    st6_1.val = 1; st6_1.next = &st6_2; st6_2.val = 2; assert_int(1, st6_1.val); assert_int(2, st6_1.next->val);
+
     return 0;
 }
 
