@@ -417,7 +417,7 @@ report_duplicated_declaration:
                 // block scope identifier for an object with static storage duration
                 name = add_block_scope_label(name);
             }
-            bool emit = (type->kind != TY_FUNC);
+            bool emit = (type->kind != TY_FUNC) && (sclass != SC_EXTERN);
             expr->var = new_gvar(name, type, emit);
 
             // parse initializer
