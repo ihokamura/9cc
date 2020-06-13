@@ -15,6 +15,7 @@ typedef enum TypeKind TypeKind;
 enum TypeKind
 {
     TY_VOID,    // void
+    TY_BOOL,    // bool
     TY_CHAR,    // char
     TY_SCHAR,   // signed char
     TY_UCHAR,   // unsigned char

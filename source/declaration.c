@@ -33,7 +33,7 @@ define_list_operations(Initializer)
 
 // macro
 #define INVALID_DECLSPEC (-1) // invalid declaration specifier
-#define TYPESPEC_SIZE ((size_t)11) // number of type specifiers
+#define TYPESPEC_SIZE ((size_t)12) // number of type specifiers
 
 // kind of type specifiers
 typedef enum TypeSpecifier TypeSpecifier;
@@ -46,6 +46,7 @@ enum TypeSpecifier
     TS_LONG,     // "long"
     TS_SIGNED,   // "signed"
     TS_UNSIGNED, // "unsigned"
+    TS_BOOL,     // "_Bool"
     TS_STRUCT,   // structure
     TS_UNION,    // union
     TS_ENUM,     // enumeration
@@ -112,49 +113,51 @@ static char *add_block_scope_label(const char *name);
 const char *STATIC_VARIABLE_PUNCTUATOR = ".";
 static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
+    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
+    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_SCHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SCHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short
-    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short
-    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short int
-    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short
+    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0}, TY_USHORT},  // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0}, TY_USHORT},  // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // int
-    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_INT},     // signed
-    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0}, TY_INT},     // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // int
+    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_UINT},    // unsigned
-    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0}, TY_UINT},    // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long
-    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long
-    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long int
-    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long
+    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
     // synonym of 'long long', which is equivalent to 'long' in this implementation
-    {{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long
-    {{0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long
-    {{0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long int
-    {{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long int
+    {{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long
+    {{0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long
+    {{0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long int
+    {{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long int
     // synonym of 'unsigned long long', which is equivalent to 'unsigned long' in this implementation
-    {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
-    {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
+    {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
+    {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
+    // synonym of '_Bool'
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_CHAR},    // _Bool
     // other type specifiers
-    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
-    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_ENUM},    // enumeration
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_TYPEDEF}, // typedef name
+    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_ENUM},    // enumeration
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_TYPEDEF}, // typedef name
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -484,6 +487,7 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
+                 | "_Bool"
                  | struct-or-union-specifier
                  | enum-specifier
                  | typedef-name
@@ -518,6 +522,10 @@ static TypeSpecifier type_specifier(Type **type)
     else if(consume_reserved("unsigned"))
     {
         return TS_UNSIGNED;
+    }
+    else if(consume_reserved("_Bool"))
+    {
+        return TS_BOOL;
     }
     else if(peek_reserved("struct"))
     {
@@ -1704,6 +1712,7 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             case TY_UINT:
             case TY_LONG:
             case TY_ULONG:
+            case TY_BOOL:
                 return new_type(type_kind, qual);
 
             case TY_STRUCT:
@@ -1797,6 +1806,7 @@ static bool peek_reserved_type_specifier(void)
         || peek_reserved("long")
         || peek_reserved("signed")
         || peek_reserved("unsigned")
+        || peek_reserved("_Bool")
     );
 }
 

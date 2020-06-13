@@ -24,6 +24,7 @@ define_list_operations(Type)
 
 // macro
 #define SIZEOF_VOID     (1)
+#define SIZEOF_BOOL     (1)
 #define SIZEOF_CHAR     (1)
 #define SIZEOF_SHORT    (2)
 #define SIZEOF_INT      (4)
@@ -32,6 +33,7 @@ define_list_operations(Type)
 #define SIZEOF_ENUM     (SIZEOF_INT)
 
 #define ALIGNOF_VOID     (1)
+#define ALIGNOF_BOOL     (1)
 #define ALIGNOF_CHAR     (1)
 #define ALIGNOF_SHORT    (2)
 #define ALIGNOF_INT      (4)
@@ -39,6 +41,7 @@ define_list_operations(Type)
 #define ALIGNOF_PTR      (8)
 #define ALIGNOF_ENUM     (ALIGNOF_INT)
 
+#define RANK_BOOL     (0)
 #define RANK_CHAR     (1)
 #define RANK_SHORT    (2)
 #define RANK_INT      (3)
@@ -55,6 +58,16 @@ static Type void_types[] = {
     {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST | TQ_VOLATILE,               false},
     {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_RESTRICT | TQ_VOLATILE,            false},
     {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, false},
+};
+static Type bool_types[] = {
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_NONE,                              true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_CONST,                             true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_RESTRICT,                          true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_VOLATILE,                          true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_BOOL, SIZEOF_BOOL, ALIGNOF_BOOL, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
 };
 static Type char_types[] = {
     {TY_CHAR, SIZEOF_CHAR, ALIGNOF_CHAR, TQ_NONE,                              true},
@@ -161,6 +174,10 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type = &void_types[qual];
         break;
 
+    case TY_BOOL:
+        type = &bool_types[qual];
+        break;
+
     case TY_CHAR:
         type = &char_types[qual];
         break;
@@ -234,6 +251,9 @@ int get_conversion_rank(const Type *type)
 {
     switch(type->kind)
     {
+    case TY_BOOL:
+        return RANK_BOOL;
+
     case TY_CHAR:
     case TY_SCHAR:
     case TY_UCHAR:
@@ -333,7 +353,8 @@ check if a given type is an unsigned integer type
 bool is_unsigned(const Type *type)
 {
     return (
-           (type->kind == TY_UCHAR)
+           (type->kind == TY_BOOL)
+        || (type->kind == TY_UCHAR)
         || (type->kind == TY_USHORT)
         || (type->kind == TY_UINT)
         || (type->kind == TY_ULONG)

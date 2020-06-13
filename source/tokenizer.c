@@ -139,6 +139,7 @@ static const char *keyword_list[] = {
     "void",
     "volatile",
     "while",
+    "_Bool",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords
 // map of simple escape sequences (excluding "\")

@@ -84,6 +84,7 @@ type-specifier ::= "void"
                  | "long"
                  | "signed"
                  | "unsigned"
+                 | "_Bool"
                  | struct-or-union-specifier
                  | enum-specifier
                  | typedef-name

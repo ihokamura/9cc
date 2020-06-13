@@ -44,6 +44,24 @@ int put_title(char *title)
 
 
 /*
+assertion for bool type
+*/
+int assert_bool(_Bool expected, _Bool actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%d expected, but got %d\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}
+
+
+/*
 assertion for char type
 */
 int assert_char(char expected, char actual)
@@ -1026,6 +1044,20 @@ int test_void()
 
 
 /*
+bool type
+*/
+int test_bool()
+{
+    put_title("bool type");
+
+    _Bool bf = 0; assert_bool(0, bf);
+    _Bool bt = 1; assert_bool(1, bt);
+
+    return 0;
+}
+
+
+/*
 char type
 */
 int test_char()
@@ -1532,6 +1564,7 @@ int main()
     test_array();
     test_global_variable();
     test_void();
+    test_bool();
     test_char();
     test_short();
     test_int();
