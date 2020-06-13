@@ -281,7 +281,7 @@ declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qual
 */
 Type *declaration_specifiers(StorageClassSpecifier *sclass)
 {
-    int spec_list[TYPESPEC_SIZE] = {};
+    int spec_list[TYPESPEC_SIZE] = {0};
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
     *sclass = INVALID_DECLSPEC;
@@ -736,7 +736,7 @@ specifier-qualifier-list ::= (type-specifier | type-qualifier)*
 */
 static Type *specifier_qualifier_list(void)
 {
-    int spec_list[TYPESPEC_SIZE] = {};
+    int spec_list[TYPESPEC_SIZE] = {0};
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
 

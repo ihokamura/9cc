@@ -1461,12 +1461,8 @@ long evaluate(Expression *expr)
         result = !evaluate(expr->operand);
         break;
 
-    case EXPR_ADD:
-        result = evaluate(expr->lhs) + evaluate(expr->rhs);
-        break;
-
-    case EXPR_SUB:
-        result = evaluate(expr->lhs) - evaluate(expr->rhs);
+    case EXPR_CAST:
+        result = evaluate(expr->operand);
         break;
 
     case EXPR_MUL:
@@ -1479,6 +1475,14 @@ long evaluate(Expression *expr)
 
     case EXPR_MOD:
         result = evaluate(expr->lhs) % evaluate(expr->rhs);
+        break;
+
+    case EXPR_ADD:
+        result = evaluate(expr->lhs) + evaluate(expr->rhs);
+        break;
+
+    case EXPR_SUB:
+        result = evaluate(expr->lhs) - evaluate(expr->rhs);
         break;
 
     case EXPR_LSHIFT:
