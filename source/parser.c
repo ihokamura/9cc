@@ -267,6 +267,9 @@ Identifier *push_identifier_scope(const char *name)
     ident->name = name;
     ident->var = NULL;
     ident->en = NULL;
+    ident->type_def = NULL;
+    char *punctuator = strstr(name, STATIC_VARIABLE_PUNCTUATOR);
+    ident->len = ((punctuator == NULL) ? strlen(name) : punctuator - name);
     ident->depth = current_scope.depth;
     add_list_entry_head(Identifier)(current_scope.ident_list, ident);
 
@@ -282,6 +285,7 @@ Tag *push_tag_scope(const char *name, Type *type)
     Tag *tag = calloc(1, sizeof(Tag));
     tag->name = name;
     tag->type = type;
+    tag->len = strlen(name);
     tag->depth = current_scope.depth;
     add_list_entry_head(Tag)(current_scope.tag_list, tag);
 
@@ -333,9 +337,7 @@ Identifier *find_identifier(const Token *token)
     for_each_entry(Identifier, cursor, current_scope.ident_list)
     {
         Identifier *ident = get_element(Identifier)(cursor);
-        char *punctuator = strstr(ident->name, STATIC_VARIABLE_PUNCTUATOR);
-        size_t len = ((punctuator == NULL) ? strlen(ident->name) : punctuator - ident->name);
-        if((len == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
+        if((ident->len == token->len) && (strncmp(token->str, ident->name, token->len) == 0))
         {
             return ident;
         }
@@ -356,7 +358,7 @@ Tag *find_tag(const Token *token)
     for_each_entry(Tag, cursor, current_scope.tag_list)
     {
         Tag *tag = get_element(Tag)(cursor);
-        if((strlen(tag->name) == token->len) && (strncmp(token->str, tag->name, token->len) == 0))
+        if((tag->len == token->len) && (strncmp(token->str, tag->name, token->len) == 0))
         {
             return tag;
         }

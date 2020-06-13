@@ -24,10 +24,11 @@ struct Function
 // structure for identifier
 struct Identifier
 {
-    const char *name; // identifier
+    const char *name; // name of identifier
     Variable *var;    // variable
     Enumerator *en;   // enumerator
     Type *type_def;   // type definition
+    size_t len;       // length of name (excluding trailing label for static variables)
     int depth;        // depth of scope
 };
 
@@ -60,6 +61,7 @@ struct Tag
 {
     const char *name; // name of tag
     Type *type;       // type 
+    size_t len;       // length of name
     int depth;        // depth of scope
 };
 
