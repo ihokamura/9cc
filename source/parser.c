@@ -30,7 +30,7 @@ define_list_operations(Tag)
 define_list_operations(Variable)
 
 // function prototype
-static Function *new_function(const Token *token, Type *type, List(Variable) *args, List(Statement) *body);
+static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, List(Variable) *args, List(Statement) *body);
 static char *new_string_label(void);
 static void program(void);
 static void function_def(void);
@@ -50,15 +50,17 @@ static Scope current_scope = {NULL, NULL, NULL, NULL, 0}; // current scope
 /*
 make a new variable
 */
-Variable *new_var(const char *name, Type *type, bool local)
+Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bool local)
 {
     Variable *var = calloc(1, sizeof(Variable));
     var->name = name;
     var->type = type;
     var->init = NULL;
-    var->local = local;
-    var->offset = 0;
     var->str = NULL;
+    var->data = NULL;
+    var->offset = 0;
+    var->sclass = sclass;
+    var->local = local;
     var->entity = false;
 
     push_identifier_scope(var->name)->var = var;
@@ -70,9 +72,9 @@ Variable *new_var(const char *name, Type *type, bool local)
 /*
 make a new global variable
 */
-Variable *new_gvar(const char *name, Type *type, bool entity)
+Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, bool entity)
 {
-    Variable *gvar = new_var(name, type, false);
+    Variable *gvar = new_var(name, type, sclass, false);
     gvar->entity = entity;
     add_list_entry_tail(Variable)(gvar_list, gvar);
 
@@ -85,7 +87,7 @@ make a new local variable
 */
 Variable *new_lvar(const char *name, Type *type)
 {
-    Variable *lvar = new_var(name, type, true);
+    Variable *lvar = new_var(name, type, SC_NONE, true);
     add_list_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
@@ -115,7 +117,7 @@ StringLiteral *new_string(const Token *token)
     char *label = new_string_label();
     Type *type = new_type_array(new_type(TY_CHAR, TQ_NONE), token->len + 1);
 
-    Variable *gvar = new_var(label, type, false);
+    Variable *gvar = new_var(label, type, SC_STATIC, false);
     gvar->str = calloc(1, sizeof(StringLiteral));
     gvar->data = new_list(DataSegment)();
     add_list_entry_tail(DataSegment)(gvar->data, new_string_data_segment(label));
@@ -134,12 +136,13 @@ StringLiteral *new_string(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, List(Variable) *args, List(Statement) *body)
+static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, List(Variable) *args, List(Statement) *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
     new_func->type = type;
     new_func->body = body;
+    new_func->sclass = sclass;
 
     // set offset of arguments and local variables and accumulate stack size
     size_t offset = 0;
@@ -243,7 +246,7 @@ static void function_def(void)
     leave_scope(scope);
 
     // make a new function
-    new_function(token, type, args, body);
+    new_function(token, type, sclass, args, body);
 }
 
 
@@ -394,7 +397,7 @@ static bool peek_func(void)
     if(is_func)
     {
         // make a function declarator
-        new_gvar(make_identifier(token), type, false);
+        new_gvar(make_identifier(token), type, sclass, false);
     }
 
     return is_func;

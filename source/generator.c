@@ -297,7 +297,10 @@ generate assembler code of a global variable
 static void generate_gvar(const Variable *gvar)
 {
     // put label
-    put_instruction(".global %s", gvar->name);
+    if(gvar->sclass != SC_STATIC)
+    {
+        put_instruction(".global %s", gvar->name);
+    }
     put_instruction("%s:", gvar->name);
 
     if(gvar->str != NULL)
@@ -351,7 +354,10 @@ generate assembler code of a function
 static void generate_func(const Function *func)
 {
     // declarations
-    put_instruction(".global %s", func->name);
+    if(func->sclass != SC_STATIC)
+    {
+        put_instruction(".global %s", func->name);
+    }
     put_instruction("%s:", func->name);
 
     // prologue: allocate stack for arguments and local variables and copy arguments

@@ -9,16 +9,18 @@
 #define __PARSER_H__
 
 #include "9cc.h"
+#include "declaration.h"
 
 // structure for function
 struct Function
 {
-    char *name;             // name of function
-    Type *type;             // type of function
-    List(Variable) *args;   // arguments
-    List(Statement) *body;  // body of function definition
-    List(Variable) *locals; // list of local variables (including arguments)
-    size_t stack_size;      // size of stack in bytes
+    char *name;                   // name of function
+    Type *type;                   // type of function
+    List(Variable) *args;         // arguments
+    List(Statement) *body;        // body of function definition
+    List(Variable) *locals;       // list of local variables (including arguments)
+    size_t stack_size;            // size of stack in bytes
+    StorageClassSpecifier sclass; // storage class specifier
 };
 
 // structure for identifier
@@ -68,18 +70,19 @@ struct Tag
 // structure for variable
 struct Variable
 {
-    const char *name;        // name of variable
-    Type *type;              // type of variable
-    Statement *init;         // initializer
-    bool local;              // flag indicating that the variable is local or global
-    size_t offset;           // offset from base pointer (rbp) (only for local variable)
-    StringLiteral *str;      // information of string-literal (only for string-literal)
-    bool entity;             // flag indicating that the variable has an entity in the current translation unit (only for global variable)
-    List(DataSegment) *data; // contents of data segment (only for global variable)
+    const char *name;             // name of variable
+    Type *type;                   // type of variable
+    Statement *init;              // initializer
+    StringLiteral *str;           // information of string-literal (only for string-literal)
+    List(DataSegment) *data;      // contents of data segment (only for global variable)
+    size_t offset;                // offset from base pointer (rbp) (only for local variable)
+    StorageClassSpecifier sclass; // storage class specifier
+    bool local;                   // flag indicating that the variable is local or global
+    bool entity;                  // flag indicating that the variable has an entity in the current translation unit (only for global variable)
 };
 
-Variable *new_var(const char *name, Type *type, bool local);
-Variable *new_gvar(const char *name, Type *type, bool entity);
+Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bool local);
+Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, bool entity);
 Variable *new_lvar(const char *name, Type *type);
 StringLiteral *new_string(const Token *token);
 void construct(Program *prog);

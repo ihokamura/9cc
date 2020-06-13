@@ -14,6 +14,7 @@
 typedef enum StorageClassSpecifier StorageClassSpecifier;
 enum StorageClassSpecifier
 {
+    SC_NONE,     // no specifier
     SC_TYPEDEF,  // "typdef"
     SC_EXTERN,   // "extern"
     SC_STATIC,   // "static"

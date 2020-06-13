@@ -418,7 +418,7 @@ report_duplicated_declaration:
                 name = add_block_scope_label(name);
             }
             bool emit = (type->kind != TY_FUNC) && (sclass != SC_EXTERN);
-            expr->var = new_gvar(name, type, emit);
+            expr->var = new_gvar(name, type, sclass, emit);
 
             // parse initializer
             if(consume_reserved("="))
@@ -1155,7 +1155,7 @@ static Type *parameter_declaration(Variable **arg_var)
 
     if(arg_token != NULL)
     {
-        *arg_var = new_var(make_identifier(arg_token), arg_type, true);
+        *arg_var = new_var(make_identifier(arg_token), arg_type, sclass, true);
     }
     else
     {
