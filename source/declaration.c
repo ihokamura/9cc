@@ -299,11 +299,7 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
             break;
         }
 
-        if(peek_type_specifier())
-        {
-            spec_list[type_specifier(&type)]++;
-            continue;
-        }
+        spec_list[type_specifier(&type)]++;
     }
 
     return determine_type(spec_list, type, qual);
@@ -742,11 +738,7 @@ static Type *specifier_qualifier_list(void)
             break;
         }
 
-        if(peek_type_specifier())
-        {
-            spec_list[type_specifier(&type)]++;
-            continue;
-        }
+        spec_list[type_specifier(&type)]++;
     }
 
     return determine_type(spec_list, type, qual);
