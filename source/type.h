@@ -84,6 +84,7 @@ int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
 ParameterClassKind get_parameter_class(const Type *type);
 bool is_void(const Type *type);
+bool is_bool(const Type *type);
 bool is_signed(const Type *type);
 bool is_unsigned(const Type *type);
 bool is_integer(const Type *type);

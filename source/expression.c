@@ -1640,6 +1640,7 @@ static Expression *apply_implicit_conversion(Expression *expr)
     // implicitly convert lvalue
     if(expr->lvalue && (!is_array(expr->type)))
     {
+        conv->type = copy_type(expr->type);
         conv->type->qual = TQ_NONE;
         conv->lvalue = false;
     }
@@ -1700,6 +1701,9 @@ static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, c
                     (is_arithmetic(lhs_type) && is_arithmetic(rhs_type))
                  || (is_struct_or_union(lhs_type) && is_compatible(lhs_type, rhs_type))
                  || (is_pointer(lhs_type) && is_pointer(rhs_type) && is_compatible(lhs_type->base, rhs_type->base) && ((lhs_type->base->qual & rhs_type->base->qual) == rhs_type->base->qual))
+                 || (is_pointer(lhs_type) && is_pointer(rhs_type) && (!is_function(lhs_type)) && is_void(rhs_type->base) && ((lhs_type->base->qual & rhs_type->base->qual) == rhs_type->base->qual))
+                 || (is_pointer(lhs_type) && is_pointer(rhs_type) && (!is_function(rhs_type)) && is_void(lhs_type->base) && ((lhs_type->base->qual & rhs_type->base->qual) == rhs_type->base->qual))
+                 || (is_bool(lhs_type) && is_pointer(rhs_type))
                 );
         break;
 

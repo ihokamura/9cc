@@ -334,6 +334,15 @@ bool is_void(const Type *type)
 
 
 /*
+check if a given type is a bool type
+*/
+bool is_bool(const Type *type)
+{
+    return (type->kind == TY_BOOL);
+}
+
+
+/*
 check if a given type is a signed integer type
 */
 bool is_signed(const Type *type)
