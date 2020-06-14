@@ -1265,6 +1265,8 @@ int test_integer_constant()
     unsigned int uint_suffix = 12U; assert_int(12u, uint_suffix);
     long long_suffix = 12L; assert_long(12l, long_suffix);
     unsigned long ulong_suffix = 12UL; assert_long(12lu, ulong_suffix);
+    long long longlong_suffix = 12LL; assert_longlong(12ll, longlong_suffix);
+    unsigned long ulonglong_suffix = 12ULL; assert_longlong(12llu, ulonglong_suffix);
 }
 
 

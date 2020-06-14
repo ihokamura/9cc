@@ -31,10 +31,12 @@ define_list_operations(Token)
 typedef enum IntegerSuffix IntegerSuffix;
 enum IntegerSuffix
 {
-    IS_NONE,          // none
-    IS_UNSIGNED,      // unsigned-suffix
-    IS_LONG,          // long-suffix
-    IS_UNSIGNED_LONG, // unsigned-suffix and long-suffix
+    IS_NONE,              // none
+    IS_UNSIGNED,          // unsigned-suffix
+    IS_LONG,              // long-suffix
+    IS_UNSIGNED_LONG,     // unsigned-suffix and long-suffix
+    IS_LONGLONG,          // long-long-suffix
+    IS_UNSIGNED_LONGLONG, // unsigned-suffix and long-long-suffix
 };
 
 
@@ -166,18 +168,28 @@ static const size_t HEXADECIMAL_DIGIT_LIST_SIZE = sizeof(hexadecimal_digit_list)
 // list of integer suffixes
 // It is necessary to put longer strings above than shorter strings.
 static const struct {const char *string; IntegerSuffix suffix;} integer_suffix_list[] = {
-    {"ul", IS_UNSIGNED_LONG},
-    {"uL", IS_UNSIGNED_LONG},
-    {"Ul", IS_UNSIGNED_LONG},
-    {"UL", IS_UNSIGNED_LONG},
-    {"lu", IS_UNSIGNED_LONG},
-    {"lU", IS_UNSIGNED_LONG},
-    {"Lu", IS_UNSIGNED_LONG},
-    {"LU", IS_UNSIGNED_LONG},
-    {"u" , IS_UNSIGNED},
-    {"U" , IS_UNSIGNED},
-    {"l" , IS_LONG},
-    {"L" , IS_LONG},
+    {"ull", IS_UNSIGNED_LONGLONG},
+    {"uLL", IS_UNSIGNED_LONGLONG},
+    {"Ull", IS_UNSIGNED_LONGLONG},
+    {"ULL", IS_UNSIGNED_LONGLONG},
+    {"llu", IS_UNSIGNED_LONGLONG},
+    {"llU", IS_UNSIGNED_LONGLONG},
+    {"LLu", IS_UNSIGNED_LONGLONG},
+    {"LLU", IS_UNSIGNED_LONGLONG},
+    {"ul",  IS_UNSIGNED_LONG},
+    {"uL",  IS_UNSIGNED_LONG},
+    {"Ul",  IS_UNSIGNED_LONG},
+    {"UL",  IS_UNSIGNED_LONG},
+    {"lu",  IS_UNSIGNED_LONG},
+    {"lU",  IS_UNSIGNED_LONG},
+    {"Lu",  IS_UNSIGNED_LONG},
+    {"LU",  IS_UNSIGNED_LONG},
+    {"ll",  IS_LONGLONG},
+    {"LL",  IS_LONGLONG},
+    {"u" ,  IS_UNSIGNED},
+    {"U" ,  IS_UNSIGNED},
+    {"l",   IS_LONG},
+    {"L",   IS_LONG},
 };
 static const size_t INTEGER_SUFFIX_LIST_SIZE = sizeof(integer_suffix_list) / sizeof(integer_suffix_list[0]); // number of integer suffixes
 static char *user_input; // input of compiler
@@ -906,6 +918,7 @@ static long convert_integer_constant(const char *start, int base, IntegerSuffix 
             break;
 
         case IS_LONG:
+        case IS_LONGLONG:
             if(value <= LONG_MAX)
             {
                 *kind = TY_LONG;
@@ -921,6 +934,7 @@ static long convert_integer_constant(const char *start, int base, IntegerSuffix 
             break;
 
         case IS_UNSIGNED_LONG:
+        case IS_UNSIGNED_LONGLONG:
             *kind = TY_ULONG;
             break;
 
