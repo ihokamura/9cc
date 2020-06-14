@@ -259,6 +259,20 @@ static Expression *primary(void)
             }
         }
 
+        const char *name = make_identifier(token);
+        if(strcmp(name, "__builtin_va_start") == 0)
+        {
+            Expression *node = new_expression(EXPR_VAR);
+            Type *base = new_type(TY_VOID, TQ_NONE);
+            List(Type) *args = new_list(Type)();
+            add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
+            Type *type = new_type_function(base, args, false);
+            Variable *var = new_gvar(name, type, SC_NONE, false);
+            node->type = type;
+            node->var = var;
+            return node;
+        }
+
         if(peek_reserved("("))
         {
             // implicitly assume that the token denotes a function which returns int
@@ -266,18 +280,17 @@ static Expression *primary(void)
             Type *base = new_type(TY_INT, TQ_NONE);
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
-            Type *type = new_type_function(base, args);
-            Variable *var = new_gvar(make_identifier(token), type, SC_NONE, false);
+            Type *type = new_type_function(base, args, false);
+            Variable *var = new_gvar(name, type, SC_NONE, false);
             node->type = type;
             node->var = var;
-            node->args = new_list(Expression)(); // make a dummy list
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
-            report_warning(token->str, "implicit declaration of function '%s'\n", make_identifier(token));
+            report_warning(token->str, "implicit declaration of function '%s'\n", name);
 #endif /* WARN_IMPLICIT_DECLARATION_OF_FUNCTION */
             return node;
         }
 
-        report_error(token->str, "undefined identifier '%s'", make_identifier(token));
+        report_error(token->str, "undefined identifier '%s'", name);
     }
 
     // string-literal
@@ -391,6 +404,7 @@ static Expression *postfix(void)
             // access to member (by pointer)
             Token *token = expect_identifier();
 
+            node = apply_implicit_conversion(node);
             if(is_pointer(node->type) && is_struct_or_union(node->type->base))
             {
                 Expression *struct_node = new_node_unary(EXPR_DEREF, node);

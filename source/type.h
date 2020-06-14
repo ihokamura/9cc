@@ -75,6 +75,7 @@ struct Type
     List(Type) *args;      // type of arguments (only for TY_FUNC)
     Tag *tag;              // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
     List(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    bool variadic;         // flag indicating that arguments is variadic (only for TY_FUNC)
 };
 
 Type *new_type(TypeKind kind, TypeQualifier qual);
@@ -101,7 +102,7 @@ bool is_compatible(const Type *self, const Type *other);
 Type *new_type_enum(void);
 Type *new_type_pointer(Type *base);
 Type *new_type_array(Type *base, size_t len);
-Type *new_type_function(Type *base, List(Type) *args);
+Type *new_type_function(Type *base, List(Type) *args, bool variadic);
 Member *new_member(const char *name, Type *type);
 Member *find_member(const Token *token, const Type *type);
 size_t adjust_alignment(size_t target, size_t alignment);

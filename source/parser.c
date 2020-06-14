@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "declaration.h"
+#include "generator.h"
 #include "parser.h"
 #include "statement.h"
 #include "tokenizer.h"
@@ -39,6 +40,7 @@ static bool peek_func(void);
 
 // global variable
 const size_t STACK_ALIGNMENT = 8; // alignment of function stack
+const size_t REGISTER_SAVE_AREA_SIZE = 48; // size of register save area
 static int str_number = 0; // label number of string-literal
 static List(StringLiteral) *str_list = NULL; // list of string-literals
 static List(Function) *function_list = NULL; // list of functions
@@ -145,7 +147,7 @@ static Function *new_function(const Token *token, Type *type, StorageClassSpecif
     new_func->sclass = sclass;
 
     // set offset of arguments and local variables and accumulate stack size
-    size_t offset = 0;
+    size_t offset = (type->variadic ? REGISTER_SAVE_AREA_SIZE + STACK_ALIGNMENT : 0);
     for_each_entry(Variable, cursor, args)
     {
         Variable *arg = get_element(Variable)(cursor);

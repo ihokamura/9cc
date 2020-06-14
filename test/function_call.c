@@ -2,6 +2,7 @@
 test functions called from assembler code
 */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -136,4 +137,21 @@ void alloc4(int **p, int a0, int a1, int a2, int a3)
     a[2] = a2;
     a[3] = a3;
     *p = a;
+}
+
+
+// variadic parameters
+int func_call_variadic(int count, ...) 
+{
+    va_list ap;
+    va_start(ap, count);
+
+    int sum = 0;
+    for (int i = 0; i < count; i++)
+    {
+        sum += va_arg(ap, int);
+    }
+
+    va_end(ap);
+    return sum;
 }

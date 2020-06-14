@@ -81,6 +81,9 @@ struct Variable
     bool entity;                  // flag indicating that the variable has an entity in the current translation unit (only for global variable)
 };
 
+extern const size_t STACK_ALIGNMENT;
+extern const size_t REGISTER_SAVE_AREA_SIZE;
+
 Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bool local);
 Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, bool entity);
 Variable *new_lvar(const char *name, Type *type);
@@ -93,7 +96,5 @@ void leave_scope(Scope scope);
 int get_current_scope_depth(void);
 Identifier *find_identifier(const Token *token);
 Tag *find_tag(const Token *token);
-
-extern const size_t STACK_ALIGNMENT;
 
 #endif /* !__PARSER_H__ */

@@ -11,6 +11,13 @@ struct param_t5 {char m0; char m1; int m2;};
 struct param_t6 {long m0; long m1;};
 struct param_t7 {long m0; long m1; char m2;};
 struct param_t8 {long m0; long m1; long m2;};
+typedef struct
+{
+  int gp_offset;
+  int fp_offset;
+  void *overflow_arg_area;
+  void *reg_save_area;
+} va_list[1];
 
 // function declaration
 extern int printf(char *format, ...);
@@ -32,6 +39,7 @@ struct param_t6 func_call_struct6(long a0, long a1);
 struct param_t7 func_call_struct7(long a0, long a1, char a2);
 struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
+extern int func_call_variadic(int count, ...);
 
 
 /*
@@ -672,6 +680,7 @@ int test_function_call()
     struct param_t6 s6 = func_call_struct6(11, 22); assert_long(11, s6.m0); assert_long(22, s6.m1);
     struct param_t7 s7 = func_call_struct7(11, 22, 33); assert_long(11, s7.m0); assert_long(22, s7.m1); assert_char(33, s7.m2);
     struct param_t8 s8 = func_call_struct8(1, 2, 3, 10, 20, 30, 100); assert_long(111, s8.m0); assert_long(22, s8.m1); assert_long(33, s8.m2);
+    assert_int(10, func_call_variadic(5, 0, 1, 2, 3, 4)); assert_int(15, func_call_variadic(6, 0, 1, 2, 3, 4, 5)); assert_int(21, func_call_variadic(7, 0, 1, 2, 3, 4, 5, 6));
 
     int (*pf)(void);
     pf = func_call_return0; assert_int(0, pf());
@@ -797,6 +806,22 @@ int func_def_fibonacci(int n)
         return func_def_fibonacci(n - 2) + func_def_fibonacci(n - 1);
     }
 }
+int func_def_variadic(int count, ...) 
+{
+    va_list ap;
+    __builtin_va_start(ap, count);
+
+    int sum = 0;
+    long *reg_base = ap->reg_save_area;
+    long *stack_base = ap->overflow_arg_area;
+    for (int i = 1; i <= count; i++)
+    {
+        int arg = (i < 6) ? reg_base[i] : stack_base[i - 6];
+        sum += arg;
+    }
+
+    return sum;
+}
 int test_function_definition()
 {
     put_title("function definition");
@@ -820,6 +845,7 @@ int test_function_definition()
     assert_int(0, func_def_arg_func(func_def_return0));
     assert_int(6, func_def_factorial(3));    
     assert_int(21, func_def_fibonacci(8));
+    assert_int(10, func_def_variadic(5, 0, 1, 2, 3, 4)); assert_int(15, func_def_variadic(6, 0, 1, 2, 3, 4, 5)); assert_int(21, func_def_variadic(7, 0, 1, 2, 3, 4, 5, 6));
 
     return 0;
 }

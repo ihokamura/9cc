@@ -225,6 +225,7 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type->len = 0;
         type->args = NULL;
         type->members = NULL;
+        type->variadic = false;
         break;
     }
 
@@ -615,12 +616,13 @@ Type *new_type_array(Type *base, size_t len)
 /*
 make a function type
 */
-Type *new_type_function(Type *base, List(Type) *args)
+Type *new_type_function(Type *base, List(Type) *args, bool variadic)
 {
     Type *type = new_type(TY_FUNC, TQ_NONE);
     type->complete = true;
     type->base = base;
     type->args = args;
+    type->variadic = variadic;
 
     return type;
 }

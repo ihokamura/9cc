@@ -12,6 +12,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "declaration.h"
 #include "expression.h"
@@ -77,6 +78,7 @@ static int lab_number; // sequential number for labels
 static int brk_number; // sequential number for break statements
 static int cnt_number; // sequential number for continue statements
 static int stack_size; // size of the stack
+static unsigned int gp_offset; // offset from reg_save_area to the place where the next available general purpose argument register is saved
 
 
 /*
@@ -473,6 +475,15 @@ static void generate_func(const Function *func)
         generate_store(arg->type);
 
         stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
+    }
+
+    if(func->type->variadic)
+    {
+        gp_offset = argc_reg * STACK_ALIGNMENT;
+        for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
+        {
+            put_instruction("  mov [rbp-%lu], %s", (ARG_REGISTERS_SIZE - i) * STACK_ALIGNMENT, arg_registers64[i]);
+        }
     }
 
     // body
@@ -1244,6 +1255,20 @@ static void generate_expression(const Expression *expr)
         // * Arguments be passed in rdi, rsi, rdx, rcx, r8, r9, and further ones be passed on the stack in reverse order.
         // * The number of floating point arguments be set to al if the callee is a variadic function.
 
+        Expression *body = expr->operand->operand;
+        if((body != NULL) && (body->var != NULL) && (strcmp(body->var->name, "__builtin_va_start") == 0))
+        {
+            generate_expression(get_first_element(Expression)(expr->args));
+            put_instruction("  pop rax");
+            put_instruction("  mov dword ptr [rax], %d", gp_offset); // gp_offset
+            put_instruction("  mov dword ptr [rax+4], %lu", ARG_REGISTERS_SIZE); // fp_offset
+            put_instruction("  lea r11, [rbp+%lu]", 2 * STACK_ALIGNMENT);
+            put_instruction("  mov qword ptr [rax+8], r11"); // overflow_arg_area
+            put_instruction("  lea r11, [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
+            put_instruction("  mov qword ptr [rax+16], r11"); // reg_save_area
+            return;
+        }
+
 #if(CHECK_STACK_SIZE == ENABLED)
         int current_stack = stack_size;
 #endif /* CHECK_STACK_SIZE */
@@ -1271,7 +1296,6 @@ static void generate_expression(const Expression *expr)
         stack_adjustment += generate_args(expr->args, pass_address);
         put_instruction("  mov rax, 0");
 
-        Expression *body = expr->operand->operand;
         if((body != NULL) && (body->var != NULL))
         {
             // call function by name

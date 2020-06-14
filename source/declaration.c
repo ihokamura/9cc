@@ -81,7 +81,7 @@ static Member *enumerator(int val);
 static TypeQualifier type_qualifier(void);
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
-static List(Type) *parameter_type_list(List(Variable) **arg_vars);
+static List(Type) *parameter_type_list(List(Variable) **arg_vars, bool *variadic);
 static List(Type) *parameter_list(List(Variable) **arg_vars);
 static Type *parameter_declaration(Variable **arg_var);
 static Type *abstract_declarator(Type *type);
@@ -1043,11 +1043,12 @@ make a parameter-type-list
 parameter-type-list ::= parameter-list ("," "...")?
 ```
 */
-static List(Type) *parameter_type_list(List(Variable) **arg_vars)
+static List(Type) *parameter_type_list(List(Variable) **arg_vars, bool *variadic)
 {
     List(Type) *arg_types = parameter_list(arg_vars);
 
-    if(consume_reserved(","))
+    *variadic = consume_reserved(",");
+    if(*variadic)
     {
         expect_reserved("...");
     }
@@ -1287,6 +1288,7 @@ static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars)
     {
         // parse parameter declarators
         List(Type) *arg_types;
+        bool variadic = false;
         if(consume_reserved(")"))
         {
             arg_types = new_list(Type)();
@@ -1294,12 +1296,12 @@ static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars)
         }
         else
         {
-            arg_types = parameter_type_list(arg_vars);
+            arg_types = parameter_type_list(arg_vars, &variadic);
             expect_reserved(")");
         }
 
         type = declarator_suffixes(type, arg_vars);
-        type = new_type_function(type, arg_types);
+        type = new_type_function(type, arg_types, variadic);
     }
 
     return type;
