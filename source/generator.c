@@ -1011,7 +1011,7 @@ static void generate_expression(const Expression *expr)
         generate_pop("rax");
         put_instruction("  cmp rax, 0");
         put_instruction("  sete al");
-        put_instruction("  movzb eax, al");
+        put_instruction("  movzb rax, al");
         generate_push_reg_or_mem("rax");
         return;
 
@@ -1320,6 +1320,10 @@ static void generate_expression(const Expression *expr)
         if(expr->type->size == 16)
         {
             generate_push_reg_or_mem("rdx");
+        }
+        if(is_bool(expr->type))
+        {
+            put_instruction("  movzb rax, al");
         }
         generate_push_reg_or_mem("rax");
 

@@ -152,7 +152,7 @@ static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPE
     {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
     {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
     // synonym of '_Bool'
-    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_CHAR},    // _Bool
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_BOOL},    // _Bool
     // other type specifiers
     {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
     {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union

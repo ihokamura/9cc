@@ -1072,12 +1072,17 @@ int test_void()
 /*
 bool type
 */
+_Bool func_def_equal(int a, int b)
+{
+    return a == b;
+}
 int test_bool()
 {
     put_title("bool type");
 
     _Bool bf = 0; assert_bool(0, bf);
     _Bool bt = 1; assert_bool(1, bt);
+    assert_bool(1, func_def_equal(1, 1)); assert_bool(0, func_def_equal(1, 2));
 
     return 0;
 }

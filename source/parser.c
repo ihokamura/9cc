@@ -180,8 +180,8 @@ make a new label for string-literal
 */
 static char *new_string_label(void)
 {
-    // A label for string-literal is of the form "LS<number>", so the length of buffer should be more than 2 + 10 + 1.
-    char *label = calloc(15, sizeof(char));
+    // A label for string-literal is of the form "Lstring<number>", so the length of buffer should be more than 7 + 10.
+    char *label = calloc(18, sizeof(char));
 
     sprintf(label, "Lstring%d", str_number);
     str_number++;
