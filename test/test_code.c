@@ -1567,6 +1567,27 @@ int test_type_qualifier(void)
 
 
 /*
+conversion
+*/
+int test_conversion(void)
+{
+    put_title("conversion");
+
+    char c = 123; assert_int(4, sizeof(c == 0)); assert_int(1, c == 123);
+    short s = 123; assert_int(4, sizeof(s == 0)); assert_int(1, s == 123);
+    int i = 123; assert_int(4, sizeof(i == 0)); assert_int(1, i == 123);
+    long l = 123; assert_int(4, sizeof(l == 0)); assert_int(1, l == 123);
+
+    char c_arr[] = {1, 2, 3}; assert_int(4, sizeof(c_arr[0] == 0)); assert_int(1, c_arr[0] == 1); assert_int(1, c_arr[1] == 2); assert_int(1, c_arr[2] == 3);
+    short s_arr[] = {11, 22, 33}; assert_int(4, sizeof(s_arr[0] == 0)); assert_int(1, s_arr[0] == 11); assert_int(1, s_arr[1] == 22); assert_int(1, s_arr[2] == 33);
+    int i_arr[] = {111, 222, 333}; assert_int(4, sizeof(i_arr[0] == 0)); assert_int(1, i_arr[0] == 111); assert_int(1, i_arr[1] == 222); assert_int(1, i_arr[2] == 333);
+    long l_arr[] = {1111, 2222, 3333}; assert_int(4, sizeof(l_arr[0] == 0)); assert_int(1, l_arr[0] == 1111); assert_int(1, l_arr[1] == 2222); assert_int(1, l_arr[2] == 3333);
+
+    return 0;
+}
+
+
+/*
 main function of test code
 */
 int main()
@@ -1617,6 +1638,7 @@ int main()
     test_scope();
     test_storage_class();
     test_type_qualifier();
+    test_conversion();
 
     return 0;
 }

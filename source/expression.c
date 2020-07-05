@@ -26,6 +26,7 @@ define_list_operations(Expression)
 
 // function prototype
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
+static Expression *new_node_cast(Type *type, Expression *operand);
 static Expression *primary(void);
 static Expression *postfix(void);
 static List(Expression) *arg_expr_list(void);
@@ -42,8 +43,8 @@ static Expression *bitwise_or(void);
 static Expression *logical_and(void);
 static Expression *logical_or(void);
 static Expression *conditional(void);
-static void apply_integer_promotion(Expression *expr);
-static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs);
+static Expression *apply_integer_promotion(Expression *expr);
+static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_arg);
 static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
 static bool is_modifiable_lvalue(const Expression *expr);
@@ -143,6 +144,19 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
         node->type = new_type(TY_INT, TQ_NONE);
         break;
     }
+
+    return node;
+}
+
+
+/*
+make a new node for cast operation
+*/
+static Expression *new_node_cast(Type *type, Expression *operand)
+{
+    Expression *node = new_expression(EXPR_CAST);
+    node->operand = operand;
+    node->type = type;
 
     return node;
 }
@@ -587,7 +601,7 @@ static Expression *unary(void)
         // check constraints
         if(is_arithmetic(operand->type))
         {
-            apply_integer_promotion(operand);
+            operand = apply_integer_promotion(operand);
             node = new_node_unary(EXPR_PLUS, operand);
         }
         else
@@ -602,7 +616,7 @@ static Expression *unary(void)
         // check constraints
         if(is_arithmetic(operand->type))
         {
-            apply_integer_promotion(operand);
+            operand = apply_integer_promotion(operand);
             node = new_node_unary(EXPR_MINUS, operand);
         }
         else
@@ -617,7 +631,7 @@ static Expression *unary(void)
         // check constraints
         if(is_integer(operand->type))
         {
-            apply_integer_promotion(operand);
+            operand = apply_integer_promotion(operand);
             node = new_node_unary(EXPR_COMPL, operand);
         }
         else
@@ -677,8 +691,7 @@ static Expression *cast(void)
                 report_error(NULL, "expected scalar type");
             }
 
-            node = new_node_unary(EXPR_CAST, operand);
-            node->type = type;
+            node = new_node_cast(type, operand);
             goto cast_end;
         }
         else
@@ -741,7 +754,7 @@ static Expression *multiplicative(void)
         if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the usual arithmetic conversions
-            apply_arithmetic_conversion(lhs, rhs);
+            apply_arithmetic_conversion(&lhs, &rhs);
             node = new_node_binary(kind, lhs, rhs);
         }
         else
@@ -773,7 +786,7 @@ static Expression *additive(void)
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 // perform the usual arithmetic conversions
-                apply_arithmetic_conversion(lhs, rhs);
+                apply_arithmetic_conversion(&lhs, &rhs);
                 node = new_node_binary(EXPR_ADD, lhs, rhs);
             }
             else if(is_pointer(lhs->type) && is_integer(rhs->type))
@@ -797,7 +810,7 @@ static Expression *additive(void)
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 // perform the usual arithmetic conversions
-                apply_arithmetic_conversion(lhs, rhs);
+                apply_arithmetic_conversion(&lhs, &rhs);
                 node = new_node_binary(EXPR_SUB, lhs, rhs);
             }
             else if(is_pointer(lhs->type) && is_integer(rhs->type))
@@ -863,8 +876,8 @@ static Expression *shift(void)
         if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the integer promotion on both operands
-            apply_integer_promotion(lhs);
-            apply_integer_promotion(rhs);
+            lhs = apply_integer_promotion(lhs);
+            rhs = apply_integer_promotion(rhs);
             node = new_node_binary(kind, lhs, rhs);
         }
         else
@@ -931,7 +944,7 @@ static Expression *relational(void)
         if(is_real(lhs->type) && is_real(rhs->type))
         {
             // perform the usual arithmetic conversions
-            apply_arithmetic_conversion(lhs, rhs);
+            apply_arithmetic_conversion(&lhs, &rhs);
         }
         else if(is_pointer(lhs->type) && is_pointer(rhs->type) && is_compatible(lhs->type->base, rhs->type->base))
         {
@@ -991,7 +1004,7 @@ static Expression *equality(void)
         if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
             // perform the usual arithmetic conversions
-            apply_arithmetic_conversion(lhs, rhs);
+            apply_arithmetic_conversion(&lhs, &rhs);
             valid = true;
         }
         else if((is_pointer(lhs->type) && is_pointer(rhs->type)))
@@ -1047,7 +1060,7 @@ static Expression *bitwise_and(void)
             if(check_constraint_binary(EXPR_BIT_AND, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                apply_arithmetic_conversion(lhs, rhs);
+                apply_arithmetic_conversion(&lhs, &rhs);
                 node = new_node_binary(EXPR_BIT_AND, lhs, rhs);
             }
             else
@@ -1085,7 +1098,7 @@ static Expression *bitwise_xor(void)
             if(check_constraint_binary(EXPR_BIT_XOR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                apply_arithmetic_conversion(lhs, rhs);
+                apply_arithmetic_conversion(&lhs, &rhs);
                 node = new_node_binary(EXPR_BIT_XOR, lhs, rhs);
             }
             else
@@ -1123,7 +1136,7 @@ static Expression *bitwise_or(void)
             if(check_constraint_binary(EXPR_BIT_OR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                apply_arithmetic_conversion(lhs, rhs);
+                apply_arithmetic_conversion(&lhs, &rhs);
                 node = new_node_binary(EXPR_BIT_OR, lhs, rhs);
             }
             else
@@ -1239,7 +1252,7 @@ static Expression *conditional(void)
         if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
             // perform the usual arithmetic conversions
-            apply_arithmetic_conversion(lhs, rhs);
+            apply_arithmetic_conversion(&lhs, &rhs);
             type = lhs->type;
             valid = true;
         }
@@ -1554,21 +1567,26 @@ long evaluate(Expression *expr)
 
 /*
 apply integer promotion
-* In this implementation, integer promotions convert 'char' and 'short' (regardless of sign) to 'int' because
-    * The size of 'char' is 1 byte.
+* In this implementation, integer promotions convert '_Bool', 'char' and 'short' (regardless of sign) to 'int' because
+    * The size of '_Bool' and 'char' are 1 byte.
     * The size of 'short' is 2 bytes.
     * The size of 'int' is 4 bytes.
-    * Therefore, 'int' can represent 'char', 'unsigned char', 'short' and 'unsigned short'.
+    * Therefore, 'int' can represent '_Bool', 'char', 'signed char', 'unsigned char', 'signed short' and 'unsigned short'.
 */
-static void apply_integer_promotion(Expression *expr)
+static Expression *apply_integer_promotion(Expression *expr)
 {
-    if((expr->type->kind == TY_CHAR)
+    if((expr->type->kind == TY_BOOL)
+    || (expr->type->kind == TY_CHAR)
     || (expr->type->kind == TY_SCHAR)
     || (expr->type->kind == TY_UCHAR)
     || (expr->type->kind == TY_SHORT)
     || (expr->type->kind == TY_USHORT))
     {
-        expr->type = new_type(TY_INT, TQ_NONE);
+        return new_node_cast(new_type(TY_INT, TQ_NONE), expr);
+    }
+    else
+    {
+        return expr;
     }
 }
 
@@ -1576,11 +1594,11 @@ static void apply_integer_promotion(Expression *expr)
 /*
 apply usual arithmetic conversion
 */
-static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
+static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_arg)
 {
     // perform integer promotions on both operands at first
-    apply_integer_promotion(lhs);
-    apply_integer_promotion(rhs);
+    Expression *lhs = apply_integer_promotion(*lhs_arg);
+    Expression *rhs = apply_integer_promotion(*rhs_arg);
 
     if(lhs->type->kind == rhs->type->kind)
     {
@@ -1593,11 +1611,11 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
             // Otherwise, if both operands have signed integer types or both have unsigned integer types, the operand with the type of lesser integer conversion rank is converted to the type of the operand with greater rank.
             if(lhs->type->kind < rhs->type->kind)
             {
-                lhs->type = rhs->type;
+                lhs = new_node_cast(rhs->type, lhs);
             }
             else
             {
-                rhs->type = lhs->type;
+                rhs = new_node_cast(lhs->type, rhs);
             }
         }
         else
@@ -1605,38 +1623,41 @@ static void apply_arithmetic_conversion(Expression *lhs, Expression *rhs)
             // Otherwise, if the operand that has unsigned integer type has rank greater or equal to the rank of the type of the other operand, then the operand with signed integer type is converted to the type of the operand with unsigned integer type.
             if(is_unsigned(lhs->type) && is_signed(rhs->type) && (get_conversion_rank(lhs->type) >= get_conversion_rank(rhs->type)))
             {
-                rhs->type = lhs->type;
+                rhs = new_node_cast(lhs->type, rhs);
             }
             else if(is_unsigned(rhs->type) && is_signed(lhs->type) && (get_conversion_rank(rhs->type) >= get_conversion_rank(lhs->type)))
             {
-                lhs->type = rhs->type;
+                lhs = new_node_cast(rhs->type, lhs);
             }
             // Otherwise, if the type of the operand with signed integer type can represent all of the values of the type of the operand with unsigned integer type, then the operand with unsigned integer type is converted to the type of the operand with signed integer type.
             // In this implementation, this rule can be checked only by comparing integer conversion ranks of operands.
             else if(is_signed(lhs->type) && is_unsigned(rhs->type) && (get_conversion_rank(lhs->type) > get_conversion_rank(rhs->type)))
             {
-                rhs->type = lhs->type;
+                rhs = new_node_cast(lhs->type, rhs);
             }
             else if(is_signed(rhs->type) && is_unsigned(lhs->type) && (get_conversion_rank(rhs->type) > get_conversion_rank(lhs->type)))
             {
-                lhs->type = rhs->type;
+                lhs = new_node_cast(rhs->type, lhs);
             }
             // Otherwise, both operands are converted to the unsigned integer type corresponding to the type of the operand with signed integer type.
             else
             {
                 if(is_signed(lhs->type))
                 {
-                    lhs->type = discard_sign(lhs->type);
-                    rhs->type = lhs->type;
+                    lhs = new_node_cast(discard_sign(lhs->type), lhs);
+                    rhs = new_node_cast(lhs->type, rhs);
                 }
                 else
                 {
-                    rhs->type = discard_sign(rhs->type);
-                    lhs->type = rhs->type;
+                    rhs = new_node_cast(discard_sign(rhs->type), rhs);
+                    lhs = new_node_cast(rhs->type, lhs);
                 }
             }
         }
     }
+
+    *lhs_arg = lhs;
+    *rhs_arg = rhs;
 }
 
 
