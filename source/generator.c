@@ -61,14 +61,19 @@ static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
-static size_t generate_args(const List(Expression) *args, bool pass_address);
+static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
+static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_stack);
 static void put_instruction(const char *fmt, ...);
+#if(CHECK_STACK_SIZE == ENABLED)
+static void check_stack_pointer(void);
+#endif /* CHECK_STACK_SIZE */
 
 
 // global variable
+static const int STACK_POINTER_ALIGNMENT = 16; // alignment of stack pointer
 static const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
 static const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for function arguments
 static const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
@@ -152,6 +157,9 @@ static void generate_pop(const char *reg_or_mem)
 {
     put_instruction("  pop %s", reg_or_mem);
     stack_size -= STACK_ALIGNMENT;
+#if(CHECK_STACK_SIZE == ENABLED)
+    assert(stack_size >= 0);
+#endif /* CHECK_STACK_SIZE */
 }
 
 
@@ -391,8 +399,7 @@ static void generate_func(const Function *func)
         }
 
         // pass arguments classified as MEMORY by the stack
-        ParameterClassKind param_class = get_parameter_class(arg->type);
-        if(param_class == PC_MEMORY)
+        if(get_parameter_class(arg->type) == PC_MEMORY)
         {
             add_list_entry_tail(Variable)(args_stack, arg);
             continue;
@@ -457,7 +464,7 @@ static void generate_func(const Function *func)
         }
     }
 
-    size_t stack_args = 0;
+    size_t args_stack_size = 0;
     for_each_entry(Variable, cursor, args_stack)
     {
         // load argument from the stack
@@ -468,13 +475,13 @@ static void generate_func(const Function *func)
         generate_push_reg_or_mem("rax");
 
         put_instruction("  mov rax, rbp");
-        put_instruction("  add rax, %lu", stack_args + 2 * STACK_ALIGNMENT);
+        put_instruction("  add rax, %lu", args_stack_size + 2 * STACK_ALIGNMENT);
         generate_push_reg_or_mem("rax");
 
         generate_load(arg->type);
         generate_store(arg->type);
 
-        stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
+        args_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
 
     if(func->type->variadic)
@@ -499,59 +506,22 @@ static void generate_func(const Function *func)
         // return the address passed by the hidden argument
         put_instruction("  mov rax, [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
     }
-    put_instruction("  mov rsp, rbp");
-    generate_pop("rbp");
+    put_instruction("  leave");
     put_instruction("  ret");
 }
 
 
 /*
 generate assembler code of function arguments
-* This function returns size of the stack allocated for arguments.
 */
-static size_t generate_args(const List(Expression) *args, bool pass_address)
+static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack)
 {
-    // separate arguments which are passed by registers from those passed by the stack
+    // count number of registers used for passing arguments
     size_t argc_reg = (pass_address ? 1 : 0);
-    List(Expression) *args_reg = new_list(Expression)();
-    List(Expression) *args_stack = new_list(Expression)();
-    for_each_entry(Expression, cursor, args)
+    for_each_entry(Expression, cursor, args_reg)
     {
         Expression *arg = get_element(Expression)(cursor);
-
-        // pass up to ARG_REGISTERS_SIZE arguments by registers
-        if(argc_reg >= ARG_REGISTERS_SIZE)
-        {
-            add_list_entry_tail(Expression)(args_stack, arg);
-            continue;
-        }
-
-        // pass arguments classified as MEMORY by the stack
-        ParameterClassKind param_class = get_parameter_class(arg->type);
-        if(param_class == PC_MEMORY)
-        {
-            add_list_entry_tail(Expression)(args_stack, arg);
-            continue;
-        }
-
-        if(is_struct_or_union(arg->type))
-        {
-            // check if there is enough registers to pass the whole of structure or union
-            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
-            if(argc_reg + argc_struct < ARG_REGISTERS_SIZE)
-            {
-                add_list_entry_tail(Expression)(args_reg, arg);
-                argc_reg += argc_struct;
-            }
-            else
-            {
-                add_list_entry_tail(Expression)(args_stack, arg);
-            }
-            continue;
-        }
-
-        add_list_entry_tail(Expression)(args_reg, arg);
-        argc_reg++;
+        argc_reg += adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
     }
 
     // evaluate and pass arguments in reverse order
@@ -579,7 +549,6 @@ static size_t generate_args(const List(Expression) *args, bool pass_address)
     }
 
     // push arguments to the stack in reverse order
-    size_t stack_args = 0;
     for_each_entry_reversed(Expression, cursor, args_stack)
     {
         Expression *arg = get_element(Expression)(cursor);
@@ -589,10 +558,7 @@ static size_t generate_args(const List(Expression) *args, bool pass_address)
         {
             generate_push_struct(arg->type);
         }
-        stack_args += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
-
-    return stack_args;
 }
 
 
@@ -872,6 +838,7 @@ static void generate_statement(const Statement *stmt)
         if(stmt->preexpr != NULL)
         {
             generate_expression(stmt->preexpr);
+            generate_pop("rax");
         }
         if(stmt->predecl != NULL)
         {
@@ -890,6 +857,7 @@ static void generate_statement(const Statement *stmt)
         if(stmt->postexpr != NULL)
         {
             generate_expression(stmt->postexpr);
+            generate_pop("rax");
         }
         put_instruction("  jmp .Lbegin%d", lab);
         put_instruction(".Lend%d:", lab);
@@ -927,8 +895,7 @@ static void generate_statement(const Statement *stmt)
                 generate_pop("rax");
             }
         }
-        put_instruction("  mov rsp, rbp");
-        generate_pop("rbp");
+        put_instruction("  leave");
         put_instruction("  ret");
         return;
 
@@ -1259,13 +1226,15 @@ static void generate_expression(const Expression *expr)
         if((body != NULL) && (body->var != NULL) && (strcmp(body->var->name, "__builtin_va_start") == 0))
         {
             generate_expression(get_first_element(Expression)(expr->args));
-            put_instruction("  pop rax");
+            generate_pop("rax");
+            generate_push_reg_or_mem("r11");
             put_instruction("  mov dword ptr [rax], %d", gp_offset); // gp_offset
             put_instruction("  mov dword ptr [rax+4], %lu", ARG_REGISTERS_SIZE); // fp_offset
             put_instruction("  lea r11, [rbp+%lu]", 2 * STACK_ALIGNMENT);
             put_instruction("  mov qword ptr [rax+8], r11"); // overflow_arg_area
             put_instruction("  lea r11, [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
             put_instruction("  mov qword ptr [rax+16], r11"); // reg_save_area
+            generate_pop("r11");
             return;
         }
 
@@ -1273,32 +1242,44 @@ static void generate_expression(const Expression *expr)
         int current_stack = stack_size;
 #endif /* CHECK_STACK_SIZE */
         int stack_adjustment = 0;
-        size_t space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
+        size_t space = 0;
         bool pass_address = (get_parameter_class(expr->type) == PC_MEMORY);
         if(pass_address)
         {
             // provide space for the return value and pass the address of the space as the hidden 1st argument
-            stack_size += space;
+            space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
             stack_adjustment += space;
             put_instruction("  lea rdi, [rsp-%lu]", space);
         }
 
+        // classify arguments
+        List(Expression) *args_reg = new_list(Expression)();
+        List(Expression) *args_stack = new_list(Expression)();
+        size_t args_stack_size = classify_args(expr->args, pass_address, args_reg, args_stack);
+
         // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
-        bool aligned = ((stack_size % 16) == 0);
-        if(!aligned)
+        if(((stack_size + space + args_stack_size) % STACK_POINTER_ALIGNMENT) != 0)
         {
-            stack_size += STACK_ALIGNMENT;
             stack_adjustment += STACK_ALIGNMENT;
         }
-        put_instruction("  sub rsp, %d", stack_adjustment);
+        if(stack_adjustment > 0)
+        {
+            stack_size += stack_adjustment;
+            put_instruction("  sub rsp, %d", stack_adjustment);
+        }
 
         // generate arguments
-        stack_adjustment += generate_args(expr->args, pass_address);
+        generate_args(pass_address, args_reg, args_stack);
+        stack_adjustment += args_stack_size; // increment the variable stack_adjustment here because the variable stack_size can be changed in the above function call
         put_instruction("  mov rax, 0");
 
         if((body != NULL) && (body->var != NULL))
         {
             // call function by name
+#if(CHECK_STACK_SIZE == ENABLED)
+            assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
+            check_stack_pointer();
+#endif /* CHECK_STACK_SIZE */
             put_instruction("  call %s", body->var->name);
         }
         else
@@ -1306,12 +1287,19 @@ static void generate_expression(const Expression *expr)
             // call function through pointer
             generate_expression(expr->operand);
             generate_pop("rax");
+#if(CHECK_STACK_SIZE == ENABLED)
+            assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
+            check_stack_pointer();
+#endif /* CHECK_STACK_SIZE */
             put_instruction("  call rax");
         }
 
         // restore the stack
-        put_instruction("  add rsp, %d", stack_adjustment);
-        stack_size -= stack_adjustment;
+        if(stack_adjustment > 0)
+        {
+            put_instruction("  add rsp, %d", stack_adjustment);
+            stack_size -= stack_adjustment;
+        }
 #if(CHECK_STACK_SIZE == ENABLED)
         assert(stack_size == current_stack);
 #endif /* CHECK_STACK_SIZE */
@@ -1417,6 +1405,61 @@ static void generate_expression(const Expression *expr)
 
 
 /*
+separate arguments which are passed by registers from those passed by the stack
+* This function returns size of the stack allocated for arguments.
+*/
+static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_stack)
+{
+    size_t arg_stack_size = 0;
+    size_t argc_reg = (pass_address ? 1 : 0);
+
+    for_each_entry(Expression, cursor, args)
+    {
+        Expression *arg = get_element(Expression)(cursor);
+
+        // pass up to ARG_REGISTERS_SIZE arguments by registers
+        if(argc_reg >= ARG_REGISTERS_SIZE)
+        {
+            add_list_entry_tail(Expression)(args_stack, arg);
+            arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
+            continue;
+        }
+
+        // pass arguments classified as MEMORY by the stack
+        ParameterClassKind param_class = get_parameter_class(arg->type);
+        if(param_class == PC_MEMORY)
+        {
+            add_list_entry_tail(Expression)(args_stack, arg);
+            arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
+            continue;
+        }
+
+        if(is_struct_or_union(arg->type))
+        {
+            // check if there is enough registers to pass the whole of structure or union
+            size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
+            if(argc_reg + argc_struct < ARG_REGISTERS_SIZE)
+            {
+                add_list_entry_tail(Expression)(args_reg, arg);
+                argc_reg += argc_struct;
+            }
+            else
+            {
+                add_list_entry_tail(Expression)(args_stack, arg);
+                arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
+            }
+            continue;
+        }
+
+        add_list_entry_tail(Expression)(args_reg, arg);
+        argc_reg++;
+    }
+
+    return arg_stack_size;
+}
+
+
+/*
 output an instruction
 */
 static void put_instruction(const char *fmt, ...)
@@ -1427,3 +1470,23 @@ static void put_instruction(const char *fmt, ...)
     vfprintf(stdout, fmt, ap);
     fprintf(stdout, "\n");
 }
+
+
+#if(CHECK_STACK_SIZE == ENABLED)
+/*
+generate instructions to check alignment of the stack pointer at function call
+* This function generates assembler code which triggers segmentation fault if rsp is not properly aligned.
+*/
+static void check_stack_pointer(void)
+{
+    int lab = lab_number;
+    lab_number++;
+
+    put_instruction("  mov r10, rsp");
+    put_instruction("  and r10, 0x0F");
+    put_instruction("  cmp r10, 0");
+    put_instruction("  je .Lcall%d", lab);
+    put_instruction("  mov r10, [0]"); // trigger segmentation fault
+    put_instruction(".Lcall%d:", lab);
+}
+#endif /* CHECK_STACK_SIZE */
