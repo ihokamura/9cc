@@ -236,10 +236,11 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
 /*
 copy a type
 */
-Type *copy_type(const Type *type)
+Type *copy_type(const Type *type, TypeQualifier qual)
 {
     Type *copy = calloc(1, sizeof(Type));
     *copy = *type;
+    copy->qual = qual;
 
     return copy;
 }

@@ -396,8 +396,7 @@ report_duplicated_declaration:
     else
     {
         // make a new node for variable
-        Expression *expr = new_expression(EXPR_VAR);
-        expr->type = type;
+        Expression *expr = new_expression(EXPR_VAR, type);
 
         if(local && !((sclass == SC_EXTERN) || (sclass == SC_STATIC)))
         {
@@ -1723,8 +1722,7 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             case TY_TYPEDEF:
                 if(type->qual != qual)
                 {
-                    type = copy_type(type);
-                    type->qual |= qual;
+                    type = copy_type(type, type->qual | qual);
                 }
                 return type;
 

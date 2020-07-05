@@ -54,16 +54,18 @@ static bool is_const_qualified(const Type *type);
 /*
 make a new expression
 */
-Expression *new_expression(ExpressionKind kind)
+Expression *new_expression(ExpressionKind kind, Type *type)
 {
     Expression *node = calloc(1, sizeof(Expression));
     node->kind = kind;
+    node->type = type;
     node->lhs = NULL;
     node->rhs = NULL;
-    node->type = NULL;
-    node->value = 0;
-    node->var = NULL;
     node->operand = NULL;
+    node->value = 0;
+    node->str = NULL;
+    node->var = NULL;
+    node->member = NULL;
     node->args = NULL;
     node->lvalue = false;
 
@@ -76,8 +78,7 @@ make a new node for constant
 */
 Expression *new_node_constant(TypeKind kind, long value)
 {
-    Expression *node = new_expression(EXPR_CONST);
-    node->type = new_type(kind, TQ_NONE);
+    Expression *node = new_expression(EXPR_CONST, new_type(kind, TQ_NONE));
     node->value = value;
 
     return node;
@@ -101,11 +102,9 @@ make a new node for members of structure or union
 */
 Expression *new_node_member(Expression *operand, Member *member)
 {
-    Expression *node = new_expression(EXPR_MEMBER);
-    node->member = member;
-    node->type = copy_type(member->type);
-    node->type->qual = operand->type->qual;
+    Expression *node = new_expression(EXPR_MEMBER, copy_type(member->type, TQ_NONE));
     node->operand = operand;
+    node->member = member;
 
     return node;
 }
@@ -116,19 +115,18 @@ make a new node for unary operations
 */
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 {
-    Expression *node = new_expression(kind);
-    node->operand = operand;
-
+    // determine type of unary expression
+    Type *type;
     switch(kind)
     {
     case EXPR_ADDR:
-        node->type = new_type_pointer(operand->type);
+        type = new_type_pointer(operand->type);
         break;
 
     case EXPR_DEREF:
         // An array type is also converted to the element type.
-        node->type = copy_type(operand->type->base);
-        node->lvalue = true;
+        type = operand->type->base;
+        type = copy_type(type, type->qual);
         break;
 
     case EXPR_POST_INC:
@@ -136,13 +134,21 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
     case EXPR_PLUS:
     case EXPR_MINUS:
     case EXPR_COMPL:
-        node->type = copy_type(operand->type);
+        type = operand->type;
+        type = copy_type(type, type->qual);
         break;
 
     case EXPR_NEG:
     default:
-        node->type = new_type(TY_INT, TQ_NONE);
+        type = new_type(TY_INT, TQ_NONE);
         break;
+    }
+
+    Expression *node = new_expression(kind, type);
+    node->operand = operand;
+    if(kind == EXPR_DEREF)
+    {
+        node->lvalue = true;
     }
 
     return node;
@@ -154,11 +160,17 @@ make a new node for cast operation
 */
 static Expression *new_node_cast(Type *type, Expression *operand)
 {
-    Expression *node = new_expression(EXPR_CAST);
-    node->operand = operand;
-    node->type = type;
+    if(type != operand->type)
+    {
+        Expression *node = new_expression(EXPR_CAST, type);
+        node->operand = operand;
 
-    return node;
+        return node;
+    }
+    else
+    {
+        return operand;
+    }
 }
 
 
@@ -167,10 +179,8 @@ make a new node for binary operations
 */
 Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs)
 {
-    Expression *node = new_expression(kind);
-    node->lhs = lhs;
-    node->rhs = rhs;
-
+    // determine type of binary expression
+    Type *type;
     switch(kind)
     {
     case EXPR_ADD:
@@ -198,17 +208,17 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_AND_EQ:
     case EXPR_XOR_EQ:
     case EXPR_OR_EQ:
-        node->type = copy_type(lhs->type);
+        type = copy_type(lhs->type, TQ_NONE);
         break;
 
     case EXPR_PTR_DIFF:
         // The type of the result of pointer difference is 'ptrdiff_t'.
         // This implementation regards 'ptrdiff_t' as 'long'.
-        node->type = new_type(TY_LONG, TQ_NONE);
+        type = new_type(TY_LONG, TQ_NONE);
         break;
 
     case EXPR_COMMA:
-        node->type = copy_type(rhs->type);
+        type = copy_type(rhs->type, TQ_NONE);
         break;
 
     case EXPR_L:
@@ -218,12 +228,13 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
     case EXPR_LOG_AND:
     case EXPR_LOG_OR:
     default:
-        node->type = new_type(TY_INT, TQ_NONE);
+        type = new_type(TY_INT, TQ_NONE);
         break;
     }
 
-    node->type->qual = TQ_NONE;
-    node->lvalue = false;
+    Expression *node = new_expression(kind, type);
+    node->lhs = lhs;
+    node->rhs = rhs;
 
     return node;
 }
@@ -260,10 +271,11 @@ static Expression *primary(void)
             if(ident->var != NULL)
             {
                 // variable
-                Expression *node = new_expression(EXPR_VAR);
-                node->type = ident->var->type;
-                node->var = ident->var;
-                node->lvalue = !is_function(ident->var->type);
+                Variable *var = ident->var;
+                Type *type = var->type;
+                Expression *node = new_expression(EXPR_VAR, type);
+                node->var = var;
+                node->lvalue = !is_function(type);
                 return node;
             }
             else if(ident->en != NULL)
@@ -276,13 +288,12 @@ static Expression *primary(void)
         const char *name = make_identifier(token);
         if(strcmp(name, "__builtin_va_start") == 0)
         {
-            Expression *node = new_expression(EXPR_VAR);
             Type *base = new_type(TY_VOID, TQ_NONE);
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
             Variable *var = new_gvar(name, type, SC_NONE, false);
-            node->type = type;
+            Expression *node = new_expression(EXPR_VAR, type);
             node->var = var;
             return node;
         }
@@ -290,13 +301,12 @@ static Expression *primary(void)
         if(peek_reserved("("))
         {
             // implicitly assume that the token denotes a function which returns int
-            Expression *node = new_expression(EXPR_VAR);
             Type *base = new_type(TY_INT, TQ_NONE);
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
             Variable *var = new_gvar(name, type, SC_NONE, false);
-            node->type = type;
+            Expression *node = new_expression(EXPR_VAR, type);
             node->var = var;
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
             report_warning(token->str, "implicit declaration of function '%s'\n", name);
@@ -310,10 +320,12 @@ static Expression *primary(void)
     // string-literal
     if(consume_token(TK_STR, &token))
     {
-        Expression *node = new_expression(EXPR_VAR);
-        node->str = new_string(token);
-        node->var = node->str->var;
-        node->type = node->var->type;
+        StringLiteral *str = new_string(token);
+        Variable *var = str->var;
+        Type *type = var->type;
+        Expression *node = new_expression(EXPR_VAR, type);
+        node->str = str;
+        node->var = var;
         node->lvalue = true;
         return node;
     }
@@ -376,9 +388,8 @@ static Expression *postfix(void)
 
             if(is_function(node->type->base))
             {
-                Expression *func_node = new_expression(EXPR_FUNC);
+                Expression *func_node = new_expression(EXPR_FUNC, node->type->base->base); // dereference pointer and get type of return value
                 func_node->operand = node;
-                func_node->type = node->type->base->base; // dereference pointer and get type of return value
                 // parse arguments
                 if(consume_reserved(")"))
                 {
@@ -1269,16 +1280,10 @@ static Expression *conditional(void)
         }
         else if(is_pointer(lhs->type) && is_pointer(rhs->type))
         {
-            if(is_compatible(lhs->type, rhs->type))
+            if(   is_compatible(lhs->type, rhs->type)
+               || (is_void(lhs->type->base) || is_void(rhs->type->base)))
             {
-                type = copy_type(lhs->type);
-                type->qual = (lhs->type->qual | rhs->type->qual);
-                valid = true;
-            }
-            else if(is_void(lhs->type->base) || is_void(rhs->type->base))
-            {
-                type = copy_type(lhs->type);
-                type->qual = (lhs->type->qual | rhs->type->qual);
+                type = copy_type(lhs->type, lhs->type->qual | rhs->type->qual);
                 valid = true;
             }
         }
@@ -1289,11 +1294,10 @@ static Expression *conditional(void)
         }
 
         // make a new node
-        Expression *ternary = new_expression(EXPR_COND);
+        Expression *ternary = new_expression(EXPR_COND, type);
         ternary->operand = operand;
         ternary->lhs = lhs;
         ternary->rhs = rhs;
-        ternary->type = type;
 
         return ternary;
     }
@@ -1596,6 +1600,8 @@ apply usual arithmetic conversion
 */
 static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_arg)
 {
+    Type *type;
+
     // perform integer promotions on both operands at first
     Expression *lhs = apply_integer_promotion(*lhs_arg);
     Expression *rhs = apply_integer_promotion(*rhs_arg);
@@ -1603,6 +1609,7 @@ static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_a
     if(lhs->type->kind == rhs->type->kind)
     {
         // If both operands have the same type, then no further conversion is needed.
+        type = lhs->type;
     }
     else
     {
@@ -1611,11 +1618,11 @@ static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_a
             // Otherwise, if both operands have signed integer types or both have unsigned integer types, the operand with the type of lesser integer conversion rank is converted to the type of the operand with greater rank.
             if(lhs->type->kind < rhs->type->kind)
             {
-                lhs = new_node_cast(rhs->type, lhs);
+                type = rhs->type;
             }
             else
             {
-                rhs = new_node_cast(lhs->type, rhs);
+                type = lhs->type;
             }
         }
         else
@@ -1623,41 +1630,39 @@ static void apply_arithmetic_conversion(Expression **lhs_arg, Expression **rhs_a
             // Otherwise, if the operand that has unsigned integer type has rank greater or equal to the rank of the type of the other operand, then the operand with signed integer type is converted to the type of the operand with unsigned integer type.
             if(is_unsigned(lhs->type) && is_signed(rhs->type) && (get_conversion_rank(lhs->type) >= get_conversion_rank(rhs->type)))
             {
-                rhs = new_node_cast(lhs->type, rhs);
+                type = lhs->type;
             }
             else if(is_unsigned(rhs->type) && is_signed(lhs->type) && (get_conversion_rank(rhs->type) >= get_conversion_rank(lhs->type)))
             {
-                lhs = new_node_cast(rhs->type, lhs);
+                type = rhs->type;
             }
             // Otherwise, if the type of the operand with signed integer type can represent all of the values of the type of the operand with unsigned integer type, then the operand with unsigned integer type is converted to the type of the operand with signed integer type.
             // In this implementation, this rule can be checked only by comparing integer conversion ranks of operands.
             else if(is_signed(lhs->type) && is_unsigned(rhs->type) && (get_conversion_rank(lhs->type) > get_conversion_rank(rhs->type)))
             {
-                rhs = new_node_cast(lhs->type, rhs);
+                type = lhs->type;
             }
             else if(is_signed(rhs->type) && is_unsigned(lhs->type) && (get_conversion_rank(rhs->type) > get_conversion_rank(lhs->type)))
             {
-                lhs = new_node_cast(rhs->type, lhs);
+                type = rhs->type;
             }
             // Otherwise, both operands are converted to the unsigned integer type corresponding to the type of the operand with signed integer type.
             else
             {
                 if(is_signed(lhs->type))
                 {
-                    lhs = new_node_cast(discard_sign(lhs->type), lhs);
-                    rhs = new_node_cast(lhs->type, rhs);
+                    type = discard_sign(lhs->type);
                 }
                 else
                 {
-                    rhs = new_node_cast(discard_sign(rhs->type), rhs);
-                    lhs = new_node_cast(rhs->type, lhs);
+                    type = discard_sign(rhs->type);
                 }
             }
         }
     }
 
-    *lhs_arg = lhs;
-    *rhs_arg = rhs;
+    *lhs_arg = new_node_cast(type, lhs);
+    *rhs_arg = new_node_cast(type, rhs);
 }
 
 
@@ -1675,8 +1680,7 @@ static Expression *apply_implicit_conversion(Expression *expr)
     // implicitly convert lvalue
     if(expr->lvalue && (!is_array(expr->type)))
     {
-        conv->type = copy_type(expr->type);
-        conv->type->qual = TQ_NONE;
+        conv->type = copy_type(expr->type, TQ_NONE);
         conv->lvalue = false;
     }
 

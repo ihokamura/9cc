@@ -80,7 +80,7 @@ struct Expression
     bool lvalue;            // flag indicating that the expression is lvalue
 };
 
-Expression *new_expression(ExpressionKind kind);
+Expression *new_expression(ExpressionKind kind, Type *type);
 Expression *new_node_constant(TypeKind kind, long value);
 Expression *new_node_subscript(Expression *base, size_t index);
 Expression *new_node_member(Expression *expr, Member *member);
