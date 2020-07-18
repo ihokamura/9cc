@@ -465,9 +465,7 @@ char *make_identifier(const Token *token)
 {
     char *ident = calloc(token->len + 1, sizeof(char));
 
-    strncpy(ident, token->str, token->len);
-
-    return ident;
+    return strncpy(ident, token->str, token->len);
 }
 
 

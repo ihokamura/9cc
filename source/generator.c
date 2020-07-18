@@ -524,13 +524,15 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
         argc_reg += adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
     }
 
-    // evaluate and pass arguments in reverse order
-    // because rdi (register for the 1st argument) may be modified when generating assembler code of arguments
+    // evaluate arguments and pass them by registers
+    for_each_entry(Expression, cursor, args_reg)
+    {
+        Expression *arg = get_element(Expression)(cursor);
+        generate_expression(arg);
+    }
     for_each_entry_reversed(Expression, cursor, args_reg)
     {
         Expression *arg = get_element(Expression)(cursor);
-
-        generate_expression(arg);
         if(is_struct_or_union(arg->type))
         {
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
@@ -548,7 +550,7 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
         }
     }
 
-    // push arguments to the stack in reverse order
+    // evaluate arguments and push them to the stack in reverse order
     for_each_entry_reversed(Expression, cursor, args_stack)
     {
         Expression *arg = get_element(Expression)(cursor);
