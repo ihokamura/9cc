@@ -66,7 +66,8 @@ static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
 static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_stack);
-static void put_instruction(const char *fmt, ...);
+static void put_line(const char *fmt, ...);
+static void put_line_with_tab(const char *fmt, ...);
 #if(CHECK_STACK_SIZE == ENABLED)
 static void check_stack_pointer(void);
 #endif /* CHECK_STACK_SIZE */
@@ -92,10 +93,10 @@ generate assembler code
 void generate(const Program *program)
 {
     // use Intel syntax
-    put_instruction(".intel_syntax noprefix");
+    put_line(".intel_syntax noprefix");
 
     // generate global variables
-    put_instruction(".data");
+    put_line(".data");
     for_each_entry(Variable, cursor, program->gvars)
     {
         Variable *gvar = get_element(Variable)(cursor);
@@ -106,7 +107,7 @@ void generate(const Program *program)
     }
 
     // generate functions
-    put_instruction(".text");
+    put_line(".text");
     for_each_entry(Function, cursor, program->funcs)
     {
         Function *func = get_element(Function)(cursor);
@@ -121,7 +122,7 @@ generate assembler code to push an immediate value to the stack
 */
 static void generate_push_imm(int value)
 {
-    put_instruction("  push %d", value);
+    put_line_with_tab("push %d", value);
     stack_size += STACK_ALIGNMENT;
 }
 
@@ -131,7 +132,7 @@ generate assembler code to push a register or memory contents to the stack
 */
 static void generate_push_reg_or_mem(const char *reg_or_mem)
 {
-    put_instruction("  push %s", reg_or_mem);
+    put_line_with_tab("push %s", reg_or_mem);
     stack_size += STACK_ALIGNMENT;
 }
 
@@ -144,7 +145,7 @@ static void generate_push_struct(const Type *type)
     generate_pop("rax");
     for(size_t offset = adjust_alignment(type->size, STACK_ALIGNMENT); offset > 0; offset -= STACK_ALIGNMENT)
     {
-        put_instruction("  push [rax+%lu]", offset - STACK_ALIGNMENT);
+        put_line_with_tab("push [rax+%lu]", offset - STACK_ALIGNMENT);
         stack_size += STACK_ALIGNMENT;
     }
 }
@@ -155,7 +156,7 @@ generate assembler code to pop from the stack to a register or memory
 */
 static void generate_pop(const char *reg_or_mem)
 {
-    put_instruction("  pop %s", reg_or_mem);
+    put_line_with_tab("pop %s", reg_or_mem);
     stack_size -= STACK_ALIGNMENT;
 #if(CHECK_STACK_SIZE == ENABLED)
     assert(stack_size >= 0);
@@ -171,24 +172,24 @@ static void generate_load(const Type *type)
     generate_pop("rax");
     if(type->size == 1)
     {
-        put_instruction("  movsxb rax, byte ptr [rax]");
+        put_line_with_tab("movsxb rax, byte ptr [rax]");
     }
     else if(type->size == 2)
     {
-        put_instruction("  movsxw rax, word ptr [rax]");
+        put_line_with_tab("movsxw rax, word ptr [rax]");
     }
     else if(type->size <= 4)
     {
-        put_instruction("  movsxd rax, dword ptr [rax]");
+        put_line_with_tab("movsxd rax, dword ptr [rax]");
     }
     else if(type->size <= 8)
     {
-        put_instruction("  mov rax, [rax]");
+        put_line_with_tab("mov rax, [rax]");
     }
     else if(type->size <= 16)
     {
-        put_instruction("  mov r11, [rax+8]");
-        put_instruction("  mov rax, [rax]");
+        put_line_with_tab("mov r11, [rax+8]");
+        put_line_with_tab("mov rax, [rax]");
         generate_push_reg_or_mem("r11");
     }
     generate_push_reg_or_mem("rax");
@@ -206,19 +207,19 @@ static void generate_store(const Type *type)
         generate_pop("rax");
         if(type->size == 1)
         {
-            put_instruction("  mov byte ptr [rax], dil");
+            put_line_with_tab("mov byte ptr [rax], dil");
         }
         else if(type->size <= 2)
         {
-            put_instruction("  mov word ptr [rax], di");
+            put_line_with_tab("mov word ptr [rax], di");
         }
         else if(type->size <= 4)
         {
-            put_instruction("  mov dword ptr [rax], edi");
+            put_line_with_tab("mov dword ptr [rax], edi");
         }
         else
         {
-            put_instruction("  mov [rax], rdi");
+            put_line_with_tab("mov [rax], rdi");
         }
     }
     else if(type->size <= 16)
@@ -226,8 +227,8 @@ static void generate_store(const Type *type)
         generate_pop("rdi");
         generate_pop("r11");
         generate_pop("rax");
-        put_instruction("  mov [rax], rdi");
-        put_instruction("  mov [rax+8], r11");
+        put_line_with_tab("mov [rax], rdi");
+        put_line_with_tab("mov [rax+8], r11");
     }
     else
     {
@@ -239,23 +240,23 @@ static void generate_store(const Type *type)
         size_t offset = 0;
         for(; offset + 8 <= type->size; offset += 8)
         {
-            put_instruction("  mov r11, [rdi+%lu]", offset);
-            put_instruction("  mov [rax+%lu], r11", offset);
+            put_line_with_tab("mov r11, [rdi+%lu]", offset);
+            put_line_with_tab("mov [rax+%lu], r11", offset);
         }
         for(; offset + 4 <= type->size; offset += 4)
         {
-            put_instruction("  mov r11, [rdi+%lu]", offset);
-            put_instruction("  mov dword ptr [rax+%lu], r11d", offset);
+            put_line_with_tab("mov r11, [rdi+%lu]", offset);
+            put_line_with_tab("mov dword ptr [rax+%lu], r11d", offset);
         }
         for(; offset + 2 <= type->size; offset += 2)
         {
-            put_instruction("  mov r11, [rdi+%lu]", offset);
-            put_instruction("  mov word ptr [rax+%lu], r11w", offset);
+            put_line_with_tab("mov r11, [rdi+%lu]", offset);
+            put_line_with_tab("mov word ptr [rax+%lu], r11w", offset);
         }
         for(; offset + 1 <= type->size; offset += 1)
         {
-            put_instruction("  mov r11, [rdi+%lu]", offset);
-            put_instruction("  mov byte ptr [rax+%lu], r11b", offset);
+            put_line_with_tab("mov r11, [rdi+%lu]", offset);
+            put_line_with_tab("mov byte ptr [rax+%lu], r11b", offset);
         }
     }
     generate_push_reg_or_mem("rdi");
@@ -272,13 +273,13 @@ static void generate_lvalue(const Expression *expr)
     case EXPR_VAR:
         if(expr->var->local)
         {
-            put_instruction("  mov rax, rbp");
-            put_instruction("  sub rax, %lu", expr->var->offset);
+            put_line_with_tab("mov rax, rbp");
+            put_line_with_tab("sub rax, %lu", expr->var->offset);
             generate_push_reg_or_mem("rax");
         }
         else
         {
-            put_instruction("  lea rax, %s[rip]", expr->var->name);
+            put_line_with_tab("lea rax, %s[rip]", expr->var->name);
             generate_push_reg_or_mem("rax");
         }
         break;
@@ -290,7 +291,7 @@ static void generate_lvalue(const Expression *expr)
     case EXPR_MEMBER:
         generate_lvalue(expr->operand);
         generate_pop("rax");
-        put_instruction("  add rax, %lu", expr->member->offset);
+        put_line_with_tab("add rax, %lu", expr->member->offset);
         generate_push_reg_or_mem("rax");
         break;
 
@@ -309,14 +310,14 @@ static void generate_gvar(const Variable *gvar)
     // put label
     if(gvar->sclass != SC_STATIC)
     {
-        put_instruction(".global %s", gvar->name);
+        put_line(".global %s", gvar->name);
     }
-    put_instruction("%s:", gvar->name);
+    put_line("%s:", gvar->name);
 
     if(gvar->str != NULL)
     {
         // allocate memory for string-literal
-        put_instruction("  .string \"%s\"", gvar->str->content);
+        put_line_with_tab(".string \"%s\"", gvar->str->content);
     }
     else
     {
@@ -326,31 +327,31 @@ static void generate_gvar(const Variable *gvar)
             if(data->label != NULL)
             {
                 // allocate memory with label
-                put_instruction("  .quad %s", data->label);
+                put_line_with_tab(".quad %s", data->label);
             }
             else if(data->zero)
             {
                 // allocate memory with zero
-                put_instruction("  .zero %lu", data->size);
+                put_line_with_tab(".zero %lu", data->size);
             }
             else
             {
                 // allocate memory with an integer
                 if(data->size == 1)
                 {
-                    put_instruction("  .byte %ld", data->value);
+                    put_line_with_tab(".byte %ld", data->value);
                 }
                 else if(data->size == 2)
                 {
-                    put_instruction("  .value %ld", data->value);
+                    put_line_with_tab(".value %ld", data->value);
                 }
                 else if(data->size == 4)
                 {
-                    put_instruction("  .long %ld", data->value);
+                    put_line_with_tab(".long %ld", data->value);
                 }
                 else
                 {
-                    put_instruction("  .quad %ld", data->value);
+                    put_line_with_tab(".quad %ld", data->value);
                 }
             }
         }
@@ -366,20 +367,20 @@ static void generate_func(const Function *func)
     // declarations
     if(func->sclass != SC_STATIC)
     {
-        put_instruction(".global %s", func->name);
+        put_line(".global %s", func->name);
     }
-    put_instruction("%s:", func->name);
+    put_line("%s:", func->name);
 
     // prologue: allocate stack for arguments and local variables and copy arguments
     bool pass_address = (get_parameter_class(func->type->base) == PC_MEMORY);
     stack_size = func->stack_size + pass_address * STACK_ALIGNMENT; // initialize stack size
     generate_push_reg_or_mem("rbp");
-    put_instruction("  mov rbp, rsp");
-    put_instruction("  sub rsp, %lu", stack_size);
+    put_line_with_tab("mov rbp, rsp");
+    put_line_with_tab("sub rsp, %lu", stack_size);
     if(pass_address)
     {
         // save the hidden argument
-        put_instruction("  mov [rbp-%lu], rdi", stack_size);
+        put_line_with_tab("mov [rbp-%lu], rdi", stack_size);
     }
 
     // arguments
@@ -431,14 +432,14 @@ static void generate_func(const Function *func)
         // load argument from a register
         Variable *arg = get_element(Variable)(cursor);
 
-        put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %lu", arg->offset);
+        put_line_with_tab("mov rax, rbp");
+        put_line_with_tab("sub rax, %lu", arg->offset);
         if(is_struct_or_union(arg->type))
         {
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
             for(size_t i = 0; i < argc_struct; i++)
             {
-                put_instruction("  mov [rax+%lu], %s", i * STACK_ALIGNMENT, arg_registers64[argc_reg + i]);
+                put_line_with_tab("mov [rax+%lu], %s", i * STACK_ALIGNMENT, arg_registers64[argc_reg + i]);
             }
             argc_reg += argc_struct;
         }
@@ -446,19 +447,19 @@ static void generate_func(const Function *func)
         {
             if(arg->type->size == 1)
             {
-                put_instruction("  mov byte ptr [rax], %s", arg_registers8[argc_reg]);
+                put_line_with_tab("mov byte ptr [rax], %s", arg_registers8[argc_reg]);
             }
             else if(arg->type->size == 2)
             {
-                put_instruction("  mov word ptr [rax], %s", arg_registers16[argc_reg]);
+                put_line_with_tab("mov word ptr [rax], %s", arg_registers16[argc_reg]);
             }
             else if(arg->type->size == 4)
             {
-                put_instruction("  mov dword ptr [rax], %s", arg_registers32[argc_reg]);
+                put_line_with_tab("mov dword ptr [rax], %s", arg_registers32[argc_reg]);
             }
             else
             {
-                put_instruction("  mov [rax], %s", arg_registers64[argc_reg]);
+                put_line_with_tab("mov [rax], %s", arg_registers64[argc_reg]);
             }
             argc_reg++;
         }
@@ -470,12 +471,12 @@ static void generate_func(const Function *func)
         // load argument from the stack
         Variable *arg = get_element(Variable)(cursor);
 
-        put_instruction("  mov rax, rbp");
-        put_instruction("  sub rax, %lu", arg->offset);
+        put_line_with_tab("mov rax, rbp");
+        put_line_with_tab("sub rax, %lu", arg->offset);
         generate_push_reg_or_mem("rax");
 
-        put_instruction("  mov rax, rbp");
-        put_instruction("  add rax, %lu", args_stack_size + 2 * STACK_ALIGNMENT);
+        put_line_with_tab("mov rax, rbp");
+        put_line_with_tab("add rax, %lu", args_stack_size + 2 * STACK_ALIGNMENT);
         generate_push_reg_or_mem("rax");
 
         generate_load(arg->type);
@@ -489,7 +490,7 @@ static void generate_func(const Function *func)
         gp_offset = argc_reg * STACK_ALIGNMENT;
         for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
         {
-            put_instruction("  mov [rbp-%lu], %s", (ARG_REGISTERS_SIZE - i) * STACK_ALIGNMENT, arg_registers64[i]);
+            put_line_with_tab("mov [rbp-%lu], %s", (ARG_REGISTERS_SIZE - i) * STACK_ALIGNMENT, arg_registers64[i]);
         }
     }
 
@@ -504,10 +505,10 @@ static void generate_func(const Function *func)
     if(pass_address)
     {
         // return the address passed by the hidden argument
-        put_instruction("  mov rax, [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
+        put_line_with_tab("mov rax, [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
     }
-    put_instruction("  leave");
-    put_instruction("  ret");
+    put_line_with_tab("leave");
+    put_line_with_tab("ret");
 }
 
 
@@ -577,89 +578,89 @@ static void generate_binary(const Expression *expr, BinaryOperationKind kind)
     switch(kind)
     {
     case BINOP_ADD:
-        put_instruction("  add rax, rdi");
+        put_line_with_tab("add rax, rdi");
         break;
 
     case BINOP_PTR_ADD:
-        put_instruction("  imul rdi, %lu", expr->type->base->size);
-        put_instruction("  add rax, rdi");
+        put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+        put_line_with_tab("add rax, rdi");
         break;
 
     case BINOP_SUB:
-        put_instruction("  sub rax, rdi");
+        put_line_with_tab("sub rax, rdi");
         break;
 
     case BINOP_PTR_SUB:
-        put_instruction("  imul rdi, %lu", expr->type->base->size);
-        put_instruction("  sub rax, rdi");
+        put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+        put_line_with_tab("sub rax, rdi");
         break;
 
     case BINOP_PTR_DIFF:
-        put_instruction("  sub rax, rdi");
-        put_instruction("  cqo");
-        put_instruction("  mov rdi, %lu", expr->lhs->type->base->size);
-        put_instruction("  idiv rdi");
+        put_line_with_tab("sub rax, rdi");
+        put_line_with_tab("cqo");
+        put_line_with_tab("mov rdi, %lu", expr->lhs->type->base->size);
+        put_line_with_tab("idiv rdi");
         break;
 
     case BINOP_MUL:
-        put_instruction("  imul rax, rdi");
+        put_line_with_tab("imul rax, rdi");
         break;
 
     case BINOP_DIV:
-        put_instruction("  cqo");
-        put_instruction("  idiv rdi");
+        put_line_with_tab("cqo");
+        put_line_with_tab("idiv rdi");
         break;
 
     case BINOP_MOD:
-        put_instruction("  cqo");
-        put_instruction("  idiv rdi");
-        put_instruction("  mov rax, rdx");
+        put_line_with_tab("cqo");
+        put_line_with_tab("idiv rdi");
+        put_line_with_tab("mov rax, rdx");
         break;
 
     case BINOP_LSHIFT:
-        put_instruction("  mov rcx, rdi");
-        put_instruction("  shl rax, cl");
+        put_line_with_tab("mov rcx, rdi");
+        put_line_with_tab("shl rax, cl");
         break;
 
     case BINOP_RSHIFT:
-        put_instruction("  mov rcx, rdi");
-        put_instruction("  sar rax, cl");
+        put_line_with_tab("mov rcx, rdi");
+        put_line_with_tab("sar rax, cl");
         break;
 
     case BINOP_EQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  sete al");
-        put_instruction("  movzb rax, al");
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("sete al");
+        put_line_with_tab("movzb rax, al");
         break;
 
     case BINOP_NEQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setne al");
-        put_instruction("  movzb rax, al");
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("setne al");
+        put_line_with_tab("movzb rax, al");
         break;
 
     case BINOP_L:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setl al");
-        put_instruction("  movzb rax, al");
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("setl al");
+        put_line_with_tab("movzb rax, al");
         break;
 
     case BINOP_LEQ:
-        put_instruction("  cmp rax, rdi");
-        put_instruction("  setle al");
-        put_instruction("  movzb rax, al");
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("setle al");
+        put_line_with_tab("movzb rax, al");
         break;
 
     case BINOP_AND:
-        put_instruction("  and rax, rdi");
+        put_line_with_tab("and rax, rdi");
         break;
 
     case BINOP_XOR:
-        put_instruction("  xor rax, rdi");
+        put_line_with_tab("xor rax, rdi");
         break;
 
     case BINOP_OR:
-        put_instruction("  or rax, rdi");
+        put_line_with_tab("or rax, rdi");
         break;
 
     default:
@@ -682,12 +683,12 @@ static void generate_statement(const Statement *stmt)
     switch(stmt->kind)
     {
     case STMT_LABEL:
-        put_instruction(".L%s:", stmt->ident);
+        put_line(".L%s:", stmt->ident);
         generate_statement(stmt->body);
         return;
 
     case STMT_CASE:
-        put_instruction(".Lcase%d:", stmt->case_label);
+        put_line(".Lcase%d:", stmt->case_label);
         generate_statement(stmt->body);
         return;
 
@@ -725,23 +726,23 @@ static void generate_statement(const Statement *stmt)
 
         generate_expression(stmt->cond);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
+        put_line_with_tab("cmp rax, 0");
         if(stmt->false_case == NULL)
         {
             // if ( expression ) statement
-            put_instruction("  je  .Lend%d", lab);
+            put_line_with_tab("je  .Lend%d", lab);
             generate_statement(stmt->true_case);
-            put_instruction(".Lend%d:", lab);
+            put_line(".Lend%d:", lab);
         }
         else
         {
             // if ( expression ) statement else statement
-            put_instruction("  je  .Lelse%d", lab);
+            put_line_with_tab("je  .Lelse%d", lab);
             generate_statement(stmt->true_case);
-            put_instruction("  jmp .Lend%d", lab);
-            put_instruction(".Lelse%d:", lab);
+            put_line_with_tab("jmp .Lend%d", lab);
+            put_line(".Lelse%d:", lab);
             generate_statement(stmt->false_case);
-            put_instruction(".Lend%d:", lab);
+            put_line(".Lend%d:", lab);
         }
         return;
     }
@@ -763,8 +764,8 @@ static void generate_statement(const Statement *stmt)
             lab_number++;
 
             s->case_label = case_label;
-            put_instruction("  cmp rax, %d", s->value);
-            put_instruction("  je .Lcase%d", case_label);
+            put_line_with_tab("cmp rax, %d", s->value);
+            put_line_with_tab("je .Lcase%d", case_label);
         }
         if(stmt->default_case != NULL)
         {
@@ -772,11 +773,11 @@ static void generate_statement(const Statement *stmt)
             lab_number++;
 
             stmt->default_case->case_label = case_label;
-            put_instruction("  jmp .Lcase%d", case_label);
+            put_line_with_tab("jmp .Lcase%d", case_label);
         }
 
         generate_statement(stmt->body);
-        put_instruction(".Lbreak%d:", lab);
+        put_line(".Lbreak%d:", lab);
 
         brk_number = brk;
         return;
@@ -790,16 +791,16 @@ static void generate_statement(const Statement *stmt)
         brk_number = cnt_number = lab_number;
         lab_number++;
 
-        put_instruction(".Lbegin%d:", lab);
-        put_instruction(".Lcontinue%d:", lab);
+        put_line(".Lbegin%d:", lab);
+        put_line(".Lcontinue%d:", lab);
         generate_expression(stmt->cond);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je  .Lend%d", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("je  .Lend%d", lab);
         generate_statement(stmt->body);
-        put_instruction("  jmp .Lbegin%d", lab);
-        put_instruction(".Lend%d:", lab);
-        put_instruction(".Lbreak%d:", lab);
+        put_line_with_tab("jmp .Lbegin%d", lab);
+        put_line(".Lend%d:", lab);
+        put_line(".Lbreak%d:", lab);
 
         brk_number = brk;
         cnt_number = cnt;
@@ -814,15 +815,15 @@ static void generate_statement(const Statement *stmt)
         brk_number = cnt_number = lab_number;
         lab_number++;
 
-        put_instruction(".Lbegin%d:", lab);
+        put_line(".Lbegin%d:", lab);
         generate_statement(stmt->body);
-        put_instruction(".Lcontinue%d:", lab);
+        put_line(".Lcontinue%d:", lab);
         generate_expression(stmt->cond);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Lbegin%d", lab);
-        put_instruction(".Lend%d:", lab);
-        put_instruction(".Lbreak%d:", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("jne .Lbegin%d", lab);
+        put_line(".Lend%d:", lab);
+        put_line(".Lbreak%d:", lab);
 
         brk_number = brk;
         cnt_number = cnt;
@@ -846,24 +847,24 @@ static void generate_statement(const Statement *stmt)
         {
             generate_statement(stmt->predecl);
         }
-        put_instruction(".Lbegin%d:", lab);
+        put_line(".Lbegin%d:", lab);
         if(stmt->cond != NULL)
         {
             generate_expression(stmt->cond);
             generate_pop("rax");
-            put_instruction("  cmp rax, 0");
-            put_instruction("  je  .Lend%d", lab);
+            put_line_with_tab("cmp rax, 0");
+            put_line_with_tab("je  .Lend%d", lab);
         }
         generate_statement(stmt->body);
-        put_instruction(".Lcontinue%d:", lab);
+        put_line(".Lcontinue%d:", lab);
         if(stmt->postexpr != NULL)
         {
             generate_expression(stmt->postexpr);
             generate_pop("rax");
         }
-        put_instruction("  jmp .Lbegin%d", lab);
-        put_instruction(".Lend%d:", lab);
-        put_instruction(".Lbreak%d:", lab);
+        put_line_with_tab("jmp .Lbegin%d", lab);
+        put_line(".Lend%d:", lab);
+        put_line(".Lbreak%d:", lab);
 
         brk_number = brk;
         cnt_number = cnt;
@@ -871,15 +872,15 @@ static void generate_statement(const Statement *stmt)
     }
 
     case STMT_GOTO:
-        put_instruction("  jmp .L%s", stmt->ident);
+        put_line_with_tab("jmp .L%s", stmt->ident);
         return;
 
     case STMT_CONTINUE:
-        put_instruction("  jmp .Lcontinue%d", cnt_number);
+        put_line_with_tab("jmp .Lcontinue%d", cnt_number);
         return;
 
     case STMT_BREAK:
-        put_instruction("  jmp .Lbreak%d", brk_number);
+        put_line_with_tab("jmp .Lbreak%d", brk_number);
         return;
 
     case STMT_RETURN:
@@ -897,8 +898,8 @@ static void generate_statement(const Statement *stmt)
                 generate_pop("rax");
             }
         }
-        put_instruction("  leave");
-        put_instruction("  ret");
+        put_line_with_tab("leave");
+        put_line_with_tab("ret");
         return;
 
     default:
@@ -924,7 +925,7 @@ static void generate_expression(const Expression *expr)
         }
         else
         {
-            put_instruction("  mov rax, %ld", expr->value);
+            put_line_with_tab("mov rax, %ld", expr->value);
             generate_push_reg_or_mem("rax");
         }
         return;
@@ -964,23 +965,23 @@ static void generate_expression(const Expression *expr)
     case EXPR_MINUS:
         generate_expression(expr->operand);
         generate_pop("rax");
-        put_instruction("  neg rax");
+        put_line_with_tab("neg rax");
         generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_COMPL:
         generate_expression(expr->operand);
         generate_pop("rax");
-        put_instruction("  not rax");
+        put_line_with_tab("not rax");
         generate_push_reg_or_mem("rax");
         return;
 
     case EXPR_NEG:
         generate_expression(expr->operand);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  sete al");
-        put_instruction("  movzb rax, al");
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("sete al");
+        put_line_with_tab("movzb rax, al");
         generate_push_reg_or_mem("rax");
         return;
 
@@ -989,7 +990,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("[rsp]");
         generate_load(expr->operand->type);
         generate_pop("rax");
-        put_instruction("  mov rdx, rax");
+        put_line_with_tab("mov rdx, rax");
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
@@ -1003,7 +1004,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("[rsp]");
         generate_load(expr->operand->type);
         generate_pop("rax");
-        put_instruction("  mov rdx, rax");
+        put_line_with_tab("mov rdx, rax");
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
@@ -1017,15 +1018,15 @@ static void generate_expression(const Expression *expr)
         generate_pop("rax");
         if(expr->type->size == 1)
         {
-            put_instruction("  movsxb rax, al");
+            put_line_with_tab("movsxb rax, al");
         }
         else if(expr->type->size == 2)
         {
-            put_instruction("  movsxw rax, ax");
+            put_line_with_tab("movsxw rax, ax");
         }
         else if(expr->type->size == 4)
         {
-            put_instruction("  movsxd rax, eax");
+            put_line_with_tab("movsxd rax, eax");
         }
         generate_push_reg_or_mem("rax");
         return;
@@ -1038,17 +1039,17 @@ static void generate_expression(const Expression *expr)
 
         generate_expression(expr->lhs);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lfalse%d", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("je .Lfalse%d", lab);
         generate_expression(expr->rhs);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lfalse%d", lab);
-        put_instruction("  mov rax, 1");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Lfalse%d:", lab);
-        put_instruction("  mov rax, 0");
-        put_instruction(".Lend%d:", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("je .Lfalse%d", lab);
+        put_line_with_tab("mov rax, 1");
+        put_line_with_tab("jmp .Lend%d", lab);
+        put_line(".Lfalse%d:", lab);
+        put_line_with_tab("mov rax, 0");
+        put_line(".Lend%d:", lab);
         generate_push_reg_or_mem("rax");
         return;
     }
@@ -1061,17 +1062,17 @@ static void generate_expression(const Expression *expr)
 
         generate_expression(expr->lhs);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Ltrue%d", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("jne .Ltrue%d", lab);
         generate_expression(expr->rhs);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  jne .Ltrue%d", lab);
-        put_instruction("  mov rax, 0");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Ltrue%d:", lab);
-        put_instruction("  mov rax, 1");
-        put_instruction(".Lend%d:", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("jne .Ltrue%d", lab);
+        put_line_with_tab("mov rax, 0");
+        put_line_with_tab("jmp .Lend%d", lab);
+        put_line(".Ltrue%d:", lab);
+        put_line_with_tab("mov rax, 1");
+        put_line(".Lend%d:", lab);
         generate_push_reg_or_mem("rax");
         return;
     }
@@ -1084,15 +1085,15 @@ static void generate_expression(const Expression *expr)
 
         generate_expression(expr->operand);
         generate_pop("rax");
-        put_instruction("  cmp rax, 0");
-        put_instruction("  je .Lelse%d", lab);
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("je .Lelse%d", lab);
         generate_expression(expr->lhs);
         generate_pop("rax");
-        put_instruction("  jmp .Lend%d", lab);
-        put_instruction(".Lelse%d:", lab);
+        put_line_with_tab("jmp .Lend%d", lab);
+        put_line(".Lelse%d:", lab);
         generate_expression(expr->rhs);
         generate_pop("rax");
-        put_instruction(".Lend%d:", lab);
+        put_line(".Lend%d:", lab);
         generate_push_reg_or_mem("rax");
         return;
     }
@@ -1230,12 +1231,12 @@ static void generate_expression(const Expression *expr)
             generate_expression(get_first_element(Expression)(expr->args));
             generate_pop("rax");
             generate_push_reg_or_mem("r11");
-            put_instruction("  mov dword ptr [rax], %d", gp_offset); // gp_offset
-            put_instruction("  mov dword ptr [rax+4], %lu", ARG_REGISTERS_SIZE); // fp_offset
-            put_instruction("  lea r11, [rbp+%lu]", 2 * STACK_ALIGNMENT);
-            put_instruction("  mov qword ptr [rax+8], r11"); // overflow_arg_area
-            put_instruction("  lea r11, [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
-            put_instruction("  mov qword ptr [rax+16], r11"); // reg_save_area
+            put_line_with_tab("mov dword ptr [rax], %d", gp_offset); // gp_offset
+            put_line_with_tab("mov dword ptr [rax+4], %lu", ARG_REGISTERS_SIZE); // fp_offset
+            put_line_with_tab("lea r11, [rbp+%lu]", 2 * STACK_ALIGNMENT);
+            put_line_with_tab("mov qword ptr [rax+8], r11"); // overflow_arg_area
+            put_line_with_tab("lea r11, [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
+            put_line_with_tab("mov qword ptr [rax+16], r11"); // reg_save_area
             generate_pop("r11");
             return;
         }
@@ -1251,7 +1252,7 @@ static void generate_expression(const Expression *expr)
             // provide space for the return value and pass the address of the space as the hidden 1st argument
             space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
             stack_adjustment += space;
-            put_instruction("  lea rdi, [rsp-%lu]", space);
+            put_line_with_tab("lea rdi, [rsp-%lu]", space);
         }
 
         // classify arguments
@@ -1267,13 +1268,13 @@ static void generate_expression(const Expression *expr)
         if(stack_adjustment > 0)
         {
             stack_size += stack_adjustment;
-            put_instruction("  sub rsp, %d", stack_adjustment);
+            put_line_with_tab("sub rsp, %d", stack_adjustment);
         }
 
         // generate arguments
         generate_args(pass_address, args_reg, args_stack);
         stack_adjustment += args_stack_size; // increment the variable stack_adjustment here because the variable stack_size can be changed in the above function call
-        put_instruction("  mov rax, 0");
+        put_line_with_tab("mov rax, 0");
 
         if((body != NULL) && (body->var != NULL))
         {
@@ -1282,7 +1283,7 @@ static void generate_expression(const Expression *expr)
             assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
             check_stack_pointer();
 #endif /* CHECK_STACK_SIZE */
-            put_instruction("  call %s", body->var->name);
+            put_line_with_tab("call %s", body->var->name);
         }
         else
         {
@@ -1293,13 +1294,13 @@ static void generate_expression(const Expression *expr)
             assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
             check_stack_pointer();
 #endif /* CHECK_STACK_SIZE */
-            put_instruction("  call rax");
+            put_line_with_tab("call rax");
         }
 
         // restore the stack
         if(stack_adjustment > 0)
         {
-            put_instruction("  add rsp, %d", stack_adjustment);
+            put_line_with_tab("add rsp, %d", stack_adjustment);
             stack_size -= stack_adjustment;
         }
 #if(CHECK_STACK_SIZE == ENABLED)
@@ -1313,7 +1314,7 @@ static void generate_expression(const Expression *expr)
         }
         if(is_bool(expr->type))
         {
-            put_instruction("  movzb rax, al");
+            put_line_with_tab("movzb rax, al");
         }
         generate_push_reg_or_mem("rax");
 
@@ -1462,15 +1463,29 @@ static size_t classify_args(const List(Expression) *args, bool pass_address, Lis
 
 
 /*
-output an instruction
+output a line of assembler code
 */
-static void put_instruction(const char *fmt, ...)
+static void put_line(const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
     vfprintf(stdout, fmt, ap);
-    fprintf(stdout, "\n");
+    fputc('\n', stdout);
+}
+
+
+/*
+output a line of assembler code with a tab
+*/
+static void put_line_with_tab(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    fputc('\t', stdout);
+    vfprintf(stdout, fmt, ap);
+    fputc('\n', stdout);
 }
 
 
@@ -1484,11 +1499,11 @@ static void check_stack_pointer(void)
     int lab = lab_number;
     lab_number++;
 
-    put_instruction("  mov r10, rsp");
-    put_instruction("  and r10, 0x0F");
-    put_instruction("  cmp r10, 0");
-    put_instruction("  je .Lcall%d", lab);
-    put_instruction("  mov r10, [0]"); // trigger segmentation fault
-    put_instruction(".Lcall%d:", lab);
+    put_line_with_tab("mov r10, rsp");
+    put_line_with_tab("and r10, 0x0F");
+    put_line_with_tab("cmp r10, 0");
+    put_line_with_tab("je .Lcall%d", lab);
+    put_line_with_tab("mov r10, [0]"); // trigger segmentation fault
+    put_line(".Lcall%d:", lab);
 }
 #endif /* CHECK_STACK_SIZE */
