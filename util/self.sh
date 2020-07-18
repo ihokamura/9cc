@@ -6,10 +6,11 @@ WORKSPACE=$(pwd)/self
 STD_HEADER=std_header.h
 GEN1_BIN=$(pwd)/9cc
 GEN2_BIN=$WORKSPACE/9cc_gen2
+GEN3_BIN=$WORKSPACE/9cc_gen3
 
 
 # functions
-copy_headers()
+prepare()
 {
     for file in $SOURCE/*.h
     do
@@ -19,18 +20,25 @@ copy_headers()
     cp util/$STD_HEADER $WORKSPACE
 }
 
-compile_gen2()
+compile()
 {
+    COMPILER=$1
+    OUTPUT=$2
+
     for file in $SOURCE/*.c; do
-        expand $(basename $file) $GEN1_BIN
+        expand $(basename $file) $COMPILER
     done
 
-    gcc -Wall -g -static -o $GEN2_BIN $WORKSPACE/*.s
+    gcc -Wall -g -static -o $OUTPUT $WORKSPACE/*.s
 }
 
-test_gen2()
+test()
 {
-    bash ./util/test.sh $GEN2_BIN test_code_gen2.s test_bin_9cc_gen2
+    COMPILER=$1
+    ASSEMBLY=$2
+    BINARY=$3
+
+    bash ./util/test.sh $COMPILER $ASSEMBLY $BINARY
 }
 
 expand()
@@ -69,6 +77,8 @@ expand()
 
 
 # self-compile and run test
-copy_headers
-compile_gen2
-test_gen2
+prepare
+compile $GEN1_BIN $GEN2_BIN
+test $GEN2_BIN test_code_gen2.s test_bin_9cc_gen2
+compile $GEN2_BIN $GEN3_BIN
+test $GEN3_BIN test_code_gen3.s test_bin_9cc_gen3
