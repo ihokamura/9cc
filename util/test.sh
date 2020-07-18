@@ -1,15 +1,19 @@
 #!/bin/bash
 
-# move to test directory
-pushd ./test
+# variables
+COMPILER=$1
+ASSEMBLY=$2
+BINARY=$3
+WORKSPACE=$(pwd)/test
+
 
 # compile test code
-../9cc test_code.c > test_code.s
-gcc test_code.s function_call.c -o test_bin_9cc -g -static
+$COMPILER $WORKSPACE/test_code.c > $WORKSPACE/$ASSEMBLY
+gcc -g -static -o $WORKSPACE/$BINARY $WORKSPACE/$ASSEMBLY $WORKSPACE/function_call.c
 
 if [ "$?" == 0 ]; then
     # execute test
-    ./test_bin_9cc
+    $WORKSPACE/$BINARY
     if [ "$?" == 0 ]; then
         echo "passed tests"
         exit 0
@@ -22,6 +26,3 @@ else
     echo "failed to compile"
     exit 1
 fi
-
-# move to the original directory
-popd

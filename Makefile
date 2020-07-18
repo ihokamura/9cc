@@ -9,9 +9,12 @@ OBJS=$(SRCS:.c=.o)
 $(OBJS): $(HDRS)
 
 test: 9cc
-	./test/test.sh
+	bash ./util/test.sh ./9cc test_code.s test_bin_9cc
+
+self: 9cc
+	bash ./util/self.sh
 
 clean:
-	rm -f 9cc ./source/*.o ./source/*~ ./test/test_code.s ./test/test_bin
+	rm -f 9cc ./source/*.o ./source/*~ ./test/*.s ./test/test_bin_* self/*
 
-.PHONY: test clean
+.PHONY: test self clean
