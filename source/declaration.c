@@ -714,13 +714,29 @@ static List(Member) *struct_declaration_list(void)
 /*
 make a struct-declaration
 ```
-struct-declaration ::= specifier-qualifier-list struct-declarator-list ";"
+struct-declaration ::= specifier-qualifier-list (struct-declarator-list)? ";"
 ```
 */
 static List(Member) *struct_declaration(void)
 {
     Type *type = specifier_qualifier_list();
-    List(Member) *members = struct_declarator_list(type);
+    List(Member) *members = NULL;
+    if(peek_declarator())
+    {
+        members = struct_declarator_list(type);
+    }
+    else
+    {
+        // anonymous structure or union
+        if(is_struct_or_union(type))
+        {
+            members = type->members;
+        }
+        else
+        {
+            report_error(NULL, "expected structure or union type");
+        }
+    }
     expect_reserved(";");
 
     return members;

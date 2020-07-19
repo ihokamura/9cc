@@ -91,7 +91,7 @@ type-specifier ::= "void"
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
                             | ("struct" | "union") identifier
 struct-declaration-list ::= struct-declaration struct-declaration*
-struct-declaration ::= specifier-list struct-declarator-list ";"
+struct-declaration ::= specifier-list (struct-declarator-list)? ";"
 specifier-qualifier-list ::= (type-specifier | type-qualifier)*
 struct-declarator-list ::= declarator ("," declarator)*
 enum-specifier ::= "enum" identifier? "{" enumerator-list (",")? "}"

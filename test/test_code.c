@@ -1205,6 +1205,9 @@ int test_struct()
     struct st6_tag {st6_type *next; int val;} st6_1, st6_2;
     st6_1.val = 1; st6_1.next = &st6_2; st6_2.val = 2; assert_int(1, st6_1.val); assert_int(2, st6_1.next->val);
 
+    struct {int m1; struct {int mm1; struct {int mmm1; int mmm2;};};} st7;
+    st7.m1 = 1; assert_int(1, st7.m1); st7.mm1 = 11; assert_int(11, st7.mm1); st7.mmm1 = 111; assert_int(111, st7.mmm1); st7.mmm2 = 222; assert_int(222, st7.mmm2);
+
     return 0;
 }
 
@@ -1238,6 +1241,9 @@ int test_union()
     union {struct {long mm1; long mm2;} m1; int m2[3];} un4, un4_copy;
     un4.m1.mm1 = 1; un4.m1.mm2 = 2; un4_copy = un4; assert_long(1, un4_copy.m1.mm1); assert_long(2, un4_copy.m1.mm2);
     int i; for(i = 0; i < 3; i++) un4.m2[i] = 10 * i; un4_copy = un4; for(i = 0; i < 3; i++) assert_int(10 * i, un4_copy.m2[i]); assert_int(12, sizeof(un4.m2));
+
+    union {int m1; struct {int mm1; union {int mmm1; int mmm2;};};} un5;
+    un5.m1 = 1; assert_int(1, un5.m1); un5.mm1 = 11; assert_int(11, un5.mm1); un5.mmm1 = 111; assert_int(111, un5.mmm1); un5.mmm2 = 222; assert_int(222, un5.mmm2);
 
     return 0;
 }
