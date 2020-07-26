@@ -1390,6 +1390,11 @@ int test_initializer()
     int a5[2][3] = {{1}, {4, 5}}; assert_int(1, a5[0][0]); assert_int(0, a5[0][1]); assert_int(0, a5[0][2]); assert_int(4, a5[1][0]); assert_int(5, a5[1][1]); assert_int(0, a5[1][2]);
     int a6[] = {1, 2, 3}; assert_int(1, a6[0]); assert_int(2, a6[1]); assert_int(3, a6[2]); assert_int(3, sizeof(a6) / sizeof(a6[0]));
     int a7[][3] = {{1, 2, }, {4, 5, }}; assert_int(1, a7[0][0]); assert_int(2, a7[0][1]); assert_int(0, a7[0][2]); assert_int(4, a7[1][0]); assert_int(5, a7[1][1]); assert_int(0, a7[1][2]); assert_int(2, sizeof(a7) / sizeof(a7[0]));
+    int a8[6] = {1, [2] = 3, 4, [4] = 5}; assert_int(1, a8[0]); assert_int(0, a8[1]); assert_int(3, a8[2]); assert_int(4, a8[3]); assert_int(5, a8[4]); assert_int(0, a8[5]);
+    int a9[6] = {1, [2] = 3, 4, 5, [0] = 5, 6, 7}; assert_int(5, a9[0]); assert_int(6, a9[1]); assert_int(7, a9[2]); assert_int(4, a9[3]); assert_int(5, a9[4]); assert_int(0, a9[5]);
+    int a10[3][2] = {{1, 2}, [2][1] = 6}; assert_int(1, a10[0][0]); assert_int(2, a10[0][1]); assert_int(0, a10[1][0]); assert_int(0, a10[1][1]); assert_int(0, a10[2][0]); assert_int(6, a10[2][1]);
+    int a11[] = {1, 2, [3] = 4}; assert_int(1, a11[0]); assert_int(2, a11[1]); assert_int(0, a11[2]); assert_int(4, a11[3]); assert_int(4, sizeof(a11) / sizeof(a11[0]));
+    int a12[] = {1, 2, [0] = 4}; assert_int(4, a12[0]); assert_int(2, a12[1]); assert_int(2, sizeof(a12) / sizeof(a12[0]));
     char c1[5] = "foo"; assert_char(102, c1[0]); assert_char(111, c1[1]); assert_char(111, c1[2]); assert_char(0, c1[3]); assert_char(0, c1[4]); assert_int(5, sizeof(c1));
     char c2[] = "foo"; assert_char(102, c2[0]); assert_char(111, c2[1]); assert_char(111, c2[2]); assert_char(0, c2[3]); assert_int(4, sizeof(c2));
     const char *c3[] = {"foo", "f"}; assert_char(102, c3[0][0]); assert_char(111, c3[0][1]); assert_char(111, c3[0][2]); assert_char(0, c3[0][3]); assert_char(102, c3[1][0]); assert_char(0, c3[1][1]); 
@@ -1398,8 +1403,14 @@ int test_initializer()
     st_type st1 = {1, 2}; assert_int(1, st1.m1); assert_int(2, st1.m2);
     st_type st2[3] = {{1, 2}, {3, 4}, {5, 6}}; assert_int(1, st2[0].m1); assert_int(2, st2[0].m2); assert_int(3, st2[1].m1); assert_int(4, st2[1].m2); assert_int(5, st2[2].m1); assert_int(6, st2[2].m2);
     st_type st3[3] = {{1}, st2[1], }; assert_int(1, st3[0].m1); assert_int(0, st3[0].m2); assert_int(3, st3[1].m1); assert_int(4, st3[1].m2); assert_int(0, st3[2].m1); assert_int(0, st3[2].m2);
+    struct {int m1; int m2; int m3;} st4 = {.m2 = 2, 3}; assert_int(0, st4.m1); assert_int(2, st4.m2); assert_int(3, st4.m3);
+    struct {int m1[3], m2;} st5[] = {[0].m1 = {1}, [1].m1[0] = 2}; assert_int(1, st5[0].m1[0]); assert_int(0, st5[0].m1[1]); assert_int(0, st5[0].m1[2]); assert_int(2, st5[1].m1[0]); assert_int(0, st5[1].m1[1]); assert_int(0, st5[1].m1[2]);
     typedef union {int m1; int m2;} un_type;
     un_type un1 = {1}; assert_int(1, un1.m1);
+    typedef union {char m1[8]; int m2[2]; long m3[1];} un_type2;
+    un_type2 un2_char = {.m1 = {0x01, 0x02, [4]=0x11, 0x22}}; assert_char(0x01, un2_char.m1[0]); assert_char(0x02, un2_char.m1[1]); assert_char(0x00, un2_char.m1[2]); assert_char(0x00, un2_char.m1[3]); assert_char(0x11, un2_char.m1[4]); assert_char(0x22, un2_char.m1[5]); assert_char(0x00, un2_char.m1[6]); assert_char(0x00, un2_char.m1[7]);
+    un_type2 un2_int = {.m2 = {0x03, }}; assert_int(0x03, un2_int.m2[0]); assert_int(0x00, un2_int.m2[1]);
+    un_type2 un2_long = {.m3 = {0x04}}; assert_long(0x04, un2_long.m3[0]);
 
     return 0;
 }

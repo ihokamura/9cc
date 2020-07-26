@@ -26,14 +26,19 @@
 // definition of list operations
 #include "list.h"
 typedef struct Initializer Initializer;
+typedef struct Designator Designator;
 define_list(Initializer)
+define_list(Designator)
 define_list_operations(DataSegment)
 define_list_operations(Declaration)
 define_list_operations(Initializer)
+define_list_operations(Designator)
 
 // macro
 #define INVALID_DECLSPEC (-1) // invalid declaration specifier
 #define TYPESPEC_SIZE ((size_t)12) // number of type specifiers
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 
 // kind of type specifiers
 typedef enum TypeSpecifier TypeSpecifier;
@@ -57,7 +62,15 @@ enum TypeSpecifier
 struct Initializer
 {
     List(Initializer) *list; // initializer-list
+    List(Designator) *desig; // designation
     Expression *assign;      // assignment expression
+};
+
+// structure for designator
+struct Designator
+{
+    long index;         // index of array
+    const Token *token; // member name of structure or union
 };
 
 // function prototype
@@ -89,6 +102,11 @@ static Type *direct_abstract_declarator(Type *type);
 static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars);
 static Initializer *initializer(void);
 static List(Initializer) *initializer_list(void);
+static List(Designator) *designation(void);
+static List(Designator) *designator_list(void);
+static Designator *designator(void);
+static Initializer *designation_and_initializer(void);
+static Expression *get_designation_target(Expression *expr, const List(Designator) *designation);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
 static Statement *assign_zero_initializer(Expression *expr);
 static List(DataSegment) *make_data_segment(Type *type, const Initializer *init);
@@ -106,6 +124,7 @@ static bool peek_typedef_name(void);
 static bool peek_abstract_declarator(void);
 static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
+static bool peek_designator(void);
 static char *add_block_scope_label(const char *name);
 
 
@@ -197,6 +216,7 @@ static Initializer *new_initializer(void)
 {
     Initializer *init = calloc(1, sizeof(Initializer));
     init->list = NULL;
+    init->desig = NULL;
     init->assign = NULL;
 
     return init;
@@ -868,10 +888,7 @@ static Type *enum_specifier(void)
     {
         // parse enumeration content
         type->members = enumerator_list();
-        if(consume_reserved(","))
-        {
-            // do nothing (only consume the trailing ",")
-        }
+        consume_reserved(","); //consume the trailing "," if it exists
         expect_reserved("}");
         type->complete = true;
     }
@@ -1337,10 +1354,7 @@ static Initializer *initializer(void)
     if(consume_reserved("{"))
     {
         init->list = initializer_list();
-        if(consume_reserved(","))
-        {
-            // do nothing (only consume the trailing ",")
-        }
+        consume_reserved(","); //consume the trailing "," if it exists
         expect_reserved("}");
     }
     else
@@ -1355,33 +1369,121 @@ static Initializer *initializer(void)
 /*
 make an initializer-list
 ```
-initializer-list ::= initializer ("," initializer)*
+initializer-list ::= designation? initializer ("," designation? initializer)*
 ```
 */
 static List(Initializer) *initializer_list(void)
 {
     List(Initializer) *list = new_list(Initializer)();
-    add_list_entry_tail(Initializer)(list, initializer());
 
-    while(true)
+    add_list_entry_tail(Initializer)(list, designation_and_initializer());
+    while(consume_reserved(",") && !peek_reserved("}"))
     {
-        Token *token = get_token();
-        if(consume_reserved(","))
-        {
-            if(!consume_reserved("}"))
-            {
-                add_list_entry_tail(Initializer)(list, initializer());
-                continue;
-            }
-            else
-            {
-                set_token(token);
-            }
-        }
-        break;
+        add_list_entry_tail(Initializer)(list, designation_and_initializer());
     }
 
     return list;
+}
+
+
+/*
+make a designation
+```
+designation ::= designator-list "="
+```
+*/
+static List(Designator) *designation(void)
+{
+    List(Designator) *list = designator_list();
+    expect_reserved("=");
+
+    return list;
+}
+
+
+/*
+make a designator-list
+```
+designator-list ::= designator designator*
+```
+*/
+static List(Designator) *designator_list(void)
+{
+    List(Designator) *list = new_list(Designator)();
+
+    add_list_entry_tail(Designator)(list, designator());
+    while(peek_designator())
+    {
+        add_list_entry_tail(Designator)(list, designator());
+    }
+
+    return list;
+}
+
+
+/*
+make a designator
+```
+designator ::= "[" const-expression "]" | "." identifier
+```
+*/
+static Designator *designator(void)
+{
+    Designator *desig = calloc(1, sizeof(Designator));
+    desig->index = 0;
+    desig->token = NULL;
+    if(consume_reserved("["))
+    {
+        desig->index = const_expression();
+        expect_reserved("]");
+    }
+    else if(consume_reserved("."))
+    {
+        desig->token = expect_identifier();
+    }
+    else
+    {
+        report_error(NULL, "expected designator");
+    }
+
+    return desig;
+}
+
+
+/*
+parse designation and initializer
+*/
+static Initializer *designation_and_initializer(void)
+{
+    List(Designator) *desig = peek_designator() ? designation() : NULL;
+    Initializer *init = initializer();
+    init->desig = desig;
+
+    return init;
+}
+
+
+/*
+get designated expression
+*/
+static Expression *get_designation_target(Expression *expr, const List(Designator) *designation)
+{
+    Expression *dest = expr;
+
+    for_each_entry(Designator, cursor, designation)
+    {
+        Designator *designator = get_element(Designator)(cursor);
+        if(designator->token != NULL)
+        {
+            dest = new_node_member(dest, find_member(designator->token, dest->type));
+        }
+        else
+        {
+            dest = new_node_subscript(dest, designator->index);
+        }
+    }
+
+    return dest;
 }
 
 
@@ -1400,36 +1502,81 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
 
             if(expr->type->complete)
             {
+                // assign zero by default
+                for(size_t index = 0; index < expr->type->len; index++)
+                {
+                    Expression *dest = new_node_subscript(expr, index);
+                    add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+                }
+
+                // parse initializer list
                 size_t index = 0;
                 for_each_entry(Initializer, cursor, init->list)
                 {
+                    Expression *dest = NULL;
                     Initializer *init_element = get_element(Initializer)(cursor);
-                    Expression *dest = new_node_subscript(expr, index);
-                    add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                    index++;
-                    if(index >= expr->type->len)
+                    if(index < expr->type->len)
                     {
-                        break;
+                        if(init_element->desig != NULL)
+                        {
+                            // assign zero up to the current index
+                            size_t current_index = get_first_element(Designator)(init_element->desig)->index;
+                            for(index = min(index, current_index); index < current_index; index++)
+                            {
+                                Expression *dest = new_node_subscript(expr, index);
+                                add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+                            }
+
+                            // parse designation
+                            dest = get_designation_target(expr, init_element->desig);
+                        }
+                        else
+                        {
+                            dest = new_node_subscript(expr, index);
+                        }
+                        add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
+                        ++index;
                     }
-                }
-                for(; index < expr->type->len; index++)
-                {
-                    // handle the remainder
-                    Expression *dest = new_node_subscript(expr, index);
-                    add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+                    else
+                    {
+                        report_warning(NULL, "excess elements in array initializer");
+                    }
                 }
             }
             else
             {
                 // determine length of array by initializer-list
                 size_t len = 0;
+                size_t index = 0;
                 for_each_entry(Initializer, cursor, init->list)
                 {
+                    // assign zero by default
+                    Expression *dest = new_node_subscript(expr, index);
+                    add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+
                     Initializer *init_element = get_element(Initializer)(cursor);
-                    Expression *dest = new_node_subscript(expr, len);
+                    if(init_element->desig != NULL)
+                    {
+                        // assign zero up to the current index
+                        size_t current_index = get_first_element(Designator)(init_element->desig)->index;
+                        for(index = min(index, current_index); index < current_index; index++)
+                        {
+                            Expression *dest = new_node_subscript(expr, index);
+                            add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+                        }
+
+                        // parse designation
+                        dest = get_designation_target(expr, init_element->desig);
+                    }
+                    else
+                    {
+                        dest = new_node_subscript(expr, index);
+                    }
                     add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                    len++;
+                    ++index;
+                    len = max(len, index);
                 }
+
                 expr->type->size = expr->type->base->size * len;
                 expr->type->len = len;
                 expr->type->complete = true;
@@ -1441,13 +1588,47 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
         else if(is_struct(expr->type))
         {
             List(Statement) *stmt_list = new_list(Statement)();
-            ListEntry(Member) *memb_cursor = get_first_entry(Member)(expr->type->members);
 
+            // assign zero by default
+            for_each_entry(Member, cursor, expr->type->members)
+            {
+                Member *member = get_element(Member)(cursor);
+                Expression *dest = new_node_member(expr, member);
+                add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
+            }
+
+            ListEntry(Member) *memb_cursor = get_first_entry(Member)(expr->type->members);
             for_each_entry(Initializer, init_cursor, init->list)
             {
+                Expression *dest = NULL;
                 Initializer *init_element = get_element(Initializer)(init_cursor);
-                Member *member = get_element(Member)(memb_cursor);
-                Expression *dest = new_node_member(expr, member);
+                if(init_element->desig != NULL)
+                {
+                    // overwrite initialization up to the current member
+                    memb_cursor = NULL;
+                    const Token *token = get_first_element(Designator)(init_element->desig)->token;
+                    for_each_entry(Member, cursor, expr->type->members)
+                    {
+                        Member *member = get_element(Member)(cursor);
+                        if(strncmp(token->str, member->name, token->len) == 0)
+                        {
+                            memb_cursor = cursor;
+                            break;
+                        }
+                    }
+                    if(memb_cursor == NULL)
+                    {
+                        report_error(NULL, "cannot find a member \"%s\"", make_identifier(token));
+                    }
+
+                    // parse designation
+                    dest = get_designation_target(expr, init_element->desig);
+                }
+                else
+                {
+                    Member *member = get_element(Member)(memb_cursor);
+                    dest = new_node_member(expr, member);
+                }
                 add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
                 memb_cursor = next_entry(Member, memb_cursor);
                 if(end_iteration(Member)(expr->type->members, memb_cursor))
@@ -1455,23 +1636,25 @@ static Statement *assign_initializer(Expression *expr, const Initializer *init)
                     break;
                 }
             }
-            for(; !end_iteration(Member)(expr->type->members, memb_cursor); memb_cursor = next_entry(Member, memb_cursor))
-            {
-                // handle the remainder
-                Member *member = get_element(Member)(memb_cursor);
-                Expression *dest = new_node_member(expr, member);
-                add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-            }
 
             init_stmt = new_statement(STMT_COMPOUND);
             init_stmt->compound = stmt_list;
         }
         else if(is_union(expr->type))
         {
-            Initializer *first_init = get_first_element(Initializer)(init->list);
-            Member *first_member = get_first_element(Member)(expr->type->members);
-            Expression *dest = new_node_member(expr, first_member);
-            init_stmt = assign_initializer(dest, first_init);
+            Expression *dest = NULL;
+            Initializer *init_element = get_first_element(Initializer)(init->list);
+            if(init_element->desig != NULL)
+            {
+                // parse designation
+                dest = get_designation_target(expr, init_element->desig);
+            }
+            else
+            {
+                Member *member = get_first_element(Member)(expr->type->members);
+                dest = new_node_member(expr, member);
+            }
+            init_stmt = assign_initializer(dest, init_element);
         }
         else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
@@ -1928,6 +2111,15 @@ peek a declarator-suffix
 static bool peek_declarator_suffix(void)
 {
     return peek_reserved("[") || peek_reserved("(");
+}
+
+
+/*
+peek a designator
+*/
+static bool peek_designator(void)
+{
+    return peek_reserved("[") || peek_reserved(".");
 }
 
 

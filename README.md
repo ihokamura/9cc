@@ -123,7 +123,10 @@ typedef-name ::= identifier
 
 initializer ::= assign
               | "{" initializer-list ","? "}"
-initializer-list ::= initializer ("," initializer)*
+initializer-list ::= designation? initializer ("," designation? initializer)*
+designation ::= designator-list "="
+designator-list ::= designator designator*
+designator ::= "[" const-expression "]" | "." identifier
 ```
 
 # Statements
