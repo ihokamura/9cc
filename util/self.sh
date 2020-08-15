@@ -58,10 +58,10 @@ expand()
     s/\btrue\b/1/g;
     s/\bfalse\b/0/g;
     s/\bNULL\b/(void *)0/g;
-    s/\bUINT_MAX\b/4294967295/g;
+    s/\bUINT_MAX\b/4294967295U/g;
     s/\bINT_MAX\b/2147483647/g;
-    s/\bULONG_MAX\b/18446744073709551615/g;
-    s/\bLONG_MAX\b/9223372036854775807/g;
+    s/\bULONG_MAX\b/18446744073709551615UL/g;
+    s/\bLONG_MAX\b/9223372036854775807L/g;
     s/\bEXIT_FAILURE\b/1/g;
     s/\bSEEK_SET\b/0/g;
     s/\bSEEK_END\b/2/g;

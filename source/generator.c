@@ -641,13 +641,13 @@ static void generate_binary(const Expression *expr, BinaryOperationKind kind)
 
     case BINOP_L:
         put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("setl al");
+        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
         put_line_with_tab("movzb rax, al");
         break;
 
     case BINOP_LEQ:
         put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("setle al");
+        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
         put_line_with_tab("movzb rax, al");
         break;
 

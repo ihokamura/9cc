@@ -782,6 +782,7 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
             if(strncmp(&str[len], string, suffix_length) == 0)
             {
                 len += suffix_length;
+                suffix = integer_suffix_list[i].suffix;
                 break;
             }
         }

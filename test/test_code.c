@@ -1336,18 +1336,28 @@ int test_character_constant()
 /*
 initializer
 */
-char gvar_char_init = 1;
-short gvar_short_init = 2;
-int gvar_int_init = 3;
-long gvar_long_init = 4;
+char gvar_init_char = 1;
+short gvar_init_short = 2;
+int gvar_init_int = 3;
+long gvar_init_long = 4;
 int gvar_int_uninit1, gvar_int_init1 = 11, gvar_int_init2 = 12, gvar_int_uninit2;
-int gvar_a1[3] = {10 * +1 + (1 - 2) / -1, (1 << 1) * ((8 >> 3 / 2) * 3 - !0), (0 < 1) * 11 + 22};
-int gvar_a2[2][2] = {{11, 22}, {33, 44}};
-int gvar_a3[][3] = {{11, 22, }, {44, }};
-struct {int m1; int m2;} gvar_st1 = {111, 222};
-struct {char m1; struct {int mm1; short mm2;} m2;} gvar_st2 = {111, {222, 333}};
-char gvar_c1[] = "foo";
-char *gvar_str = "foo";
+int gvar_init_a1[3] = {10 * +1 + (1 - 2) / -1, (1 << 1) * ((8 >> 3 / 2) * 3 - !0), (0 < 1) * 11 + 22};
+int gvar_init_a2[2][2] = {{11, 22}, {33, 44}};
+int gvar_init_a3[][3] = {{11, 22, }, {44, }};
+int gvar_init_a4[6] = {1, [2] = 3, 4, [4] = 5};
+int gvar_init_a5[6] = {1, [2] = 3, 4, 5, [0] = 5, 6, 7};
+int gvar_init_a6[3][2] = {{1, 2}, [2][1] = 6};
+int gvar_init_a7[] = {1, 2, [3] = 4};
+int gvar_init_a8[] = {1, 2, [0] = 4};
+struct {int m1; int m2;} gvar_init_st1 = {111, 222};
+struct {char m1; struct {int mm1; short mm2;} m2;} gvar_init_st2 = {111, {222, 333}};
+struct {int m1; int m2; int m3;} gvar_init_st3 = {.m2 = 2, 3};
+struct {int m1[3], m2;} gvar_init_st4[] = {[0].m1 = {1}, [1].m1[0] = 2};
+union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_char = {.m1 = {0x01, 0x02, [4]=0x11, 0x22}};
+union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_int = {.m2 = {0x03, }};
+union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_long = {.m3 = {0x04}};
+char gvar_init_c1[] = "foo";
+char *gvar_init_str = "foo";
 
 int test_initializer()
 {
@@ -1363,10 +1373,10 @@ int test_initializer()
 
     int i1 = 1, i2 = 2, *p1 = &p[1]; assert_int(1, i1); assert_int(i2, 2); assert_int(4, p1[1]);
 
-    assert_int(1, gvar_char_init);
-    assert_int(2, gvar_short_init);
-    assert_int(3, gvar_int_init);
-    assert_int(4, gvar_long_init);
+    assert_int(1, gvar_init_char);
+    assert_int(2, gvar_init_short);
+    assert_int(3, gvar_init_int);
+    assert_int(4, gvar_init_long);
 
     gvar_int_uninit1 = 1, gvar_int_uninit2 = 2;
     assert_int(1, gvar_int_uninit1);
@@ -1374,13 +1384,23 @@ int test_initializer()
     assert_int(11, gvar_int_init1);
     assert_int(12, gvar_int_init2);
 
-    assert_int(11, gvar_a1[0]); assert_int(22, gvar_a1[1]); assert_int(33, gvar_a1[2]);
-    assert_int(11, gvar_a2[0][0]); assert_int(22, gvar_a2[0][1]); assert_int(33, gvar_a2[1][0]); assert_int(44, gvar_a2[1][1]);
-    assert_int(11, gvar_a3[0][0]); assert_int(22, gvar_a3[0][1]); assert_int(0, gvar_a3[0][2]); assert_int(44, gvar_a3[1][0]); assert_int(0, gvar_a3[1][1]); assert_int(0, gvar_a3[1][2]);
-    assert_int(111, gvar_st1.m1); assert_int(222, gvar_st1.m2);
-    assert_int(111, gvar_st2.m1); assert_int(222, gvar_st2.m2.mm1); assert_int(333, gvar_st2.m2.mm2);
-    assert_char(111, gvar_c1[1]);
-    assert_char(111, gvar_str[1]);
+    assert_int(11, gvar_init_a1[0]); assert_int(22, gvar_init_a1[1]); assert_int(33, gvar_init_a1[2]);
+    assert_int(11, gvar_init_a2[0][0]); assert_int(22, gvar_init_a2[0][1]); assert_int(33, gvar_init_a2[1][0]); assert_int(44, gvar_init_a2[1][1]);
+    assert_int(11, gvar_init_a3[0][0]); assert_int(22, gvar_init_a3[0][1]); assert_int(0, gvar_init_a3[0][2]); assert_int(44, gvar_init_a3[1][0]); assert_int(0, gvar_init_a3[1][1]); assert_int(0, gvar_init_a3[1][2]);
+    assert_int(1, gvar_init_a4[0]); assert_int(0, gvar_init_a4[1]); assert_int(3, gvar_init_a4[2]); assert_int(4, gvar_init_a4[3]); assert_int(5, gvar_init_a4[4]); assert_int(0, gvar_init_a4[5]);
+    assert_int(5, gvar_init_a5[0]); assert_int(6, gvar_init_a5[1]); assert_int(7, gvar_init_a5[2]); assert_int(4, gvar_init_a5[3]); assert_int(5, gvar_init_a5[4]); assert_int(0, gvar_init_a5[5]);
+    assert_int(1, gvar_init_a6[0][0]); assert_int(2, gvar_init_a6[0][1]); assert_int(0, gvar_init_a6[1][0]); assert_int(0, gvar_init_a6[1][1]); assert_int(0, gvar_init_a6[2][0]); assert_int(6, gvar_init_a6[2][1]);
+    assert_int(1, gvar_init_a7[0]); assert_int(2, gvar_init_a7[1]); assert_int(0, gvar_init_a7[2]); assert_int(4, gvar_init_a7[3]); assert_int(4, sizeof(gvar_init_a7) / sizeof(gvar_init_a7[0]));
+    assert_int(4, gvar_init_a8[0]); assert_int(2, gvar_init_a8[1]); assert_int(2, sizeof(gvar_init_a8) / sizeof(gvar_init_a8[0]));
+    assert_int(111, gvar_init_st1.m1); assert_int(222, gvar_init_st1.m2);
+    assert_int(111, gvar_init_st2.m1); assert_int(222, gvar_init_st2.m2.mm1); assert_int(333, gvar_init_st2.m2.mm2);
+    assert_int(0, gvar_init_st3.m1); assert_int(2, gvar_init_st3.m2); assert_int(3, gvar_init_st3.m3);
+    assert_int(1, gvar_init_st4[0].m1[0]); assert_int(0, gvar_init_st4[0].m1[1]); assert_int(0, gvar_init_st4[0].m1[2]); assert_int(2, gvar_init_st4[1].m1[0]); assert_int(0, gvar_init_st4[1].m1[1]); assert_int(0, gvar_init_st4[1].m1[2]); assert_int(32, sizeof(gvar_init_st4));
+    assert_char(0x01, gvar_init_un1_char.m1[0]); assert_char(0x02, gvar_init_un1_char.m1[1]); assert_char(0x00, gvar_init_un1_char.m1[2]); assert_char(0x00, gvar_init_un1_char.m1[3]); assert_char(0x11, gvar_init_un1_char.m1[4]); assert_char(0x22, gvar_init_un1_char.m1[5]); assert_char(0x00, gvar_init_un1_char.m1[6]); assert_char(0x00, gvar_init_un1_char.m1[7]);
+    assert_int(0x03, gvar_init_un1_int.m2[0]); assert_int(0x00, gvar_init_un1_int.m2[1]);
+    assert_long(0x04, gvar_init_un1_long.m3[0]);
+    assert_char(111, gvar_init_c1[1]);
+    assert_char(111, gvar_init_str[1]);
 
     int a0 = {1}; assert_int(1, a0);
     int a1[3] = {1, 2, 3}; assert_int(1, a1[0]); assert_int(2, a1[1]); assert_int(3, a1[2]);

@@ -77,8 +77,8 @@ struct Designator
 static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
-static DataSegment *new_data_segment(void);
-static DataSegment *new_zero_data_segment(size_t size);
+static DataSegment *new_data_segment(size_t size, size_t offset);
+static DataSegment *new_zero_data_segment(size_t size, size_t offset);
 static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local);
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
@@ -107,9 +107,13 @@ static List(Designator) *designator_list(void);
 static Designator *designator(void);
 static Initializer *designation_and_initializer(void);
 static Expression *get_designation_target(Expression *expr, const List(Designator) *designation);
+static size_t get_designation_offset(Type **type, const List(Designator) *designation);
 static Statement *assign_initializer(Expression *expr, const Initializer *init);
 static Statement *assign_zero_initializer(Expression *expr);
 static List(DataSegment) *make_data_segment(Type *type, const Initializer *init);
+static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Type *type, const Initializer *init, size_t offset);
+static List(DataSegment) *append_zero_data(List(DataSegment) *data_list, size_t size, size_t offset);
+static int compare_offset(const void *data1, const void *data2);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
 static bool is_string(const Expression *expr);
@@ -226,11 +230,12 @@ static Initializer *new_initializer(void)
 /*
 make a new data segment
 */
-static DataSegment *new_data_segment(void)
+static DataSegment *new_data_segment(size_t size, size_t offset)
 {
     DataSegment *data = calloc(1, sizeof(DataSegment));
     data->label = NULL;
-    data->size = 0;
+    data->size = size;
+    data->offset= offset;
     data->value = 0;
     data->zero = false;
 
@@ -241,10 +246,9 @@ static DataSegment *new_data_segment(void)
 /*
 make a new zero-valued data segment
 */
-static DataSegment *new_zero_data_segment(size_t size)
+static DataSegment *new_zero_data_segment(size_t size, size_t offset)
 {
-    DataSegment *data = new_data_segment();
-    data->size = size;
+    DataSegment *data = new_data_segment(size, offset);
     data->zero = true;
 
     return data;
@@ -254,9 +258,9 @@ static DataSegment *new_zero_data_segment(size_t size)
 /*
 make a new string data segment
 */
-DataSegment *new_string_data_segment(const char *label)
+DataSegment *new_string_data_segment(const char *label, size_t offset)
 {
-    DataSegment *data = new_data_segment();
+    DataSegment *data = new_data_segment(sizeof(const char *), offset);
     data->label = label;
 
     return data;
@@ -440,15 +444,8 @@ report_duplicated_declaration:
             expr->var = new_gvar(name, type, sclass, emit);
 
             // parse initializer
-            if(consume_reserved("="))
-            {
-                expr->var->data = make_data_segment(expr->var->type, initializer());
-            }
-            else
-            {
-                expr->var->data = new_list(DataSegment)();
-                add_list_entry_tail(DataSegment)(expr->var->data, new_zero_data_segment(type->size));
-            }
+            Initializer *init = consume_reserved("=") ? initializer() : NULL;
+            expr->var->data = make_data_segment(expr->var->type, init);
         }
 
         return new_declaration(expr->var);
@@ -1488,6 +1485,33 @@ static Expression *get_designation_target(Expression *expr, const List(Designato
 
 
 /*
+get offset of designated object
+*/
+static size_t get_designation_offset(Type **type, const List(Designator) *designation)
+{
+    size_t offset = 0;
+
+    for_each_entry(Designator, cursor, designation)
+    {
+        Designator *designator = get_element(Designator)(cursor);
+        if(designator->token != NULL)
+        {
+            Member *member = find_member(designator->token, *type);
+            *type = member->type;
+            offset += member->offset;
+        }
+        else
+        {
+            *type = (*type)->base;
+            offset += designator->index * (*type)->size;
+        }
+    }
+
+    return offset;
+}
+
+
+/*
 assign initial value to object
 */
 static Statement *assign_initializer(Expression *expr, const Initializer *init)
@@ -1747,99 +1771,144 @@ make list of contents for data segment of global variable
 */
 static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
 {
-    List(DataSegment) *data_list = NULL;
+    List(DataSegment) *data_list = new_list(DataSegment)();
 
+    if(init == NULL)
+    {
+        // assign zero
+        add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(type->size, 0));
+    }
+    else
+    {
+        // parse initializers
+        make_data_segment_sub(data_list, type, init, 0);
+
+        // sort initializers
+        size_t len = get_length(DataSegment)(data_list);
+        DataSegment *data_vector = calloc(len, sizeof(DataSegment));
+        size_t i = 0;
+        for_each_entry(DataSegment, cursor, data_list)
+        {
+            DataSegment *data = get_element(DataSegment)(cursor);
+            data_vector[i] = *data;
+            i++;
+        }
+        qsort(data_vector, len, sizeof(DataSegment), compare_offset);
+
+        // make list of data segments filling holes by zero
+        data_list = new_list(DataSegment)();
+        append_zero_data(data_list, data_vector[0].offset, 0);
+        for(size_t i = 0; i < len - 1; i++)
+        {
+            if(data_vector[i].offset < data_vector[i + 1].offset)
+            {
+                add_list_entry_tail(DataSegment)(data_list, &data_vector[i]);
+                size_t offset = data_vector[i].offset + data_vector[i].size;
+                append_zero_data(data_list, data_vector[i + 1].offset - offset, offset);
+            }
+        }
+        add_list_entry_tail(DataSegment)(data_list, &data_vector[len - 1]);
+        size_t offset = data_vector[len - 1].offset + data_vector[len - 1].size;
+        append_zero_data(data_list, type->size - offset, offset);
+    }
+
+    return data_list;
+}
+
+
+/*
+sub-function to make list of contents for data segment of global variable
+*/
+static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Type *type, const Initializer *init, size_t offset)
+{
     if(init->assign == NULL)
     {
         if(is_array(type))
         {
-            data_list = new_list(DataSegment)();
+            size_t index = 0;
+            size_t len = 0;
+            size_t bound = (type->complete ? type->len : ULONG_MAX);
 
-            if(type->complete)
+            for_each_entry(Initializer, cursor, init->list)
             {
-                size_t index = 0;
-                for_each_entry(Initializer, cursor, init->list)
+                if(index < bound)
                 {
                     Initializer *init_element = get_element(Initializer)(cursor);
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_element));
-                    index++;
-                    if(index >= type->len)
+                    Type *sub_type = type;
+                    size_t sub_offset = offset;
+                    if(init_element->desig != NULL)
                     {
-                        break;
+                        sub_offset += get_designation_offset(&sub_type, init_element->desig);
+                        index = get_first_element(Designator)(init_element->desig)->index;
                     }
+                    else
+                    {
+                        sub_type = type->base;
+                        sub_offset += index * type->base->size;
+                    }
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment_sub(data_list, sub_type, init_element, sub_offset));
+                    index++;
+                    len = max(len, index);
                 }
-
-                // fill the remainder by zero
-                size_t remainder = (type->len - index) * type->base->size;
-                if(remainder > 0)
+                else
                 {
-                    add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(remainder));
+                    report_warning(NULL, "excess elements in array initializer");
                 }
             }
-            else
+
+            if(!type->complete)
             {
                 // determine length of array by initializer-list
-                size_t len = 0;
-                for_each_entry(Initializer, cursor, init->list)
-                {
-                    Initializer *init_element = get_element(Initializer)(cursor);
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment(type->base, init_element));
-                    len++;
-                }
                 type->size = type->base->size * len;
                 type->len = len;
                 type->complete = true;
             }
         }
-        else if(is_struct(type))
+        else if(is_struct_or_union(type))
         {
-            data_list = new_list(DataSegment)();
             ListEntry(Member) *memb_cursor = get_first_entry(Member)(type->members);
-
             for_each_entry(Initializer, init_cursor, init->list)
             {
-                Initializer *init_element = get_element(Initializer)(init_cursor);
-                Member *member = get_element(Member)(memb_cursor);
-                data_list = concatenate_list(DataSegment)(data_list, make_data_segment(member->type, init_element));
+                if(!end_iteration(Member)(type->members, memb_cursor))
+                {
+                    Initializer *init_element = get_element(Initializer)(init_cursor);
+                    Type *sub_type = type;
+                    size_t sub_offset = offset;
+                    if(init_element->desig != NULL)
+                    {
+                        sub_offset += get_designation_offset(&sub_type, init_element->desig);
 
-                // fill padding by zero
-                size_t start = member->offset + member->type->size;
-                size_t end = (end_iteration(Member)(type->members, next_entry(Member, memb_cursor)) ? type->size : get_element(Member)(next_entry(Member, memb_cursor))->offset);
-                size_t padding_size = end - start;
-                if(padding_size > 0)
-                {
-                    add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(padding_size));
+                        const Token *token = get_first_element(Designator)(init_element->desig)->token;
+                        for_each_entry(Member, cursor, type->members)
+                        {
+                            Member *member = get_element(Member)(cursor);
+                            if(strncmp(member->name, token->str, token->len) == 0)
+                            {
+                                memb_cursor = cursor;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Member *member = get_element(Member)(memb_cursor);
+                        sub_type = member->type;
+                        sub_offset += member->offset;
+                    }
+
+                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment_sub(data_list, sub_type, init_element, sub_offset));
+                    memb_cursor = next_entry(Member, memb_cursor);
                 }
-                memb_cursor = next_entry(Member, memb_cursor);
-                if(end_iteration(Member)(type->members, memb_cursor))
+                else
                 {
-                    break;
+                    report_warning(NULL, "excess elements in %s initializer", is_struct(type) ? "struct" : "union");
                 }
             }
-
-            // fill the remainder by zero
-            if(!end_iteration(Member)(type->members, memb_cursor))
-            {
-                Member *member = get_element(Member)(memb_cursor);
-                size_t remainder = type->size - member->offset;
-                add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(remainder));
-            }
-        }
-        else if(is_union(type))
-        {
-            Initializer *first_init = get_first_element(Initializer)(init->list);
-            Member *first_member = get_first_element(Member)(type->members);
-            data_list = make_data_segment(first_member->type, first_init);
         }
         else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            data_list = make_data_segment(type, get_first_element(Initializer)(init->list));
-        }
-        else
-        {
-            data_list = new_list(DataSegment)();
-            add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(type->size));
+            make_data_segment_sub(data_list, type, get_first_element(Initializer)(init->list), offset);
         }
     }
     else
@@ -1856,26 +1925,59 @@ static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
                 init->assign = new_node_constant(TY_INT, content[i]);
                 add_list_entry_tail(Initializer)(init_string->list, init);
             }
-            data_list = make_data_segment(type, init_string);
+            make_data_segment_sub(data_list, type, init_string, offset);
         }
         else if(is_pointer(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize string-literal
-            data_list = new_list(DataSegment)();
-            add_list_entry_tail(DataSegment)(data_list, new_string_data_segment(init->assign->var->name));
+            add_list_entry_tail(DataSegment)(data_list, new_string_data_segment(init->assign->var->name, offset));
         }
         else
         {
-            DataSegment *data = new_data_segment();
-            data->size = type->size;
+            DataSegment *data = new_data_segment(type->size, offset);
             data->value = evaluate(init->assign);
-
-            data_list = new_list(DataSegment)();
             add_list_entry_tail(DataSegment)(data_list, data);
         }
     }
 
     return data_list;
+}
+
+
+/*
+append zero-data segment
+*/
+static List(DataSegment) *append_zero_data(List(DataSegment) *data_list, size_t size, size_t offset)
+{
+    if(size > 0)
+    {
+        add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(size, offset));
+    }
+
+    return data_list;
+}
+
+
+/*
+compare offset of two data segments
+*/
+static int compare_offset(const void *data1, const void *data2)
+{
+    size_t offset1 = ((const DataSegment *)data1)->offset;
+    size_t offset2 = ((const DataSegment *)data2)->offset;
+
+    if(offset1 < offset2)
+    {
+        return -1;
+    }
+    else if(offset1 > offset2)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 

@@ -27,6 +27,7 @@ struct DataSegment
 {
     const char *label;   // label (symbol)
     size_t size;         // size of data
+    size_t offset;       // offset from base
     bool zero;           // flag indicating that data is zero or non-zero
     long value;          // value of data
 };
@@ -44,7 +45,7 @@ struct Enumerator
     int value;        // value of enumerator
 };
 
-DataSegment *new_string_data_segment(const char *label);
+DataSegment *new_string_data_segment(const char *label, size_t offset);
 Statement *declaration(bool local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
