@@ -1483,7 +1483,7 @@ long const_expression(void)
 /*
 evaluate a node
 */
-long evaluate(Expression *expr)
+long evaluate(const Expression *expr)
 {
     long result = 0;
 

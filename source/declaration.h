@@ -23,13 +23,13 @@ enum StorageClassSpecifier
 };
 
 // structure for contents in data segment
-struct DataSegment
+struct InitializerMap
 {
-    const char *label;   // label (symbol)
-    size_t size;         // size of data
-    size_t offset;       // offset from base
-    bool zero;           // flag indicating that data is zero or non-zero
-    long value;          // value of data
+    const char *label;        // label (symbol)
+    const Expression *assign; // assignment expression in initializer
+    size_t size;              // size of data
+    size_t offset;            // offset from base
+    bool initialized;         // flag indicating that data is initialized or not
 };
 
 // structure for declaration
@@ -45,7 +45,7 @@ struct Enumerator
     int value;        // value of enumerator
 };
 
-DataSegment *new_string_data_segment(const char *label, size_t offset);
+InitializerMap *new_string_initializer_map(const char *label, size_t offset);
 Statement *declaration(bool local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);

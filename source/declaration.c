@@ -29,15 +29,14 @@ typedef struct Initializer Initializer;
 typedef struct Designator Designator;
 define_list(Initializer)
 define_list(Designator)
-define_list_operations(DataSegment)
 define_list_operations(Declaration)
+define_list_operations(InitializerMap)
 define_list_operations(Initializer)
 define_list_operations(Designator)
 
 // macro
 #define INVALID_DECLSPEC (-1) // invalid declaration specifier
 #define TYPESPEC_SIZE ((size_t)12) // number of type specifiers
-#define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 // kind of type specifiers
@@ -77,8 +76,8 @@ struct Designator
 static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
-static DataSegment *new_data_segment(size_t size, size_t offset);
-static DataSegment *new_zero_data_segment(size_t size, size_t offset);
+static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset);
+static InitializerMap *new_uninitialized_map(size_t size, size_t offset);
 static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local);
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
@@ -96,7 +95,7 @@ static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_v
 static Type *pointer(Type *base);
 static List(Type) *parameter_type_list(List(Variable) **arg_vars, bool *variadic);
 static List(Type) *parameter_list(List(Variable) **arg_vars);
-static Type *parameter_declaration(Variable **arg_var);
+static Type *parameter_declaration(Variable **arg_var, bool omit_name);
 static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
 static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars);
@@ -106,13 +105,10 @@ static List(Designator) *designation(void);
 static List(Designator) *designator_list(void);
 static Designator *designator(void);
 static Initializer *designation_and_initializer(void);
-static Expression *get_designation_target(Expression *expr, const List(Designator) *designation);
 static size_t get_designation_offset(Type **type, const List(Designator) *designation);
-static Statement *assign_initializer(Expression *expr, const Initializer *init);
-static Statement *assign_zero_initializer(Expression *expr);
-static List(DataSegment) *make_data_segment(Type *type, const Initializer *init);
-static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Type *type, const Initializer *init, size_t offset);
-static List(DataSegment) *append_zero_data(List(DataSegment) *data_list, size_t size, size_t offset);
+static List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init);
+static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
+static List(InitializerMap) *append_uninitialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset);
 static int compare_offset(const void *data1, const void *data2);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
@@ -228,42 +224,42 @@ static Initializer *new_initializer(void)
 
 
 /*
-make a new data segment
+make a new map from offset to initializer
 */
-static DataSegment *new_data_segment(size_t size, size_t offset)
+static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset)
 {
-    DataSegment *data = calloc(1, sizeof(DataSegment));
-    data->label = NULL;
-    data->size = size;
-    data->offset= offset;
-    data->value = 0;
-    data->zero = false;
+    InitializerMap *init_map = calloc(1, sizeof(InitializerMap));
+    init_map->label = NULL;
+    init_map->assign = assign;
+    init_map->size = size;
+    init_map->offset= offset;
+    init_map->initialized = true;
 
-    return data;
+    return init_map;
 }
 
 
 /*
-make a new zero-valued data segment
+make a new uninitialized map from offset to initializer
 */
-static DataSegment *new_zero_data_segment(size_t size, size_t offset)
+static InitializerMap *new_uninitialized_map(size_t size, size_t offset)
 {
-    DataSegment *data = new_data_segment(size, offset);
-    data->zero = true;
+    InitializerMap *init_map = new_initializer_map(NULL, size, offset);
+    init_map->initialized = false;
 
-    return data;
+    return init_map;
 }
 
 
 /*
 make a new string data segment
 */
-DataSegment *new_string_data_segment(const char *label, size_t offset)
+InitializerMap *new_string_initializer_map(const char *label, size_t offset)
 {
-    DataSegment *data = new_data_segment(sizeof(const char *), offset);
-    data->label = label;
+    InitializerMap *init_map = new_initializer_map(NULL, SIZEOF_PTR, offset);
+    init_map->label = label;
 
-    return data;
+    return init_map;
 }
 
 
@@ -389,13 +385,13 @@ static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bo
         {
             if(consume_reserved("="))
             {
-                if(!get_first_element(DataSegment)(ident->var->data)->zero)
+                if(get_first_element(InitializerMap)(ident->var->inits)->initialized)
                 {
                     duplicated = true;
                     goto report_duplicated_declaration;
                 }
                 // initialize the prior declaration of identifier with internal linkage
-                ident->var->data = make_data_segment(ident->var->type, initializer());
+                ident->var->inits = make_initializer_map(ident->var->type, initializer());
             }
             // return the prior declaration of identifier with internal linkage
             return new_declaration(ident->var);
@@ -426,12 +422,6 @@ report_duplicated_declaration:
         {
             // block scope identifier for an object with automatic storage duration
             expr->var = new_lvar(name, type);
-
-            // parse initializer
-            if(consume_reserved("="))
-            {
-                expr->var->init = assign_initializer(expr, initializer());
-            }
         }
         else
         {
@@ -442,11 +432,11 @@ report_duplicated_declaration:
             }
             bool emit = (type->kind != TY_FUNC) && (sclass != SC_EXTERN);
             expr->var = new_gvar(name, type, sclass, emit);
-
-            // parse initializer
-            Initializer *init = consume_reserved("=") ? initializer() : NULL;
-            expr->var->data = make_data_segment(expr->var->type, init);
         }
+
+        // parse initializer
+        Initializer *init = consume_reserved("=") ? initializer() : NULL;
+        expr->var->inits = make_initializer_map(expr->var->type, init);
 
         return new_declaration(expr->var);
     }
@@ -1094,10 +1084,11 @@ parameter-list ::= parameter-declaration ("," parameter-declaration)*
 */
 static List(Type) *parameter_list(List(Variable) **arg_vars)
 {
+    bool omit_name = (arg_vars == NULL);
     List(Type) *arg_types = new_list(Type)();
     Variable *arg_var;
 
-    add_list_entry_tail(Type)(arg_types, parameter_declaration(&arg_var));
+    add_list_entry_tail(Type)(arg_types, parameter_declaration(&arg_var, omit_name));
 
     if(is_void(get_first_element(Type)(arg_types)))
     {
@@ -1124,7 +1115,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
         {
             if(!consume_reserved("..."))
             {
-                add_list_entry_tail(Type)(arg_types, parameter_declaration(&arg_var));
+                add_list_entry_tail(Type)(arg_types, parameter_declaration(&arg_var, omit_name));
                 if(arg_vars != NULL)
                 {
                     if(arg_var == NULL)
@@ -1157,7 +1148,7 @@ make a parameter declaration
 parameter-declaration ::= declaration-specifiers (declarator | abstract-declarator?)
 ```
 */
-static Type *parameter_declaration(Variable **arg_var)
+static Type *parameter_declaration(Variable **arg_var, bool omit_name)
 {
     StorageClassSpecifier sclass;
     Type *arg_type = declaration_specifiers(&sclass);
@@ -1183,13 +1174,20 @@ static Type *parameter_declaration(Variable **arg_var)
         arg_type = new_type_pointer(arg_type);
     }
 
-    if(arg_token != NULL)
+    if(omit_name || is_void(arg_type))
     {
-        *arg_var = new_var(make_identifier(arg_token), arg_type, sclass, true);
+        *arg_var = NULL;
     }
     else
     {
-        *arg_var = NULL;
+        if(arg_token == NULL)
+        {
+            report_error(NULL, "parameter name omitted");
+        }
+        else
+        {
+            *arg_var = new_var(make_identifier(arg_token), arg_type, sclass, true);
+        }
     }
 
     return arg_type;
@@ -1266,7 +1264,7 @@ static Type *direct_abstract_declarator(Type *type)
             expect_reserved(")");
 
             // parse declarator-suffixes
-            type = declarator_suffixes(type, false);
+            type = declarator_suffixes(type, NULL);
 
             // overwrite the placeholder to fix the type
             *placeholder = *type;
@@ -1285,7 +1283,7 @@ static Type *direct_abstract_declarator(Type *type)
         report_error(saved_token->str, "expected '[' or '('");
     }
 
-    type = declarator_suffixes(type, false);
+    type = declarator_suffixes(type, NULL);
 
 direct_abstract_declarator_end:
     return type;
@@ -1461,30 +1459,6 @@ static Initializer *designation_and_initializer(void)
 
 
 /*
-get designated expression
-*/
-static Expression *get_designation_target(Expression *expr, const List(Designator) *designation)
-{
-    Expression *dest = expr;
-
-    for_each_entry(Designator, cursor, designation)
-    {
-        Designator *designator = get_element(Designator)(cursor);
-        if(designator->token != NULL)
-        {
-            dest = new_node_member(dest, find_member(designator->token, dest->type));
-        }
-        else
-        {
-            dest = new_node_subscript(dest, designator->index);
-        }
-    }
-
-    return dest;
-}
-
-
-/*
 get offset of designated object
 */
 static size_t get_designation_offset(Type **type, const List(Designator) *designation)
@@ -1512,314 +1486,63 @@ static size_t get_designation_offset(Type **type, const List(Designator) *design
 
 
 /*
-assign initial value to object
+make list of maps from offset to initializer
 */
-static Statement *assign_initializer(Expression *expr, const Initializer *init)
+static List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init)
 {
-    Statement *init_stmt = NULL;
-
-    if(init->assign == NULL)
-    {
-        if(is_array(expr->type))
-        {
-            List(Statement) *stmt_list = new_list(Statement)();
-
-            if(expr->type->complete)
-            {
-                // assign zero by default
-                for(size_t index = 0; index < expr->type->len; index++)
-                {
-                    Expression *dest = new_node_subscript(expr, index);
-                    add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-                }
-
-                // parse initializer list
-                size_t index = 0;
-                for_each_entry(Initializer, cursor, init->list)
-                {
-                    Expression *dest = NULL;
-                    Initializer *init_element = get_element(Initializer)(cursor);
-                    if(index < expr->type->len)
-                    {
-                        if(init_element->desig != NULL)
-                        {
-                            // assign zero up to the current index
-                            size_t current_index = get_first_element(Designator)(init_element->desig)->index;
-                            for(index = min(index, current_index); index < current_index; index++)
-                            {
-                                Expression *dest = new_node_subscript(expr, index);
-                                add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-                            }
-
-                            // parse designation
-                            dest = get_designation_target(expr, init_element->desig);
-                        }
-                        else
-                        {
-                            dest = new_node_subscript(expr, index);
-                        }
-                        add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                        ++index;
-                    }
-                    else
-                    {
-                        report_warning(NULL, "excess elements in array initializer");
-                    }
-                }
-            }
-            else
-            {
-                // determine length of array by initializer-list
-                size_t len = 0;
-                size_t index = 0;
-                for_each_entry(Initializer, cursor, init->list)
-                {
-                    // assign zero by default
-                    Expression *dest = new_node_subscript(expr, index);
-                    add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-
-                    Initializer *init_element = get_element(Initializer)(cursor);
-                    if(init_element->desig != NULL)
-                    {
-                        // assign zero up to the current index
-                        size_t current_index = get_first_element(Designator)(init_element->desig)->index;
-                        for(index = min(index, current_index); index < current_index; index++)
-                        {
-                            Expression *dest = new_node_subscript(expr, index);
-                            add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-                        }
-
-                        // parse designation
-                        dest = get_designation_target(expr, init_element->desig);
-                    }
-                    else
-                    {
-                        dest = new_node_subscript(expr, index);
-                    }
-                    add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                    ++index;
-                    len = max(len, index);
-                }
-
-                expr->type->size = expr->type->base->size * len;
-                expr->type->len = len;
-                expr->type->complete = true;
-            }
-
-            init_stmt = new_statement(STMT_COMPOUND);
-            init_stmt->compound = stmt_list;
-        }
-        else if(is_struct(expr->type))
-        {
-            List(Statement) *stmt_list = new_list(Statement)();
-
-            // assign zero by default
-            for_each_entry(Member, cursor, expr->type->members)
-            {
-                Member *member = get_element(Member)(cursor);
-                Expression *dest = new_node_member(expr, member);
-                add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-            }
-
-            ListEntry(Member) *memb_cursor = get_first_entry(Member)(expr->type->members);
-            for_each_entry(Initializer, init_cursor, init->list)
-            {
-                Expression *dest = NULL;
-                Initializer *init_element = get_element(Initializer)(init_cursor);
-                if(init_element->desig != NULL)
-                {
-                    // overwrite initialization up to the current member
-                    memb_cursor = NULL;
-                    const Token *token = get_first_element(Designator)(init_element->desig)->token;
-                    for_each_entry(Member, cursor, expr->type->members)
-                    {
-                        Member *member = get_element(Member)(cursor);
-                        if(strncmp(token->str, member->name, token->len) == 0)
-                        {
-                            memb_cursor = cursor;
-                            break;
-                        }
-                    }
-                    if(memb_cursor == NULL)
-                    {
-                        report_error(NULL, "cannot find a member \"%s\"", make_identifier(token));
-                    }
-
-                    // parse designation
-                    dest = get_designation_target(expr, init_element->desig);
-                }
-                else
-                {
-                    Member *member = get_element(Member)(memb_cursor);
-                    dest = new_node_member(expr, member);
-                }
-                add_list_entry_tail(Statement)(stmt_list, assign_initializer(dest, init_element));
-                memb_cursor = next_entry(Member, memb_cursor);
-                if(end_iteration(Member)(expr->type->members, memb_cursor))
-                {
-                    break;
-                }
-            }
-
-            init_stmt = new_statement(STMT_COMPOUND);
-            init_stmt->compound = stmt_list;
-        }
-        else if(is_union(expr->type))
-        {
-            Expression *dest = NULL;
-            Initializer *init_element = get_first_element(Initializer)(init->list);
-            if(init_element->desig != NULL)
-            {
-                // parse designation
-                dest = get_designation_target(expr, init_element->desig);
-            }
-            else
-            {
-                Member *member = get_first_element(Member)(expr->type->members);
-                dest = new_node_member(expr, member);
-            }
-            init_stmt = assign_initializer(dest, init_element);
-        }
-        else if(get_first_element(Initializer)(init->list)->assign != NULL)
-        {
-            // The initializer for a scalar may be enclosed in braces.
-            init_stmt = new_statement(STMT_EXPR);
-            init_stmt->expr = new_node_binary(EXPR_ASSIGN, expr, get_first_element(Initializer)(init->list)->assign);
-        }
-        else
-        {
-            report_error(NULL, "invalid initializer");
-        }
-    }
-    else
-    {
-        if(is_array(expr->type) && (expr->type->base->kind == TY_CHAR) && is_string(init->assign))
-        {
-            // initialize array of char type by string-literal
-            Initializer *init_string = new_initializer();
-            init_string->list = new_list(Initializer)();
-            const char *content = init->assign->var->str->content;
-            for(size_t i = 0; i < strlen(content) + 1; i++)
-            {
-                Initializer *init = new_initializer();
-                init->assign = new_node_constant(TY_INT, content[i]);
-                add_list_entry_tail(Initializer)(init_string->list, init);
-            }
-            init_stmt = assign_initializer(expr, init_string);
-        }
-        else
-        {
-            init_stmt = new_statement(STMT_EXPR);
-            init_stmt->expr = new_node_binary(EXPR_ASSIGN, expr, init->assign);
-        }
-    }
-
-    return init_stmt;
-}
-
-
-/*
-assign zero to object
-*/
-static Statement *assign_zero_initializer(Expression *expr)
-{
-    Statement *init_stmt = NULL;
-
-    if(is_array(expr->type))
-    {
-        List(Statement) *stmt_list = new_list(Statement)();
-        for(size_t index = 0; index < expr->type->len; index++)
-        {
-            Expression *dest = new_node_subscript(expr, index);
-            add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-        }
-
-        init_stmt = new_statement(STMT_COMPOUND);
-        init_stmt->compound = stmt_list;
-    }
-    else if(is_struct(expr->type))
-    {
-        List(Statement) *stmt_list = new_list(Statement)();
-        for_each_entry(Member, cursor, expr->type->members)
-        {
-            Member *member = get_element(Member)(cursor);
-            Expression *dest = new_node_member(expr, member);
-            add_list_entry_tail(Statement)(stmt_list, assign_zero_initializer(dest));
-        }
-
-        init_stmt = new_statement(STMT_COMPOUND);
-        init_stmt->compound = stmt_list;
-    }
-    else if(is_union(expr->type))
-    {
-        Member *first_member = get_first_element(Member)(expr->type->members);
-        Expression *dest = new_node_member(expr, first_member);
-        init_stmt = assign_zero_initializer(dest);
-    }
-    else
-    {
-        init_stmt = new_statement(STMT_EXPR);
-        init_stmt->expr = new_node_binary(EXPR_ASSIGN, expr, new_node_constant(TY_INT, 0));
-    }
-
-    return init_stmt;
-}
-
-
-/*
-make list of contents for data segment of global variable
-*/
-static List(DataSegment) *make_data_segment(Type *type, const Initializer *init)
-{
-    List(DataSegment) *data_list = new_list(DataSegment)();
+    List(InitializerMap) *init_maps = new_list(InitializerMap)();
 
     if(init == NULL)
     {
         // assign zero
-        add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(type->size, 0));
+        add_list_entry_tail(InitializerMap)(init_maps, new_uninitialized_map(type->size, 0));
     }
     else
     {
         // parse initializers
-        make_data_segment_sub(data_list, type, init, 0);
+        make_initializer_map_sub(init_maps, type, init, 0);
 
         // sort initializers
-        size_t len = get_length(DataSegment)(data_list);
-        DataSegment *data_vector = calloc(len, sizeof(DataSegment));
+        size_t len = get_length(InitializerMap)(init_maps);
+        InitializerMap *inits_vector = calloc(len, sizeof(InitializerMap));
         size_t i = 0;
-        for_each_entry(DataSegment, cursor, data_list)
+        for_each_entry(InitializerMap, cursor, init_maps)
         {
-            DataSegment *data = get_element(DataSegment)(cursor);
-            data_vector[i] = *data;
+            InitializerMap *map = get_element(InitializerMap)(cursor);
+            inits_vector[i] = *map;
             i++;
         }
-        qsort(data_vector, len, sizeof(DataSegment), compare_offset);
+        qsort(inits_vector, len, sizeof(InitializerMap), compare_offset);
 
         // make list of data segments filling holes by zero
-        data_list = new_list(DataSegment)();
-        append_zero_data(data_list, data_vector[0].offset, 0);
+        InitializerMap *current = &inits_vector[0];
+        InitializerMap *next = &inits_vector[1];
+        init_maps = new_list(InitializerMap)();
+        append_uninitialized_map(init_maps, current->offset, 0);
         for(size_t i = 0; i < len - 1; i++)
         {
-            if(data_vector[i].offset < data_vector[i + 1].offset)
+            if(current->offset < next->offset)
             {
-                add_list_entry_tail(DataSegment)(data_list, &data_vector[i]);
-                size_t offset = data_vector[i].offset + data_vector[i].size;
-                append_zero_data(data_list, data_vector[i + 1].offset - offset, offset);
+                add_list_entry_tail(InitializerMap)(init_maps, current);
+                size_t offset = current->offset + current->size;
+                append_uninitialized_map(init_maps, next->offset - offset, offset);
             }
+            current++;
+            next++;
         }
-        add_list_entry_tail(DataSegment)(data_list, &data_vector[len - 1]);
-        size_t offset = data_vector[len - 1].offset + data_vector[len - 1].size;
-        append_zero_data(data_list, type->size - offset, offset);
+        add_list_entry_tail(InitializerMap)(init_maps, current);
+        size_t offset = current->offset + current->size;
+        append_uninitialized_map(init_maps, type->size - offset, offset);
     }
 
-    return data_list;
+    return init_maps;
 }
 
 
 /*
-sub-function to make list of contents for data segment of global variable
+make list of maps from offset to initializer (sub-function)
 */
-static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Type *type, const Initializer *init, size_t offset)
+static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset)
 {
     if(init->assign == NULL)
     {
@@ -1844,9 +1567,9 @@ static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Ty
                     else
                     {
                         sub_type = type->base;
-                        sub_offset += index * type->base->size;
+                        sub_offset += index * sub_type->size;
                     }
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment_sub(data_list, sub_type, init_element, sub_offset));
+                    init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
                     index++;
                     len = max(len, index);
                 }
@@ -1896,7 +1619,7 @@ static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Ty
                         sub_offset += member->offset;
                     }
 
-                    data_list = concatenate_list(DataSegment)(data_list, make_data_segment_sub(data_list, sub_type, init_element, sub_offset));
+                    init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
                     memb_cursor = next_entry(Member, memb_cursor);
                 }
                 else
@@ -1908,7 +1631,7 @@ static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Ty
         else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
             // The initializer for a scalar may be enclosed in braces.
-            make_data_segment_sub(data_list, type, get_first_element(Initializer)(init->list), offset);
+            make_initializer_map_sub(init_maps, type, get_first_element(Initializer)(init->list), offset);
         }
     }
     else
@@ -1925,36 +1648,35 @@ static List(DataSegment) *make_data_segment_sub(List(DataSegment) *data_list, Ty
                 init->assign = new_node_constant(TY_INT, content[i]);
                 add_list_entry_tail(Initializer)(init_string->list, init);
             }
-            make_data_segment_sub(data_list, type, init_string, offset);
+            make_initializer_map_sub(init_maps, type, init_string, offset);
         }
         else if(is_pointer(type) && (type->base->kind == TY_CHAR) && is_string(init->assign))
         {
             // initialize string-literal
-            add_list_entry_tail(DataSegment)(data_list, new_string_data_segment(init->assign->var->name, offset));
+            add_list_entry_tail(InitializerMap)(init_maps, new_string_initializer_map(init->assign->var->name, offset));
         }
         else
         {
-            DataSegment *data = new_data_segment(type->size, offset);
-            data->value = evaluate(init->assign);
-            add_list_entry_tail(DataSegment)(data_list, data);
+            // initialize scalar
+            add_list_entry_tail(InitializerMap)(init_maps, new_initializer_map(init->assign, type->size, offset));
         }
     }
 
-    return data_list;
+    return init_maps;
 }
 
 
 /*
-append zero-data segment
+append an uninitialized map from offset to initializer
 */
-static List(DataSegment) *append_zero_data(List(DataSegment) *data_list, size_t size, size_t offset)
+static List(InitializerMap) *append_uninitialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset)
 {
     if(size > 0)
     {
-        add_list_entry_tail(DataSegment)(data_list, new_zero_data_segment(size, offset));
+        add_list_entry_tail(InitializerMap)(init_maps, new_uninitialized_map(size, offset));
     }
 
-    return data_list;
+    return init_maps;
 }
 
 
@@ -1963,8 +1685,8 @@ compare offset of two data segments
 */
 static int compare_offset(const void *data1, const void *data2)
 {
-    size_t offset1 = ((const DataSegment *)data1)->offset;
-    size_t offset2 = ((const DataSegment *)data2)->offset;
+    size_t offset1 = ((const InitializerMap *)data1)->offset;
+    size_t offset2 = ((const InitializerMap *)data2)->offset;
 
     if(offset1 < offset2)
     {

@@ -55,10 +55,12 @@ enum BinaryOperationKind
 static void generate_push_imm(int value);
 static void generate_push_reg_or_mem(const char *reg_or_mem);
 static void generate_push_struct(const Type *type);
+static void generate_push_offset(const char *reg, size_t offset);
 static void generate_pop(const char *reg_or_mem);
 static void generate_load(const Type *type);
-static void generate_store(const Type *type);
+static void generate_store(size_t size);
 static void generate_lvalue(const Expression *expr);
+static void generate_lvar_init(const Variable *lvar);
 static void generate_gvar(const Variable *gvar);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
@@ -152,6 +154,17 @@ static void generate_push_struct(const Type *type)
 
 
 /*
+generate assembler code to push address stored in a register
+*/
+static void generate_push_offset(const char *reg, size_t offset)
+{
+    put_line_with_tab("mov rax, %s", reg);
+    put_line_with_tab("sub rax, %lu", offset);
+    generate_push_reg_or_mem("rax");
+}
+
+
+/*
 generate assembler code to pop from the stack to a register or memory
 */
 static void generate_pop(const char *reg_or_mem)
@@ -199,21 +212,21 @@ static void generate_load(const Type *type)
 /*
 generate assembler code to store value
 */
-static void generate_store(const Type *type)
+static void generate_store(size_t size)
 {
-    if(type->size <= 8)
+    if(size <= 8)
     {
         generate_pop("rdi");
         generate_pop("rax");
-        if(type->size == 1)
+        if(size == 1)
         {
             put_line_with_tab("mov byte ptr [rax], dil");
         }
-        else if(type->size <= 2)
+        else if(size <= 2)
         {
             put_line_with_tab("mov word ptr [rax], di");
         }
-        else if(type->size <= 4)
+        else if(size <= 4)
         {
             put_line_with_tab("mov dword ptr [rax], edi");
         }
@@ -222,7 +235,7 @@ static void generate_store(const Type *type)
             put_line_with_tab("mov [rax], rdi");
         }
     }
-    else if(type->size <= 16)
+    else if(size <= 16)
     {
         generate_pop("rdi");
         generate_pop("r11");
@@ -238,22 +251,22 @@ static void generate_store(const Type *type)
 
         // copy bytes from rdi to rax
         size_t offset = 0;
-        for(; offset + 8 <= type->size; offset += 8)
+        for(; offset + 8 <= size; offset += 8)
         {
             put_line_with_tab("mov r11, [rdi+%lu]", offset);
             put_line_with_tab("mov [rax+%lu], r11", offset);
         }
-        for(; offset + 4 <= type->size; offset += 4)
+        for(; offset + 4 <= size; offset += 4)
         {
             put_line_with_tab("mov r11, [rdi+%lu]", offset);
             put_line_with_tab("mov dword ptr [rax+%lu], r11d", offset);
         }
-        for(; offset + 2 <= type->size; offset += 2)
+        for(; offset + 2 <= size; offset += 2)
         {
             put_line_with_tab("mov r11, [rdi+%lu]", offset);
             put_line_with_tab("mov word ptr [rax+%lu], r11w", offset);
         }
-        for(; offset + 1 <= type->size; offset += 1)
+        for(; offset + 1 <= size; offset += 1)
         {
             put_line_with_tab("mov r11, [rdi+%lu]", offset);
             put_line_with_tab("mov byte ptr [rax+%lu], r11b", offset);
@@ -303,6 +316,59 @@ static void generate_lvalue(const Expression *expr)
 
 
 /*
+generate assembler code of a local variable
+*/
+static void generate_lvar_init(const Variable *lvar)
+{
+    if(lvar->str != NULL)
+    {
+        // allocate memory for string-literal
+        const char *content = lvar->str->content;
+        for(size_t index = 0; index < strlen(content) + 1; index++)
+        {
+            generate_push_offset("rbp", lvar->offset - index);
+            put_line_with_tab("mov rax, %d", content[index]);
+            generate_push_reg_or_mem("rax");
+            generate_store(SIZEOF_CHAR);
+            generate_pop("rax");
+        }
+    }
+    else
+    {
+        for_each_entry(InitializerMap, cursor, lvar->inits)
+        {
+            InitializerMap *map = get_element(InitializerMap)(cursor);
+            if(map->initialized)
+            {
+                generate_push_offset("rbp", lvar->offset - map->offset);
+                if(map->label != NULL)
+                {
+                    // generate pointer to label
+                    put_line_with_tab("lea rax, %s[rip]", map->label);
+                    generate_push_reg_or_mem("rax");
+                }
+                else
+                {
+                    generate_expression(map->assign);
+                }
+                generate_store(map->size);
+                generate_pop("rax");
+            }
+            else
+            {
+                for(size_t size = 0; size < map->size; size++)
+                {
+                    put_line_with_tab("mov rax, rbp");
+                    put_line_with_tab("sub rax, %lu", lvar->offset - map->offset - size);
+                    put_line_with_tab("mov byte ptr [rax], 0");
+                }
+            }
+        }
+    }
+}
+
+
+/*
 generate assembler code of a global variable
 */
 static void generate_gvar(const Variable *gvar)
@@ -321,38 +387,42 @@ static void generate_gvar(const Variable *gvar)
     }
     else
     {
-        for_each_entry(DataSegment, cursor, gvar->data)
+        for_each_entry(InitializerMap, cursor, gvar->inits)
         {
-            DataSegment *data = get_element(DataSegment)(cursor);
-            if(data->label != NULL)
+            InitializerMap *map = get_element(InitializerMap)(cursor);
+            if(map->initialized)
             {
-                // allocate memory with label
-                put_line_with_tab(".quad %s", data->label);
-            }
-            else if(data->zero)
-            {
-                // allocate memory with zero
-                put_line_with_tab(".zero %lu", data->size);
-            }
-            else
-            {
-                // allocate memory with an integer
-                if(data->size == 1)
+                if(map->label != NULL)
                 {
-                    put_line_with_tab(".byte %ld", data->value);
-                }
-                else if(data->size == 2)
-                {
-                    put_line_with_tab(".value %ld", data->value);
-                }
-                else if(data->size == 4)
-                {
-                    put_line_with_tab(".long %ld", data->value);
+                    // allocate memory with label
+                    put_line_with_tab(".quad %s", map->label);
                 }
                 else
                 {
-                    put_line_with_tab(".quad %ld", data->value);
+                    // allocate memory with an integer
+                    long value = evaluate(map->assign);
+                    if(map->size == 1)
+                    {
+                        put_line_with_tab(".byte %ld", value);
+                    }
+                    else if(map->size == 2)
+                    {
+                        put_line_with_tab(".value %ld", value);
+                    }
+                    else if(map->size == 4)
+                    {
+                        put_line_with_tab(".long %ld", value);
+                    }
+                    else
+                    {
+                        put_line_with_tab(".quad %ld", value);
+                    }
                 }
+            }
+            else
+            {
+                // allocate memory with zero
+                put_line_with_tab(".zero %lu", map->size);
             }
         }
     }
@@ -480,7 +550,7 @@ static void generate_func(const Function *func)
         generate_push_reg_or_mem("rax");
 
         generate_load(arg->type);
-        generate_store(arg->type);
+        generate_store(arg->type->size);
 
         args_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
@@ -704,9 +774,9 @@ static void generate_statement(const Statement *stmt)
         for_each_entry(Declaration, cursor, stmt->decl)
         {
             Declaration *decl = get_element(Declaration)(cursor);
-            if((decl->var != NULL) && (decl->var->init != NULL))
+            if((decl->var != NULL) && decl->var->local)
             {
-                generate_statement(decl->var->init);
+                generate_lvar_init(decl->var);
             }
         }
         return;
@@ -994,7 +1064,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         generate_pop("rax");
         generate_push_reg_or_mem("rdx");
         return;
@@ -1008,7 +1078,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         generate_pop("rax");
         generate_push_reg_or_mem("rdx");
         return;
@@ -1101,7 +1171,7 @@ static void generate_expression(const Expression *expr)
     case EXPR_ASSIGN:
         generate_lvalue(expr->lhs);
         generate_expression(expr->rhs);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_ADD_EQ:
@@ -1110,7 +1180,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_ADD);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_PTR_ADD_EQ:
@@ -1119,7 +1189,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_ADD);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_SUB_EQ:
@@ -1128,7 +1198,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_SUB);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_PTR_SUB_EQ:
@@ -1137,7 +1207,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_SUB);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_MUL_EQ:
@@ -1146,7 +1216,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MUL);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_DIV_EQ:
@@ -1155,7 +1225,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_DIV);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_MOD_EQ:
@@ -1164,7 +1234,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MOD);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_LSHIFT_EQ:
@@ -1173,7 +1243,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_LSHIFT);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_RSHIFT_EQ:
@@ -1182,7 +1252,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_RSHIFT);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_AND_EQ:
@@ -1191,7 +1261,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_AND);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_XOR_EQ:
@@ -1200,7 +1270,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_XOR);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_OR_EQ:
@@ -1209,7 +1279,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_OR);
-        generate_store(expr->type);
+        generate_store(expr->type->size);
         return;
 
     case EXPR_COMMA:

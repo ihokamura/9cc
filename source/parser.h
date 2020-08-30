@@ -72,9 +72,8 @@ struct Variable
 {
     const char *name;             // name of variable
     Type *type;                   // type of variable
-    Statement *init;              // initializer
+    List(InitializerMap) *inits;  // list of maps from offset to initializer
     StringLiteral *str;           // information of string-literal (only for string-literal)
-    List(DataSegment) *data;      // contents of data segment (only for global variable)
     size_t offset;                // offset from base pointer (rbp) (only for local variable)
     StorageClassSpecifier sclass; // storage class specifier
     bool local;                   // flag indicating that the variable is local or global

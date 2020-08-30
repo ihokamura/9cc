@@ -57,9 +57,8 @@ Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bo
     Variable *var = calloc(1, sizeof(Variable));
     var->name = name;
     var->type = type;
-    var->init = NULL;
+    var->inits = NULL;
     var->str = NULL;
-    var->data = NULL;
     var->offset = 0;
     var->sclass = sclass;
     var->local = local;
@@ -121,8 +120,8 @@ StringLiteral *new_string(const Token *token)
 
     Variable *gvar = new_var(label, type, SC_STATIC, false);
     gvar->str = calloc(1, sizeof(StringLiteral));
-    gvar->data = new_list(DataSegment)();
-    add_list_entry_tail(DataSegment)(gvar->data, new_string_data_segment(label, 0));
+    gvar->inits = new_list(InitializerMap)();
+    add_list_entry_tail(InitializerMap)(gvar->inits, new_string_initializer_map(label, 0));
     gvar->entity = true;
     add_list_entry_tail(Variable)(gvar_list, gvar);
 

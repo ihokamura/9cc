@@ -10,6 +10,26 @@
 
 #include "9cc.h"
 
+// size of type
+#define SIZEOF_VOID     (1)
+#define SIZEOF_BOOL     (1)
+#define SIZEOF_CHAR     (1)
+#define SIZEOF_SHORT    (2)
+#define SIZEOF_INT      (4)
+#define SIZEOF_LONG     (8)
+#define SIZEOF_PTR      (8)
+#define SIZEOF_ENUM     (SIZEOF_INT)
+
+// alignment of type
+#define ALIGNOF_VOID     (1)
+#define ALIGNOF_BOOL     (1)
+#define ALIGNOF_CHAR     (1)
+#define ALIGNOF_SHORT    (2)
+#define ALIGNOF_INT      (4)
+#define ALIGNOF_LONG     (8)
+#define ALIGNOF_PTR      (8)
+#define ALIGNOF_ENUM     (ALIGNOF_INT)
+
 // kind of types
 typedef enum TypeKind TypeKind;
 enum TypeKind

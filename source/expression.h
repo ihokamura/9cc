@@ -88,6 +88,6 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
 Expression *assign(void);
 Expression *expression(void);
 long const_expression(void);
-long evaluate(Expression *expr);
+long evaluate(const Expression *expr);
 
 #endif /* !__EXPRESSION_H__ */
