@@ -340,27 +340,51 @@ static void generate_lvar_init(const Variable *lvar)
             InitializerMap *map = get_element(InitializerMap)(cursor);
             if(map->initialized)
             {
-                generate_push_offset("rbp", lvar->offset - map->offset);
-                if(map->label != NULL)
+                if(map->zero)
                 {
-                    // generate pointer to label
-                    put_line_with_tab("lea rax, %s[rip]", map->label);
-                    generate_push_reg_or_mem("rax");
+                    size_t size = 0;
+                    size_t offset = lvar->offset - map->offset;
+                    for(; size + 8 <= map->size; size += 8)
+                    {
+                        put_line_with_tab("mov rax, rbp");
+                        put_line_with_tab("sub rax, %lu", offset - size);
+                        put_line_with_tab("mov qword ptr [rax], 0");
+                    }
+                    for(; size + 4 <= map->size; size += 4)
+                    {
+                        put_line_with_tab("mov rax, rbp");
+                        put_line_with_tab("sub rax, %lu", offset - size);
+                        put_line_with_tab("mov dword ptr [rax], 0");
+                    }
+                    for(; size + 2 <= map->size; size += 2)
+                    {
+                        put_line_with_tab("mov rax, rbp");
+                        put_line_with_tab("sub rax, %lu", offset - size);
+                        put_line_with_tab("mov word ptr [rax], 0");
+                    }
+                    for(; size + 1 <= map->size; size += 1)
+                    {
+                        put_line_with_tab("mov rax, rbp");
+                        put_line_with_tab("sub rax, %lu", offset - size);
+                        put_line_with_tab("mov byte ptr [rax], 0");
+
+                    }
                 }
                 else
                 {
-                    generate_expression(map->assign);
-                }
-                generate_store(map->size);
-                generate_pop("rax");
-            }
-            else
-            {
-                for(size_t size = 0; size < map->size; size++)
-                {
-                    put_line_with_tab("mov rax, rbp");
-                    put_line_with_tab("sub rax, %lu", lvar->offset - map->offset - size);
-                    put_line_with_tab("mov byte ptr [rax], 0");
+                    generate_push_offset("rbp", lvar->offset - map->offset);
+                    if(map->label != NULL)
+                    {
+                        // generate pointer to label
+                        put_line_with_tab("lea rax, %s[rip]", map->label);
+                        generate_push_reg_or_mem("rax");
+                    }
+                    else
+                    {
+                        generate_expression(map->assign);
+                    }
+                    generate_store(map->size);
+                    generate_pop("rax");
                 }
             }
         }
@@ -390,7 +414,7 @@ static void generate_gvar(const Variable *gvar)
         for_each_entry(InitializerMap, cursor, gvar->inits)
         {
             InitializerMap *map = get_element(InitializerMap)(cursor);
-            if(map->initialized)
+            if(map->initialized && !map->zero)
             {
                 if(map->label != NULL)
                 {

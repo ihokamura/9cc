@@ -30,6 +30,7 @@ struct InitializerMap
     size_t size;              // size of data
     size_t offset;            // offset from base
     bool initialized;         // flag indicating that data is initialized or not
+    bool zero;                // flag indicating that data is zero or not
 };
 
 // structure for declaration

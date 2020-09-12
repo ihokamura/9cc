@@ -77,6 +77,7 @@ static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
 static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset);
+static InitializerMap *new_zero_initialized_map(size_t size, size_t offset);
 static InitializerMap *new_uninitialized_map(size_t size, size_t offset);
 static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local);
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
@@ -108,7 +109,7 @@ static Initializer *designation_and_initializer(void);
 static size_t get_designation_offset(Type **type, const List(Designator) *designation);
 static List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init);
 static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
-static List(InitializerMap) *append_uninitialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset);
+static List(InitializerMap) *append_zero_initialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset);
 static int compare_offset(const void *data1, const void *data2);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
@@ -234,6 +235,19 @@ static InitializerMap *new_initializer_map(const Expression *assign, size_t size
     init_map->size = size;
     init_map->offset= offset;
     init_map->initialized = true;
+    init_map->zero = false;
+
+    return init_map;
+}
+
+
+/*
+make a new zero-initialized map from offset to initializer
+*/
+static InitializerMap *new_zero_initialized_map(size_t size, size_t offset)
+{
+    InitializerMap *init_map = new_initializer_map(NULL, size, offset);
+    init_map->zero = true;
 
     return init_map;
 }
@@ -252,7 +266,7 @@ static InitializerMap *new_uninitialized_map(size_t size, size_t offset)
 
 
 /*
-make a new string data segment
+make a new map from offset to initializer for string-literal
 */
 InitializerMap *new_string_initializer_map(const char *label, size_t offset)
 {
@@ -1518,21 +1532,23 @@ static List(InitializerMap) *make_initializer_map(Type *type, const Initializer 
         InitializerMap *current = &inits_vector[0];
         InitializerMap *next = &inits_vector[1];
         init_maps = new_list(InitializerMap)();
-        append_uninitialized_map(init_maps, current->offset, 0);
+        append_zero_initialized_map(init_maps, current->offset, 0);
         for(size_t i = 0; i < len - 1; i++)
         {
+            // there may be initializer maps having the same offset
+            // since a designation may overwrite the previous initializer
             if(current->offset < next->offset)
             {
                 add_list_entry_tail(InitializerMap)(init_maps, current);
                 size_t offset = current->offset + current->size;
-                append_uninitialized_map(init_maps, next->offset - offset, offset);
+                append_zero_initialized_map(init_maps, next->offset - offset, offset);
             }
             current++;
             next++;
         }
         add_list_entry_tail(InitializerMap)(init_maps, current);
         size_t offset = current->offset + current->size;
-        append_uninitialized_map(init_maps, type->size - offset, offset);
+        append_zero_initialized_map(init_maps, type->size - offset, offset);
     }
 
     return init_maps;
@@ -1667,13 +1683,13 @@ static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init
 
 
 /*
-append an uninitialized map from offset to initializer
+append an zero-initialized map from offset to initializer
 */
-static List(InitializerMap) *append_uninitialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset)
+static List(InitializerMap) *append_zero_initialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset)
 {
     if(size > 0)
     {
-        add_list_entry_tail(InitializerMap)(init_maps, new_uninitialized_map(size, offset));
+        add_list_entry_tail(InitializerMap)(init_maps, new_zero_initialized_map(size, offset));
     }
 
     return init_maps;
