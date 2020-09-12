@@ -973,6 +973,62 @@ int test_sizeof()
 
 
 /*
+_Alignof operator
+*/
+int test_Alignof()
+{
+    put_title("_Alignof operator");
+
+    assert_int(1, _Alignof(char));
+    assert_int(1, _Alignof(char [5]));
+    assert_int(8, _Alignof(char *));
+    assert_int(8, _Alignof(char *[5]));
+    assert_int(8, _Alignof(char **));
+
+    assert_int(2, _Alignof(short));
+    assert_int(2, _Alignof(short [5]));
+    assert_int(8, _Alignof(short *));
+    assert_int(8, _Alignof(short *[5]));
+    assert_int(8, _Alignof(short **));
+
+
+    assert_int(4, _Alignof(int));
+    assert_int(4, _Alignof(int [5]));
+    assert_int(8, _Alignof(int *));
+    assert_int(8, _Alignof(int *[5]));
+    assert_int(8, _Alignof(int **));
+
+    assert_int(8, _Alignof(long));
+    assert_int(8, _Alignof(long [5]));
+    assert_int(8, _Alignof(long *));
+    assert_int(8, _Alignof(long *[5]));
+    assert_int(8, _Alignof(long **));
+
+    typedef struct {int m1; int m2;} st1_t; assert_int(4, _Alignof(st1_t));
+    typedef struct {char m1; int m2; short m3;} st2_t; assert_int(4, _Alignof(st2_t));
+    typedef struct {char m1; struct {char mm1; int mm2; short mm3;} m2; short m3;} st3_t; assert_int(4, _Alignof(st3_t));
+
+    typedef union {int m1; int m2;} un1_t; assert_int(4, _Alignof(un1_t));
+    typedef union {char m1; int m2; short m3;} un2_t; assert_int(4, _Alignof(un2_t));
+    typedef union {char m1; union {char mm1; int mm2; short mm3;} m2; short m3;} un3_t; assert_int(4, _Alignof(un3_t));
+
+    assert_int(4, _Alignof(const int [3]));
+    assert_int(4, _Alignof(int const [3][2]));
+    assert_int(8, _Alignof(int const *[3][2][1]));
+    assert_int(8, _Alignof(int const * const[3][2][1]));
+    assert_int(8, _Alignof(int (*)[3][2][1]));
+    assert_int(8, _Alignof(int (*[4])[3][2][1]));
+    assert_int(8, _Alignof(int (**[4])[3][2][1]));
+    assert_int(8, _Alignof(int (*(*)[4])[3][2][1]));
+    assert_int(8, _Alignof(int (*)(void)));
+    assert_int(8, _Alignof(int (*[3])(int, int param, char *, volatile long ** const *)));
+    typedef void (*sig_handler)(int); assert_int(8, _Alignof(sig_handler));
+
+    return 0;
+}
+
+
+/*
 pointer operation
 */
 int test_pointer_operation()
@@ -1655,6 +1711,7 @@ int main()
     test_function_definition();
     test_address_dereference();
     test_sizeof();
+    test_Alignof();
     test_pointer_operation();
     test_array();
     test_global_variable();

@@ -30,6 +30,7 @@ unary ::= postfix
         | unary-op unary
         | "sizeof" unary
         | "sizeof" "(" type-name ")"
+        | "_Alignof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 
 cast ::= ("(" type-name ")")? unary

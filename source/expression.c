@@ -513,6 +513,7 @@ unary ::= postfix
         | unary-op unary
         | "sizeof" unary
         | "sizeof" "(" type-name ")"
+        | "_Alignof" "(" type-name ")"
 unary-op ::= "&" | "*" | "+" | "-" | "~" | "!"
 ```
 */
@@ -542,6 +543,13 @@ static Expression *unary(void)
 
         Expression *operand = unary();
         node = new_node_constant(TY_ULONG, operand->type->size);
+    }
+    else if(consume_reserved("_Alignof"))
+    {
+        expect_reserved("(");
+        Type *type = type_name();
+        node = new_node_constant(TY_ULONG, type->align);
+        expect_reserved(")");
     }
     else if(consume_reserved("++"))
     {

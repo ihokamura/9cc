@@ -141,6 +141,7 @@ static const char *keyword_list[] = {
     "void",
     "volatile",
     "while",
+    "_Alignof",
     "_Bool",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords
