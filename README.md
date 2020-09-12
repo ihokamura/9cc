@@ -23,6 +23,7 @@ postfix ::= primary
           | postfix "->" identifier
           | postfix "++"
           | postfix "--"
+          | "(" type-name ")" "{" initializer-list ","? "}"
 arg-expr-list ::= assign ("," assign)*
 
 unary ::= postfix

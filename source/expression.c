@@ -49,6 +49,10 @@ static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
 static bool is_modifiable_lvalue(const Expression *expr);
 static bool is_const_qualified(const Type *type);
+static char *new_compound_literal_label(void);
+
+// global variable
+static int cl_number; // sequential number for compound-literal
 
 
 /*
@@ -346,13 +350,31 @@ postfix ::= primary
           | postfix "->" identifier
           | postfix "++"
           | postfix "--"
+          | "(" type-name ")" "{" initializer-list ","? "}"
 ```
 */
 static Expression *postfix(void)
 {
-    Expression *node = primary();
+    Expression *node;
+
+    Token *saved_token = get_token();
+    if(consume_reserved("("))
+    {
+        if(peek_type_name())
+        {
+            // compound-literal
+            Type *type = type_name();
+            expect_reserved(")");
+            node = new_expression(EXPR_COMPOUND, type);
+            node->var = new_lvar(new_compound_literal_label(), type);
+            node->var->inits = make_initializer_map(type, initializer());
+            goto postfix_end;
+        }
+    }
+    set_token(saved_token);
 
     // parse tokens while finding a postfix operator
+    node = primary();
     while(true)
     {
         if(consume_reserved("["))
@@ -477,9 +499,12 @@ static Expression *postfix(void)
         }
         else
         {
-            return node;
+            break;
         }
     }
+
+postfix_end:
+    return node;
 }
 
 
@@ -699,25 +724,26 @@ static Expression *cast(void)
         {
             Type *type = type_name();
             expect_reserved(")");
-            if(!(is_void(type) || is_scalar(type)))
+            if(!consume_reserved("{"))
             {
-                report_error(NULL, "expected void type or scalar type");
-            }
+                // parsing cast operator, not compound-literal
+                if(!(is_void(type) || is_scalar(type)))
+                {
+                    report_error(NULL, "expected void type or scalar type");
+                }
 
-            Expression *operand = apply_implicit_conversion(unary());
-            if(!is_scalar(operand->type))
-            {
-                report_error(NULL, "expected scalar type");
-            }
+                Expression *operand = apply_implicit_conversion(unary());
+                if(!is_scalar(operand->type))
+                {
+                    report_error(NULL, "expected scalar type");
+                }
 
-            node = new_node_cast(type, operand);
-            goto cast_end;
-        }
-        else
-        {
-            set_token(saved_token);
+                node = new_node_cast(type, operand);
+                goto cast_end;
+            }
         }
     }
+    set_token(saved_token);
 
     node = unary();
 
@@ -1823,4 +1849,19 @@ static bool is_const_qualified(const Type *type)
     }
 
     return ((type->qual & TQ_CONST) == TQ_CONST);
+}
+
+
+/*
+make a new label for compound-literal
+*/
+static char *new_compound_literal_label(void)
+{
+    // A label for compound-literal is of the form "CL<number>", so the length of buffer should be more than 2 + 10.
+    char *label = calloc(13, sizeof(char));
+
+    sprintf(label, "CL%d", cl_number);
+    cl_number++;
+
+    return label;
 }

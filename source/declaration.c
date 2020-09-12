@@ -25,9 +25,7 @@
 
 // definition of list operations
 #include "list.h"
-typedef struct Initializer Initializer;
 typedef struct Designator Designator;
-define_list(Initializer)
 define_list(Designator)
 define_list_operations(Declaration)
 define_list_operations(InitializerMap)
@@ -100,14 +98,12 @@ static Type *parameter_declaration(Variable **arg_var, bool omit_name);
 static Type *abstract_declarator(Type *type);
 static Type *direct_abstract_declarator(Type *type);
 static Type *declarator_suffixes(Type *type, List(Variable) **arg_vars);
-static Initializer *initializer(void);
 static List(Initializer) *initializer_list(void);
 static List(Designator) *designation(void);
 static List(Designator) *designator_list(void);
 static Designator *designator(void);
 static Initializer *designation_and_initializer(void);
 static size_t get_designation_offset(Type **type, const List(Designator) *designation);
-static List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init);
 static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
 static List(InitializerMap) *append_zero_initialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset);
 static int compare_offset(const void *data1, const void *data2);
@@ -1356,7 +1352,7 @@ initializer ::= assign
               | "{" initializer-list ","? "}"
 ```
 */
-static Initializer *initializer(void)
+Initializer *initializer(void)
 {
     Initializer *init = new_initializer();
 
@@ -1502,7 +1498,7 @@ static size_t get_designation_offset(Type **type, const List(Designator) *design
 /*
 make list of maps from offset to initializer
 */
-static List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init)
+List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init)
 {
     List(InitializerMap) *init_maps = new_list(InitializerMap)();
 

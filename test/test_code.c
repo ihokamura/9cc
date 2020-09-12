@@ -323,6 +323,28 @@ int test_conditional()
 
 
 /*
+compound-literal
+*/
+int test_compound_literal()
+{
+    put_title("compound-literal");
+
+    int i = (int){1}; assert_int(1, i);
+
+    int *p = (int []){2, 4, 6}; assert_int(2, p[0]); assert_int(4, p[1]); assert_int(6, p[2]);
+    p = (int [2]){*p, }; assert_int(2, p[0]); assert_int(0, p[1]);
+
+    typedef struct {char m1; int m2; short m3;} st_type;
+    st_type st1 = (st_type){1, 2, 3}; assert_char(1, st1.m1); assert_int(2, st1.m2); assert_short(3, st1.m3);
+    st_type st2 = (st_type){.m2 = 22, .m1 = 11, }; assert_char(11, st2.m1); assert_int(22, st2.m2); assert_short(0, st2.m3);
+    assert_long(210, func_call_struct1((struct param_t1){0, 1, 2}));
+    assert_long(543, func_call_struct1((struct param_t1){.m1 = 4, .m0 = 3, .m2 = 5}));
+
+    return 0;
+}
+
+
+/*
 unary operator
 */
 int test_unary()
@@ -1695,6 +1717,7 @@ int main()
     test_logical_and();
     test_logical_or();
     test_conditional();
+    test_compound_literal();
     test_unary();
     test_cast();
     test_comparision();

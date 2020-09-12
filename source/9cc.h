@@ -24,6 +24,7 @@ typedef struct Enumerator Enumerator;
 typedef struct Expression Expression;
 typedef struct Function Function;
 typedef struct Identifier Identifier;
+typedef struct Initializer Initializer;
 typedef struct InitializerMap InitializerMap;
 typedef struct Member Member;
 typedef struct Program Program;
@@ -41,6 +42,7 @@ define_list(Declaration)
 define_list(Expression)
 define_list(Function)
 define_list(Identifier)
+define_list(Initializer)
 define_list(InitializerMap)
 define_list(Member)
 define_list(Statement)

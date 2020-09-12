@@ -51,6 +51,8 @@ Statement *declaration(bool local);
 Type *declaration_specifiers(StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
+Initializer *initializer(void);
+List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init);
 bool peek_declaration_specifiers(void);
 bool peek_type_name(void);
 

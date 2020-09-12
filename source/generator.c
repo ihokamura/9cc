@@ -297,6 +297,13 @@ static void generate_lvalue(const Expression *expr)
         }
         break;
 
+    case EXPR_COMPOUND:
+        generate_lvar_init(expr->var);
+        put_line_with_tab("mov rax, rbp");
+        put_line_with_tab("sub rax, %lu", expr->var->offset);
+        generate_push_reg_or_mem("rax");
+        break;
+
     case EXPR_DEREF:
         generate_expression(expr->operand);
         break;
@@ -1025,6 +1032,7 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_VAR:
+    case EXPR_COMPOUND:
         generate_lvalue(expr);
         if(!(is_array(expr->var->type) || is_function(expr->var->type)))
         {

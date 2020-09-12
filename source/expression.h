@@ -21,6 +21,7 @@ enum ExpressionKind
     EXPR_MEMBER,     // member
     EXPR_POST_INC,   // post increment operator
     EXPR_POST_DEC,   // post decrement operator
+    EXPR_COMPOUND,   // compound-literal
     EXPR_ADDR,       // address (&)
     EXPR_DEREF,      // dereference (*)
     EXPR_PLUS,       // plus (+)
