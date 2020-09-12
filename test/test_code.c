@@ -38,6 +38,7 @@ struct param_t5 func_call_struct5(char a0, char a1, int a2);
 struct param_t6 func_call_struct6(long a0, long a1);
 struct param_t7 func_call_struct7(long a0, long a1, char a2);
 struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6);
+int func_call_arg_array(int a[10]);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 extern int func_call_variadic(int count, ...);
 
@@ -338,7 +339,9 @@ int test_compound_literal()
     st_type st1 = (st_type){1, 2, 3}; assert_char(1, st1.m1); assert_int(2, st1.m2); assert_short(3, st1.m3);
     st_type st2 = (st_type){.m2 = 22, .m1 = 11, }; assert_char(11, st2.m1); assert_int(22, st2.m2); assert_short(0, st2.m3);
     assert_long(210, func_call_struct1((struct param_t1){0, 1, 2}));
-    assert_long(543, func_call_struct1((struct param_t1){.m1 = 4, .m0 = 3, .m2 = 5}));
+    assert_long(543, func_call_struct1((struct param_t1){.m1 = 4, .m2 = 5, .m0 = 3}));
+    assert_int(55, func_call_arg_array((int [10]){1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+    assert_int(6, func_call_arg_array((int [10]){[9] = 1, [1] = 2, 3}));
 
     return 0;
 }

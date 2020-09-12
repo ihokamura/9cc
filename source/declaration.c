@@ -28,12 +28,11 @@
 typedef struct Designator Designator;
 define_list(Designator)
 define_list_operations(Declaration)
-define_list_operations(InitializerMap)
 define_list_operations(Initializer)
+define_list_operations(InitializerMap)
 define_list_operations(Designator)
 
 // macro
-#define INVALID_DECLSPEC (-1) // invalid declaration specifier
 #define TYPESPEC_SIZE ((size_t)12) // number of type specifiers
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
@@ -105,6 +104,8 @@ static Designator *designator(void);
 static Initializer *designation_and_initializer(void);
 static size_t get_designation_offset(Type **type, const List(Designator) *designation);
 static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
+static List(InitializerMap) *make_initializer_map_sub_for_array(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
+static List(InitializerMap) *make_initializer_map_sub_for_struct_or_union(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset);
 static List(InitializerMap) *append_zero_initialized_map(List(InitializerMap) *init_maps, size_t size, size_t offset);
 static int compare_offset(const void *data1, const void *data2);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
@@ -123,7 +124,6 @@ static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_designator(void);
 static char *add_block_scope_label(const char *name);
-
 
 // global variable
 const char *STATIC_VARIABLE_PUNCTUATOR = ".";
@@ -307,21 +307,21 @@ make a declaration specifier
 ```
 declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier)*
 ```
-* This function sets INVALID_DECLSPEC to the argument 'sclass' if no storage-class specifier is given.
+* This function sets SC_NONE to the argument 'sclass' if no storage-class specifier is given.
 */
 Type *declaration_specifiers(StorageClassSpecifier *sclass)
 {
     int spec_list[TYPESPEC_SIZE] = {0};
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
-    *sclass = INVALID_DECLSPEC;
+    *sclass = SC_NONE;
 
     // parse storage-class specifiers and type specifiers
     while(true)
     {
         if(peek_storage_class_specifier())
         {
-            if(*sclass != INVALID_DECLSPEC)
+            if(*sclass != SC_NONE)
             {
                 report_error(NULL, "multiple storage classes in declaration specifiers");
             }
@@ -488,7 +488,7 @@ static StorageClassSpecifier storage_class_specifier(void)
     else
     {
         report_error(NULL, "invalid storage-class specifier\n");
-        return INVALID_DECLSPEC;
+        return SC_NONE;
     }
 }
 
@@ -570,7 +570,7 @@ static TypeSpecifier type_specifier(Type **type)
         else
         {
             report_error(token->str, "invalid type specifier\n");
-            return INVALID_DECLSPEC;
+            return SC_NONE;
         }
     }
 }
@@ -1163,7 +1163,7 @@ static Type *parameter_declaration(Variable **arg_var, bool omit_name)
     StorageClassSpecifier sclass;
     Type *arg_type = declaration_specifiers(&sclass);
 
-    if(!((sclass == SC_REGISTER) || (sclass == INVALID_DECLSPEC)))
+    if(!((sclass == SC_REGISTER) || (sclass == SC_NONE)))
     {
         report_error(NULL, "invalid storage class specified for parameter");
     }
@@ -1560,85 +1560,11 @@ static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init
     {
         if(is_array(type))
         {
-            size_t index = 0;
-            size_t len = 0;
-            size_t bound = (type->complete ? type->len : ULONG_MAX);
-
-            for_each_entry(Initializer, cursor, init->list)
-            {
-                if(index < bound)
-                {
-                    Initializer *init_element = get_element(Initializer)(cursor);
-                    Type *sub_type = type;
-                    size_t sub_offset = offset;
-                    if(init_element->desig != NULL)
-                    {
-                        sub_offset += get_designation_offset(&sub_type, init_element->desig);
-                        index = get_first_element(Designator)(init_element->desig)->index;
-                    }
-                    else
-                    {
-                        sub_type = type->base;
-                        sub_offset += index * sub_type->size;
-                    }
-                    init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
-                    index++;
-                    len = max(len, index);
-                }
-                else
-                {
-                    report_warning(NULL, "excess elements in array initializer");
-                }
-            }
-
-            if(!type->complete)
-            {
-                // determine length of array by initializer-list
-                type->size = type->base->size * len;
-                type->len = len;
-                type->complete = true;
-            }
+            make_initializer_map_sub_for_array(init_maps, type, init, offset);
         }
         else if(is_struct_or_union(type))
         {
-            ListEntry(Member) *memb_cursor = get_first_entry(Member)(type->members);
-            for_each_entry(Initializer, init_cursor, init->list)
-            {
-                if(!end_iteration(Member)(type->members, memb_cursor))
-                {
-                    Initializer *init_element = get_element(Initializer)(init_cursor);
-                    Type *sub_type = type;
-                    size_t sub_offset = offset;
-                    if(init_element->desig != NULL)
-                    {
-                        sub_offset += get_designation_offset(&sub_type, init_element->desig);
-
-                        const Token *token = get_first_element(Designator)(init_element->desig)->token;
-                        for_each_entry(Member, cursor, type->members)
-                        {
-                            Member *member = get_element(Member)(cursor);
-                            if(strncmp(member->name, token->str, token->len) == 0)
-                            {
-                                memb_cursor = cursor;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Member *member = get_element(Member)(memb_cursor);
-                        sub_type = member->type;
-                        sub_offset += member->offset;
-                    }
-
-                    init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
-                    memb_cursor = next_entry(Member, memb_cursor);
-                }
-                else
-                {
-                    report_warning(NULL, "excess elements in %s initializer", is_struct(type) ? "struct" : "union");
-                }
-            }
+            make_initializer_map_sub_for_struct_or_union(init_maps, type, init, offset);
         }
         else if(get_first_element(Initializer)(init->list)->assign != NULL)
         {
@@ -1672,6 +1598,108 @@ static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init
             // initialize scalar
             add_list_entry_tail(InitializerMap)(init_maps, new_initializer_map(init->assign, type->size, offset));
         }
+    }
+
+    return init_maps;
+}
+
+
+/*
+make list of maps from offset to initializer for array (sub-function)
+*/
+static List(InitializerMap) *make_initializer_map_sub_for_array(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset)
+{
+    size_t index = 0;
+    size_t len = 0;
+    size_t bound = (type->complete ? type->len : ULONG_MAX);
+
+    for_each_entry(Initializer, cursor, init->list)
+    {
+        Initializer *init_element = get_element(Initializer)(cursor);
+        Type *sub_type = type;
+        size_t sub_offset = offset;
+        if(init_element->desig != NULL)
+        {
+            sub_offset += get_designation_offset(&sub_type, init_element->desig);
+            index = get_first_element(Designator)(init_element->desig)->index;
+            if(index >= bound)
+            {
+                report_error(NULL, "array index in initializer exceeds array bounds");
+            }
+        }
+        else
+        {
+            if(index >= bound)
+            {
+                report_warning(NULL, "excess elements in array initializer");
+                continue;
+            }
+            else
+            {
+                sub_type = type->base;
+                sub_offset += index * sub_type->size;
+            }
+        }
+        init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
+        index++;
+        len = max(len, index);
+    }
+
+    if(!type->complete)
+    {
+        // determine length of array by initializer-list
+        type->size = type->base->size * len;
+        type->len = len;
+        type->complete = true;
+    }
+
+    return init_maps;
+}
+
+
+/*
+make list of maps from offset to initializer for structure or union (sub-function)
+*/
+static List(InitializerMap) *make_initializer_map_sub_for_struct_or_union(List(InitializerMap) *init_maps, Type *type, const Initializer *init, size_t offset)
+{
+    ListEntry(Member) *memb_cursor = get_first_entry(Member)(type->members);
+    for_each_entry(Initializer, init_cursor, init->list)
+    {
+        Initializer *init_element = get_element(Initializer)(init_cursor);
+        Type *sub_type = type;
+        size_t sub_offset = offset;
+        if(init_element->desig != NULL)
+        {
+            sub_offset += get_designation_offset(&sub_type, init_element->desig);
+
+            const Token *token = get_first_element(Designator)(init_element->desig)->token;
+            for_each_entry(Member, cursor, type->members)
+            {
+                Member *member = get_element(Member)(cursor);
+                if(strncmp(member->name, token->str, token->len) == 0)
+                {
+                    memb_cursor = cursor;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if(end_iteration(Member)(type->members, memb_cursor))
+            {
+                report_warning(NULL, "excess elements in %s initializer", is_struct(type) ? "struct" : "union");
+                continue;
+            }
+            else
+            {
+                Member *member = get_element(Member)(memb_cursor);
+                sub_type = member->type;
+                sub_offset += member->offset;
+            }
+        }
+
+        init_maps = concatenate_list(InitializerMap)(init_maps, make_initializer_map_sub(init_maps, sub_type, init_element, sub_offset));
+        memb_cursor = next_entry(Member, memb_cursor);
     }
 
     return init_maps;

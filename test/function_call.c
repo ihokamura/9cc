@@ -127,6 +127,20 @@ struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int
 }
 
 
+// function with array
+int func_call_arg_array(int a[10])
+{
+    int sum = 0;
+    int i;
+    for(i = 0; i < 10; i++)
+    {
+        sum += a[i];
+    }
+
+    return sum;
+}
+
+
 // allocate 4 integers
 void alloc4(int **p, int a0, int a1, int a2, int a3)
 {
