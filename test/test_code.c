@@ -324,6 +324,34 @@ int test_conditional()
 
 
 /*
+generic-selection
+*/
+short func_def_square_short(short x)
+{
+    return x * x;
+}
+int func_def_square_int(int x)
+{
+    return x * x;
+}
+long func_def_square_long(long x)
+{
+    return x * x;
+}
+int test_generic_selection()
+{
+    put_title("generic-selection");
+
+    short s = _Generic(s, short: func_def_square_short(1), int: func_def_square_int(2)); assert_short(1, s);
+    int i = _Generic(i, short: func_def_square_short(1), int: func_def_square_int(2), default: func_def_square_long(3)); assert_short(4, i);
+    long l1 = _Generic(l1, short: func_def_square_short(1), int: func_def_square_int(2), default: func_def_square_long(3)); assert_short(9, l1);
+    long l2 = _Generic(l2, short: func_def_square_short(11), default: func_def_square_long(33), int: func_def_square_int(22)); assert_short(1089, l2);
+
+    return 0;
+}
+
+
+/*
 compound-literal
 */
 int test_compound_literal()
@@ -1720,6 +1748,7 @@ int main()
     test_logical_and();
     test_logical_or();
     test_conditional();
+    test_generic_selection();
     test_compound_literal();
     test_unary();
     test_cast();

@@ -23,11 +23,15 @@
 // definition of list operations
 #include "list.h"
 define_list_operations(Expression)
+define_list_operations(GenericAssociation)
 
 // function prototype
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
 static Expression *new_node_cast(Type *type, Expression *operand);
 static Expression *primary(void);
+static Expression *generic_selection(void);
+static List(GenericAssociation) *generic_assoc_list(void);
+static GenericAssociation *generic_association(void);
 static Expression *postfix(void);
 static List(Expression) *arg_expr_list(void);
 static Expression *unary(void);
@@ -251,17 +255,25 @@ primary ::= identifier
           | constant
           | string-literal
           | "(" expression ")"
+          | generic-selection
+generic-selection ::= "_Generic" "(" assign "," generic-assoc-list ")"
+generic-assoc-list ::= generic-association ("," generic-association)*
+generic-association ::= (type-name | "default") ":" assign
 ```
 */
 static Expression *primary(void)
 {
+    // generic selection
+    if(peek_reserved("_Generic"))
+    {
+        return generic_selection();
+    }
+
     // expression in brackets
     if(consume_reserved("("))
     {
         Expression *node = expression();
- 
         expect_reserved(")");
-
         return node;
     }
 
@@ -337,6 +349,63 @@ static Expression *primary(void)
     // constant
     token = expect_constant();
     return new_node_constant(token->type, token->value);
+}
+
+
+/*
+make a generic selection
+```
+generic-selection ::= "_Generic" "(" assign "," generic-assoc-list ")"
+```
+*/
+static Expression *generic_selection(void)
+{
+    Expression *node = new_expression(EXPR_GENERIC, NULL);
+    expect_reserved("_Generic");
+    expect_reserved("(");
+    node->operand = assign();
+    expect_reserved(",");
+    node->assocs = generic_assoc_list();
+    expect_reserved(")");
+
+    return node;
+}
+
+
+/*
+make a generic-assoc-list
+```
+generic-assoc-list ::= generic-association ("," generic-association)*
+```
+*/
+static List(GenericAssociation) *generic_assoc_list(void)
+{
+    List(GenericAssociation) *list = new_list(GenericAssociation)();
+
+    add_list_entry_tail(GenericAssociation)(list, generic_association());
+    while(consume_reserved(","))
+    {
+        add_list_entry_tail(GenericAssociation)(list, generic_association());
+    }
+
+    return list;
+}
+
+
+/*
+make a generic association
+```
+generic-assoc-list ::= generic-association ("," generic-association)*
+```
+*/
+static GenericAssociation *generic_association(void)
+{
+    GenericAssociation *gen_assoc = calloc(1, sizeof(GenericAssociation));
+    gen_assoc->type = consume_reserved("default") ? NULL : type_name();
+    expect_reserved(":");
+    gen_assoc->assign = assign();
+
+    return gen_assoc;
 }
 
 

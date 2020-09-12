@@ -17,6 +17,7 @@ enum ExpressionKind
 {
     EXPR_CONST,      // constant
     EXPR_VAR,        // variable
+    EXPR_GENERIC,    // generic-selection
     EXPR_FUNC,       // function call
     EXPR_MEMBER,     // member
     EXPR_POST_INC,   // post increment operator
@@ -68,17 +69,25 @@ enum ExpressionKind
 // structure for expression
 struct Expression
 {
-    ExpressionKind kind;    // kind of expression
-    Type *type;             // type of expression
-    Expression *lhs;        // left hand side of binary operation
-    Expression *rhs;        // right hand side of binary operation
-    Expression *operand;    // operand of unary operation or condition of conditional expression
-    long value;             // value of expression (only for EXPR_CONST)
-    StringLiteral *str;     // information of string-literal (only for EXPR_STR)
-    Variable *var;          // information of variable (only for EXPR_VAR)
-    Member *member;         // member (only for EXPR_MEMBER)
-    List(Expression) *args; // arguments (only for EXPR_FUNC)
-    bool lvalue;            // flag indicating that the expression is lvalue
+    ExpressionKind kind;              // kind of expression
+    Type *type;                       // type of expression
+    Expression *lhs;                  // left hand side of binary operation
+    Expression *rhs;                  // right hand side of binary operation
+    Expression *operand;              // operand of unary operation or condition of conditional expression
+    long value;                       // value of expression (only for EXPR_CONST)
+    StringLiteral *str;               // information of string-literal (only for EXPR_STR)
+    Variable *var;                    // information of variable (only for EXPR_VAR)
+    Member *member;                   // member (only for EXPR_MEMBER)
+    List(GenericAssociation) *assocs; // list of generic associations (only for EXPR_GENERIC)
+    List(Expression) *args;           // arguments (only for EXPR_FUNC)
+    bool lvalue;                      // flag indicating that the expression is lvalue
+};
+
+// structure for generic-association
+struct GenericAssociation
+{
+    Type *type;         // type
+    Expression *assign; // result expression
 };
 
 Expression *new_expression(ExpressionKind kind, Type *type);

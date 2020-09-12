@@ -23,6 +23,7 @@ typedef struct Declaration Declaration;
 typedef struct Enumerator Enumerator;
 typedef struct Expression Expression;
 typedef struct Function Function;
+typedef struct GenericAssociation GenericAssociation;
 typedef struct Identifier Identifier;
 typedef struct Initializer Initializer;
 typedef struct InitializerMap InitializerMap;
@@ -41,6 +42,7 @@ typedef struct Variable Variable;
 define_list(Declaration)
 define_list(Expression)
 define_list(Function)
+define_list(GenericAssociation)
 define_list(Identifier)
 define_list(Initializer)
 define_list(InitializerMap)

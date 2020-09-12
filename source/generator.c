@@ -1040,6 +1040,33 @@ static void generate_expression(const Expression *expr)
         }
         return;
 
+    case EXPR_GENERIC:
+    {
+        Type *type = expr->operand->type;
+        Expression *result = NULL;
+        for_each_entry(GenericAssociation, cursor, expr->assocs)
+        {
+            GenericAssociation *assoc = get_element(GenericAssociation)(cursor);
+            if(assoc->type == NULL)
+            {
+                // default case
+                if(result == NULL)
+                {
+                    result = assoc->assign;
+                }
+            }
+            else
+            {
+                if(is_compatible(type, assoc->type))
+                {
+                    result = assoc->assign;
+                }
+            }
+        }
+        generate_expression(result);
+        return;
+    }
+
     case EXPR_ADDR:
         generate_lvalue(expr->operand);
         return;

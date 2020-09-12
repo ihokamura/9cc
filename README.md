@@ -15,6 +15,10 @@ primary ::= identifier
           | constant
           | string-literal
           | "(" expression ")"
+          | generic-selection
+generic-selection ::= "_Generic" "(" assign "," generic-assoc-list ")"
+generic-assoc-list ::= generic-association ("," generic-association)*
+generic-association ::= (type-name | "default") ":" assign
 
 postfix ::= primary
           | postfix "[" expression "]"
