@@ -1579,113 +1579,117 @@ const-expression ::= conditional
 */
 long const_expression(void)
 {
-    return evaluate(conditional());
+    return evaluate(conditional(), NULL);
 }
 
 
 /*
 evaluate a node
 */
-long evaluate(const Expression *expr)
+long evaluate(const Expression *expr, const Expression **base)
 {
-    long result = 0;
-
     switch(expr->kind)
     {
     case EXPR_CONST:
-        result = expr->value;
-        break;
+        return expr->value;
+
+    case EXPR_VAR:
+        *base = expr;
+        return 0;
+
+#define OPERAND (evaluate(expr->operand, base))
+#define LHS     (evaluate(expr->lhs, base))
+#define RHS     (evaluate(expr->rhs, base))
+    case EXPR_ADDR:
+        return OPERAND;
+
+    case EXPR_DEREF:
+        return OPERAND;
+
+    case EXPR_MEMBER:
+        return OPERAND + expr->member->offset;
 
     case EXPR_PLUS:
-        result = evaluate(expr->operand);
-        break;
+        return OPERAND;
 
     case EXPR_MINUS:
-        result = -evaluate(expr->operand);
-        break;
+        return -OPERAND;
 
     case EXPR_COMPL:
-        result = ~evaluate(expr->operand);
-        break;
+        return ~OPERAND;
 
     case EXPR_NEG:
-        result = !evaluate(expr->operand);
-        break;
+        return !OPERAND;
 
     case EXPR_CAST:
-        result = evaluate(expr->operand);
-        break;
+        return OPERAND;
 
     case EXPR_MUL:
-        result = evaluate(expr->lhs) * evaluate(expr->rhs);
-        break;
-
+        return LHS * RHS;
+        
     case EXPR_DIV:
-        result = evaluate(expr->lhs) / evaluate(expr->rhs);
-        break;
-
+        return LHS / RHS;
+        
     case EXPR_MOD:
-        result = evaluate(expr->lhs) % evaluate(expr->rhs);
-        break;
-
+        return LHS % RHS;
+        
     case EXPR_ADD:
-        result = evaluate(expr->lhs) + evaluate(expr->rhs);
-        break;
+        return LHS + RHS;
 
+    case EXPR_PTR_ADD:
+        return LHS + expr->lhs->type->base->size * RHS;
+        
     case EXPR_SUB:
-        result = evaluate(expr->lhs) - evaluate(expr->rhs);
-        break;
+        return LHS - RHS;
 
+    case EXPR_PTR_SUB:
+        return LHS - expr->lhs->type->base->size * RHS;
+        
     case EXPR_LSHIFT:
-        result = evaluate(expr->lhs) << evaluate(expr->rhs);
-        break;
-
+        return LHS << RHS;
+        
     case EXPR_RSHIFT:
-        result = evaluate(expr->lhs) >> evaluate(expr->rhs);
-        break;
-
+        return LHS >> RHS;
+        
     case EXPR_EQ:
-        result = (evaluate(expr->lhs) == evaluate(expr->rhs));
-        break;
-
+        return (LHS == RHS);
+        
     case EXPR_NEQ:
-        result = (evaluate(expr->lhs) != evaluate(expr->rhs));
-        break;
-
+        return (LHS != RHS);
+        
     case EXPR_L:
-        result = (evaluate(expr->lhs) < evaluate(expr->rhs));
-        break;
-
+        return (LHS < RHS);
+        
     case EXPR_LEQ:
-        result = (evaluate(expr->lhs) <= evaluate(expr->rhs));
-        break;
-
+        return (LHS <= RHS);
+        
     case EXPR_BIT_AND:
-        result = (evaluate(expr->lhs) & evaluate(expr->rhs));
-        break;
-
+        return (LHS & RHS);
+        
     case EXPR_BIT_XOR:
-        result = (evaluate(expr->lhs) ^ evaluate(expr->rhs));
-        break;
-
+        return (LHS ^ RHS);
+        
     case EXPR_BIT_OR:
-        result = (evaluate(expr->lhs) | evaluate(expr->rhs));
-        break;
-
+        return (LHS | RHS);
+        
     case EXPR_LOG_AND:
-        result = (evaluate(expr->lhs) && evaluate(expr->rhs));
-        break;
-
+        return (LHS && RHS);
+        
     case EXPR_LOG_OR:
-        result = (evaluate(expr->lhs) || evaluate(expr->rhs));
-        break;
+        return (LHS || RHS);
+
+    case EXPR_COND:
+        return OPERAND ? LHS : RHS;
+#undef OPERAND
+#undef LHS
+#undef RHS
 
     default:
         report_error(NULL, "cannot evaluate");
         break;
     }
 
-    return result;
+    return 0;
 }
 
 

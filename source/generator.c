@@ -431,22 +431,30 @@ static void generate_gvar(const Variable *gvar)
                 else
                 {
                     // allocate memory with an integer
-                    long value = evaluate(map->assign);
-                    if(map->size == 1)
+                    const Expression *base = NULL;
+                    long value = evaluate(map->assign, &base);
+                    if(base != NULL)
                     {
-                        put_line_with_tab(".byte %ld", value);
-                    }
-                    else if(map->size == 2)
-                    {
-                        put_line_with_tab(".value %ld", value);
-                    }
-                    else if(map->size == 4)
-                    {
-                        put_line_with_tab(".long %ld", value);
+                        put_line_with_tab(".quad %s%+ld", base->var->name, value);
                     }
                     else
                     {
-                        put_line_with_tab(".quad %ld", value);
+                        if(map->size == 1)
+                        {
+                            put_line_with_tab(".byte %ld", value);
+                        }
+                        else if(map->size == 2)
+                        {
+                            put_line_with_tab(".value %ld", value);
+                        }
+                        else if(map->size == 4)
+                        {
+                            put_line_with_tab(".long %ld", value);
+                        }
+                        else
+                        {
+                            put_line_with_tab(".quad %ld", value);
+                        }
                     }
                 }
             }

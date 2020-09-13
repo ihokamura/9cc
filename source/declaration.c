@@ -1783,10 +1783,6 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             case TY_UNION:
             case TY_ENUM:
             case TY_TYPEDEF:
-                if(type->qual != qual)
-                {
-                    type = copy_type(type, type->qual | qual);
-                }
                 return type;
 
             default:
