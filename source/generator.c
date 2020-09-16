@@ -62,6 +62,7 @@ static void generate_store(size_t size);
 static void generate_lvalue(const Expression *expr);
 static void generate_lvar_init(const Variable *lvar);
 static void generate_gvar(const Variable *gvar);
+static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
@@ -418,15 +419,31 @@ static void generate_gvar(const Variable *gvar)
     }
     else
     {
-        for_each_entry(InitializerMap, cursor, gvar->inits)
+        generate_gvar_inits(gvar->inits);
+    }
+}
+
+
+/*
+generate data from list of initializers
+*/
+static void generate_gvar_inits(const List(InitializerMap) *inits)
+{
+    for_each_entry(InitializerMap, cursor, inits)
+    {
+        InitializerMap *map = get_element(InitializerMap)(cursor);
+        if(map->initialized && !map->zero)
         {
-            InitializerMap *map = get_element(InitializerMap)(cursor);
-            if(map->initialized && !map->zero)
+            if(map->label != NULL)
             {
-                if(map->label != NULL)
+                // allocate memory with label
+                put_line_with_tab(".quad %s", map->label);
+            }
+            else
+            {
+                if(map->assign->kind == EXPR_COMPOUND)
                 {
-                    // allocate memory with label
-                    put_line_with_tab(".quad %s", map->label);
+                    generate_gvar_inits(map->assign->var->inits);
                 }
                 else
                 {
@@ -458,11 +475,11 @@ static void generate_gvar(const Variable *gvar)
                     }
                 }
             }
-            else
-            {
-                // allocate memory with zero
-                put_line_with_tab(".zero %lu", map->size);
-            }
+        }
+        else
+        {
+            // allocate memory with zero
+            put_line_with_tab(".zero %lu", map->size);
         }
     }
 }

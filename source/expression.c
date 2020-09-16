@@ -1597,6 +1597,9 @@ long evaluate(const Expression *expr, const Expression **base)
         *base = expr;
         return 0;
 
+    case EXPR_COMPOUND:
+        return 0;
+
 #define OPERAND (evaluate(expr->operand, base))
 #define LHS     (evaluate(expr->lhs, base))
 #define RHS     (evaluate(expr->rhs, base))

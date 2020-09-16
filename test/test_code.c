@@ -1477,7 +1477,7 @@ int gvar_init_a6[3][2] = {{1, 2}, [2][1] = 6};
 int gvar_init_a7[] = {1, 2, [3] = 4};
 int gvar_init_a8[] = {1, 2, [0] = 4};
 struct {int m1; int m2;} gvar_init_st1 = {111, 222};
-typedef struct {char m1; struct {int mm1; short mm2;} m2;} gvar_init_st2_type; gvar_init_st2_type gvar_init_st2 = {111, {222, 333}};
+struct {char m1; struct {int mm1; short mm2;} m2;} gvar_init_st2 = {111, {222, 333}};
 struct {int m1; int m2; int m3;} gvar_init_st3 = {.m2 = 2, 3};
 struct {int m1[3], m2;} gvar_init_st4[] = {[0].m1 = {1}, [1].m1[0] = 2};
 union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_char = {.m1 = {0x01, 0x02, [4]=0x11, 0x22}};
@@ -1486,14 +1486,18 @@ union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_long = {.m3 = {0x04}};
 char gvar_init_c1[] = "foo";
 char *gvar_init_str = "foo";
 int gvar_init_cond = 1 ? 2 : 1 / 0;
+
+typedef struct {char m1; struct {int mm1; short mm2; int *mm3;} m2;} gvar_init_st_type;
+gvar_init_st_type gvar_init_st = {111, {222, 333, &gvar_init_int}};
 int *gvar_init_p1 = &gvar_init_int + 3;
 int *gvar_init_p2 = &gvar_init_int - 3;
 int *gvar_init_p3 = 1 + 2 + &gvar_init_int - 2 - 1;
 int (*gvar_init_p4)(char *) = put_title;
 int (*gvar_init_p5)(char *) = put_title + 3;
-int *gvar_init_p6 = &gvar_init_st2.m1;
-int *gvar_init_p7 = &gvar_init_st2.m2.mm1;
-int *gvar_init_p8 = &gvar_init_st2.m2.mm2;
+char *gvar_init_p6 = &gvar_init_st.m1;
+int *gvar_init_p7 = &gvar_init_st.m2.mm1;
+short *gvar_init_p8 = &gvar_init_st.m2.mm2;
+gvar_init_st_type gvar_init_compound = (gvar_init_st_type){.m2.mm1 = 2, .m2.mm2 = 3, .m2.mm3 = &gvar_init_int, .m1 = 1};
 int test_initializer()
 {
     put_title("initializer");
@@ -1543,9 +1547,10 @@ int test_initializer()
     assert_pointer(&gvar_init_int, gvar_init_p3);
     assert_pointer(&put_title, gvar_init_p4);
     assert_pointer(&put_title + 3, gvar_init_p5);
-    assert_pointer(&gvar_init_st2.m1, gvar_init_p6);
-    assert_pointer(&gvar_init_st2.m2.mm1, gvar_init_p7);
-    assert_pointer(&gvar_init_st2.m2.mm2, gvar_init_p8);
+    assert_pointer(&gvar_init_st.m1, gvar_init_p6);
+    assert_pointer(&gvar_init_st.m2.mm1, gvar_init_p7);
+    assert_pointer(&gvar_init_st.m2.mm2, gvar_init_p8);
+    assert_char(1, gvar_init_compound.m1); assert_int(2, gvar_init_compound.m2.mm1); assert_short(3, gvar_init_compound.m2.mm2); assert_pointer(&gvar_init_int, gvar_init_compound.m2.mm3);
 
     int a0 = {1}; assert_int(1, a0);
     int a1[3] = {1, 2, 3}; assert_int(1, a1[0]); assert_int(2, a1[1]); assert_int(3, a1[2]);
