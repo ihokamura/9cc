@@ -1486,17 +1486,18 @@ union {char m1[8]; int m2[2]; long m3[1];} gvar_init_un1_long = {.m3 = {0x04}};
 char gvar_init_c1[] = "foo";
 char *gvar_init_str = "foo";
 int gvar_init_cond = 1 ? 2 : 1 / 0;
-
+int gvar_init_generic1 = _Generic(gvar_init_generic1, char: 1, short:2, int: 4, long: 8);
+int *gvar_init_generic2 = _Generic(gvar_init_generic2, char *: &gvar_init_char, short *: &gvar_init_short, int *: &gvar_init_int, long *: &gvar_init_long);
 typedef struct {char m1; struct {int mm1; short mm2; int *mm3;} m2;} gvar_init_st_type;
 gvar_init_st_type gvar_init_st = {111, {222, 333, &gvar_init_int}};
 int *gvar_init_p1 = &gvar_init_int + 3;
-int *gvar_init_p2 = &gvar_init_int - 3;
-int *gvar_init_p3 = 1 + 2 + &gvar_init_int - 2 - 1;
+int *gvar_init_p2 = &gvar_init_a1[3] - 3;
+int *gvar_init_p3 = 1 + 2 + gvar_init_a1 - 2 - 1;
 int (*gvar_init_p4)(char *) = put_title;
 int (*gvar_init_p5)(char *) = put_title + 3;
 char *gvar_init_p6 = &gvar_init_st.m1;
 int *gvar_init_p7 = &gvar_init_st.m2.mm1;
-short *gvar_init_p8 = &gvar_init_st.m2.mm2;
+short *gvar_init_p8 = &*&gvar_init_st.m2.mm2;
 gvar_init_st_type gvar_init_compound = (gvar_init_st_type){.m2.mm1 = 2, .m2.mm2 = 3, .m2.mm3 = &gvar_init_int, .m1 = 1};
 int test_initializer()
 {
@@ -1542,9 +1543,11 @@ int test_initializer()
     assert_char(111, gvar_init_str[1]);
 
     assert_int(2, gvar_init_cond);
+    assert_int(4, gvar_init_generic1);
+    assert_pointer(&gvar_init_int, gvar_init_generic2);
     assert_pointer(&gvar_init_int + 3, gvar_init_p1);
-    assert_pointer(&gvar_init_int - 3, gvar_init_p2);
-    assert_pointer(&gvar_init_int, gvar_init_p3);
+    assert_pointer(&gvar_init_a1[0], gvar_init_p2);
+    assert_pointer(&gvar_init_a1[0], gvar_init_p3);
     assert_pointer(&put_title, gvar_init_p4);
     assert_pointer(&put_title + 3, gvar_init_p5);
     assert_pointer(&gvar_init_st.m1, gvar_init_p6);

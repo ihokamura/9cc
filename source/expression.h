@@ -78,7 +78,6 @@ struct Expression
     StringLiteral *str;               // information of string-literal (only for EXPR_STR)
     Variable *var;                    // information of variable (only for EXPR_VAR)
     Member *member;                   // member (only for EXPR_MEMBER)
-    List(GenericAssociation) *assocs; // list of generic associations (only for EXPR_GENERIC)
     List(Expression) *args;           // arguments (only for EXPR_FUNC)
     bool lvalue;                      // flag indicating that the expression is lvalue
 };

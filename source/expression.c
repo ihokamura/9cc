@@ -47,6 +47,7 @@ static Expression *bitwise_or(void);
 static Expression *logical_and(void);
 static Expression *logical_or(void);
 static Expression *conditional(void);
+static Expression *search_generic_assoc_list(const Expression *control, const List(GenericAssociation) *assoc_list);
 static Type *apply_integer_promotion(Type *type);
 static Type *apply_arithmetic_conversion(Type *lhs_type, Type *rhs_type);
 static Expression *apply_implicit_conversion(Expression *expr);
@@ -363,10 +364,11 @@ static Expression *generic_selection(void)
     Expression *node = new_expression(EXPR_GENERIC, NULL);
     expect_reserved("_Generic");
     expect_reserved("(");
-    node->operand = assign();
+    Expression *control = assign();
     expect_reserved(",");
-    node->assocs = generic_assoc_list();
+    List(GenericAssociation) *assoc_list = generic_assoc_list();
     expect_reserved(")");
+    node->operand = search_generic_assoc_list(control, assoc_list);
 
     return node;
 }
@@ -1590,6 +1592,9 @@ long evaluate(const Expression *expr, const Expression **base)
 {
     switch(expr->kind)
     {
+#define OPERAND (evaluate(expr->operand, base))
+#define LHS     (evaluate(expr->lhs, base))
+#define RHS     (evaluate(expr->rhs, base))
     case EXPR_CONST:
         return expr->value;
 
@@ -1597,12 +1602,12 @@ long evaluate(const Expression *expr, const Expression **base)
         *base = expr;
         return 0;
 
+    case EXPR_GENERIC:
+        return OPERAND;
+
     case EXPR_COMPOUND:
         return 0;
 
-#define OPERAND (evaluate(expr->operand, base))
-#define LHS     (evaluate(expr->lhs, base))
-#define RHS     (evaluate(expr->rhs, base))
     case EXPR_ADDR:
         return OPERAND;
 
@@ -1683,16 +1688,58 @@ long evaluate(const Expression *expr, const Expression **base)
 
     case EXPR_COND:
         return OPERAND ? LHS : RHS;
-#undef OPERAND
-#undef LHS
-#undef RHS
 
     default:
         report_error(NULL, "cannot evaluate");
         break;
+#undef OPERAND
+#undef LHS
+#undef RHS
     }
 
     return 0;
+}
+
+
+/*
+search the result expression from generic association list
+*/
+static Expression *search_generic_assoc_list(const Expression *control, const List(GenericAssociation) *assoc_list)
+{
+    Expression *result = NULL;
+    for_each_entry(GenericAssociation, cursor, assoc_list)
+    {
+        GenericAssociation *assoc = get_element(GenericAssociation)(cursor);
+        if(assoc->type == NULL)
+        {
+            // default case
+            if(result == NULL)
+            {
+                result = assoc->assign;
+            }
+        }
+        else
+        {
+            if(is_compatible(control->type, assoc->type))
+            {
+                if(result == NULL)
+                {
+                    result = assoc->assign;
+                }
+                else
+                {
+                    report_error(NULL, "'_Generic' selector matches multiple associations");
+                }
+            }
+        }
+    }
+
+    if(result == NULL)
+    {
+        report_error(NULL, "'_Generic' selector is not compatible with any association");
+    }
+
+    return result;
 }
 
 

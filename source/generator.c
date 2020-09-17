@@ -62,6 +62,7 @@ static void generate_store(size_t size);
 static void generate_lvalue(const Expression *expr);
 static void generate_lvar_init(const Variable *lvar);
 static void generate_gvar(const Variable *gvar);
+static void generate_gvar_data(size_t size, const Expression *expr);
 static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
@@ -425,6 +426,40 @@ static void generate_gvar(const Variable *gvar)
 
 
 /*
+generate data of a given size
+*/
+static void generate_gvar_data(size_t size, const Expression *expr)
+{
+    const Expression *base = NULL;
+    long value = evaluate(expr, &base);
+    if(base != NULL)
+    {
+        put_line_with_tab(".quad %s%+ld", base->var->name, value);
+    }
+    else
+    {
+        // allocate memory with an integer
+        if(size == 1)
+        {
+            put_line_with_tab(".byte %ld", value);
+        }
+        else if(size == 2)
+        {
+            put_line_with_tab(".value %ld", value);
+        }
+        else if(size == 4)
+        {
+            put_line_with_tab(".long %ld", value);
+        }
+        else
+        {
+            put_line_with_tab(".quad %ld", value);
+        }
+    }
+}
+
+
+/*
 generate data from list of initializers
 */
 static void generate_gvar_inits(const List(InitializerMap) *inits)
@@ -447,32 +482,7 @@ static void generate_gvar_inits(const List(InitializerMap) *inits)
                 }
                 else
                 {
-                    // allocate memory with an integer
-                    const Expression *base = NULL;
-                    long value = evaluate(map->assign, &base);
-                    if(base != NULL)
-                    {
-                        put_line_with_tab(".quad %s%+ld", base->var->name, value);
-                    }
-                    else
-                    {
-                        if(map->size == 1)
-                        {
-                            put_line_with_tab(".byte %ld", value);
-                        }
-                        else if(map->size == 2)
-                        {
-                            put_line_with_tab(".value %ld", value);
-                        }
-                        else if(map->size == 4)
-                        {
-                            put_line_with_tab(".long %ld", value);
-                        }
-                        else
-                        {
-                            put_line_with_tab(".quad %ld", value);
-                        }
-                    }
+                    generate_gvar_data(map->size, map->assign);
                 }
             }
         }
@@ -1066,31 +1076,8 @@ static void generate_expression(const Expression *expr)
         return;
 
     case EXPR_GENERIC:
-    {
-        Type *type = expr->operand->type;
-        Expression *result = NULL;
-        for_each_entry(GenericAssociation, cursor, expr->assocs)
-        {
-            GenericAssociation *assoc = get_element(GenericAssociation)(cursor);
-            if(assoc->type == NULL)
-            {
-                // default case
-                if(result == NULL)
-                {
-                    result = assoc->assign;
-                }
-            }
-            else
-            {
-                if(is_compatible(type, assoc->type))
-                {
-                    result = assoc->assign;
-                }
-            }
-        }
-        generate_expression(result);
+        generate_expression(expr->operand);
         return;
-    }
 
     case EXPR_ADDR:
         generate_lvalue(expr->operand);
