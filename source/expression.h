@@ -70,10 +70,11 @@ enum ExpressionKind
 struct Expression
 {
     ExpressionKind kind;              // kind of expression
+    const Token *token;               // token of expression
     Type *type;                       // type of expression
     Expression *lhs;                  // left hand side of binary operation
     Expression *rhs;                  // right hand side of binary operation
-    Expression *operand;              // operand of unary operation or condition of conditional expression
+    Expression *operand;              // operand of unary operation or condition of conditional expression or result of generic selection
     long value;                       // value of expression (only for EXPR_CONST)
     StringLiteral *str;               // information of string-literal (only for EXPR_STR)
     Variable *var;                    // information of variable (only for EXPR_VAR)
@@ -89,7 +90,7 @@ struct GenericAssociation
     Expression *assign; // result expression
 };
 
-Expression *new_expression(ExpressionKind kind, Type *type);
+Expression *new_expression(ExpressionKind kind, const Token *token, Type *type);
 Expression *new_node_constant(TypeKind kind, long value);
 Expression *new_node_subscript(Expression *base, size_t index);
 Expression *new_node_member(Expression *expr, Member *member);

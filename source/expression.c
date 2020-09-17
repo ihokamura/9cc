@@ -63,10 +63,11 @@ static int cl_number; // sequential number for compound-literal
 /*
 make a new expression
 */
-Expression *new_expression(ExpressionKind kind, Type *type)
+Expression *new_expression(ExpressionKind kind, const Token *token, Type *type)
 {
     Expression *node = calloc(1, sizeof(Expression));
     node->kind = kind;
+    node->token = token;
     node->type = type;
     node->lhs = NULL;
     node->rhs = NULL;
@@ -87,7 +88,7 @@ make a new node for constant
 */
 Expression *new_node_constant(TypeKind kind, long value)
 {
-    Expression *node = new_expression(EXPR_CONST, new_type(kind, TQ_NONE));
+    Expression *node = new_expression(EXPR_CONST, get_token(), new_type(kind, TQ_NONE));
     node->value = value;
 
     return node;
@@ -111,7 +112,7 @@ make a new node for members of structure or union
 */
 Expression *new_node_member(Expression *operand, Member *member)
 {
-    Expression *node = new_expression(EXPR_MEMBER, copy_type(member->type, TQ_NONE));
+    Expression *node = new_expression(EXPR_MEMBER, get_token(), copy_type(member->type, TQ_NONE));
     node->operand = operand;
     node->member = member;
 
@@ -153,7 +154,7 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
         break;
     }
 
-    Expression *node = new_expression(kind, type);
+    Expression *node = new_expression(kind, operand->token, type);
     node->operand = operand;
     if(kind == EXPR_DEREF)
     {
@@ -171,7 +172,7 @@ static Expression *new_node_cast(Type *type, Expression *operand)
 {
     if(type != operand->type)
     {
-        Expression *node = new_expression(EXPR_CAST, type);
+        Expression *node = new_expression(EXPR_CAST, operand->token, type);
         node->operand = operand;
 
         return node;
@@ -241,7 +242,7 @@ Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rh
         break;
     }
 
-    Expression *node = new_expression(kind, type);
+    Expression *node = new_expression(kind, get_token(), type);
     node->lhs = lhs;
     node->rhs = rhs;
 
@@ -290,7 +291,7 @@ static Expression *primary(void)
                 // variable
                 Variable *var = ident->var;
                 Type *type = var->type;
-                Expression *node = new_expression(EXPR_VAR, type);
+                Expression *node = new_expression(EXPR_VAR, token, type);
                 node->var = var;
                 node->lvalue = !is_function(type);
                 return node;
@@ -310,7 +311,7 @@ static Expression *primary(void)
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
             Variable *var = new_gvar(name, type, SC_NONE, false);
-            Expression *node = new_expression(EXPR_VAR, type);
+            Expression *node = new_expression(EXPR_VAR, token, type);
             node->var = var;
             return node;
         }
@@ -323,7 +324,7 @@ static Expression *primary(void)
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
             Variable *var = new_gvar(name, type, SC_NONE, false);
-            Expression *node = new_expression(EXPR_VAR, type);
+            Expression *node = new_expression(EXPR_VAR, token, type);
             node->var = var;
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
             report_warning(token->str, "implicit declaration of function '%s'\n", name);
@@ -340,7 +341,7 @@ static Expression *primary(void)
         StringLiteral *str = new_string(token);
         Variable *var = str->var;
         Type *type = var->type;
-        Expression *node = new_expression(EXPR_VAR, type);
+        Expression *node = new_expression(EXPR_VAR, token, type);
         node->str = str;
         node->var = var;
         node->lvalue = true;
@@ -361,14 +362,20 @@ generic-selection ::= "_Generic" "(" assign "," generic-assoc-list ")"
 */
 static Expression *generic_selection(void)
 {
-    Expression *node = new_expression(EXPR_GENERIC, NULL);
+    Expression *node = new_expression(EXPR_GENERIC, get_token(), NULL);
+
+    // parse generic selection
     expect_reserved("_Generic");
     expect_reserved("(");
     Expression *control = assign();
     expect_reserved(",");
     List(GenericAssociation) *assoc_list = generic_assoc_list();
     expect_reserved(")");
-    node->operand = search_generic_assoc_list(control, assoc_list);
+
+    // select the result expression
+    Expression *result = search_generic_assoc_list(control, assoc_list);
+    node->type = result->type;
+    node->operand = result;
 
     return node;
 }
@@ -436,7 +443,7 @@ static Expression *postfix(void)
             // compound-literal
             Type *type = type_name();
             expect_reserved(")");
-            node = new_expression(EXPR_COMPOUND, type);
+            node = new_expression(EXPR_COMPOUND, get_token(), type);
             node->var = new_lvar(new_compound_literal_label(), type);
             node->var->inits = make_initializer_map(type, initializer());
             goto postfix_end;
@@ -481,7 +488,7 @@ static Expression *postfix(void)
 
             if(is_function(node->type->base))
             {
-                Expression *func_node = new_expression(EXPR_FUNC, node->type->base->base); // dereference pointer and get type of return value
+                Expression *func_node = new_expression(EXPR_FUNC, get_token(), node->type->base->base); // dereference pointer and get type of return value
                 func_node->operand = node;
                 // parse arguments
                 if(consume_reserved(")"))
@@ -1416,7 +1423,7 @@ static Expression *conditional(void)
         }
 
         // make a new node
-        Expression *ternary = new_expression(EXPR_COND, type);
+        Expression *ternary = new_expression(EXPR_COND, get_token(), type);
         ternary->operand = operand;
         ternary->lhs = lhs;
         ternary->rhs = rhs;
@@ -1599,7 +1606,14 @@ long evaluate(const Expression *expr, const Expression **base)
         return expr->value;
 
     case EXPR_VAR:
-        *base = expr;
+        if((expr->lvalue && !expr->var->local) || is_function(expr->var->type))
+        {
+            *base = expr;
+        }
+        else
+        {
+            report_error(expr->token->str, "initializer element is not constant");
+        }
         return 0;
 
     case EXPR_GENERIC:

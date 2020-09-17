@@ -426,7 +426,7 @@ report_duplicated_declaration:
     else
     {
         // make a new node for variable
-        Expression *expr = new_expression(EXPR_VAR, type);
+        Expression *expr = new_expression(EXPR_VAR, token, type);
 
         if(local && !((sclass == SC_EXTERN) || (sclass == SC_STATIC)))
         {
