@@ -85,6 +85,7 @@ static List(Member) *struct_declaration_list(void);
 static List(Member) *struct_declaration(void);
 static Type *specifier_qualifier_list(void);
 static List(Member) *struct_declarator_list(Type *type);
+static Member *struct_declarator(Type *type);
 static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
 static Member *enumerator(int val);
@@ -117,6 +118,7 @@ static bool peek_reserved_type_specifier(void);
 static bool peek_user_type_specifier(void);
 static bool peek_type_qualifier(void);
 static bool peek_declarator(void);
+static bool peek_struct_declarator(void);
 static bool peek_pointer(void);
 static bool peek_typedef_name(void);
 static bool peek_abstract_declarator(void);
@@ -738,7 +740,7 @@ static List(Member) *struct_declaration(void)
 {
     Type *type = specifier_qualifier_list();
     List(Member) *members = NULL;
-    if(peek_declarator())
+    if(peek_struct_declarator())
     {
         members = struct_declarator_list(type);
     }
@@ -796,22 +798,62 @@ static Type *specifier_qualifier_list(void)
 /*
 make a struct-declarator-list
 ```
-struct-declarator-list ::= declarator ("," declarator)*
+struct-declarator-list ::= struct-declarator ("," struct-declarator)*
 ```
 */
 static List(Member) *struct_declarator_list(Type *type)
 {
-    Token *token;
-    Type *decl_type = declarator(type, &token, false);
     List(Member) *members = new_list(Member)();
-    add_list_entry_tail(Member)(members, new_member(make_identifier(token), decl_type));
+    add_list_entry_tail(Member)(members, struct_declarator(type));
     while(consume_reserved(","))
     {
-        decl_type = declarator(type, &token, false);
-        add_list_entry_tail(Member)(members, new_member(make_identifier(token), decl_type));
+        add_list_entry_tail(Member)(members, struct_declarator(type));
     }
 
     return members;
+}
+
+
+/*
+make a struct-declarator
+```
+struct-declarator-list ::= declarator | declarator? ":" const-expression
+```
+*/
+static Member *struct_declarator(Type *type)
+{
+    bool bitfield = false;
+    Member *member;
+
+    if(peek_declarator())
+    {
+        Token *token;
+        Type *decl_type = declarator(type, &token, NULL);
+        member = new_member(make_identifier(token), decl_type);
+        bitfield = consume_reserved(":");
+    }
+    else
+    {
+        expect_reserved(":");
+        member = new_member("", type);
+        bitfield = true;
+    }
+
+    if(bitfield)
+    {
+        long width = const_expression();
+        if((0 <= width) && (width <= get_bitfield_width(member->type)))
+        {
+            member->width = width;
+            member->bitfield = true;
+        }
+        else
+        {
+            report_error(NULL, "bit-field has invalid type");
+        }
+    }
+
+    return member;
 }
 
 
@@ -1909,6 +1951,15 @@ static bool peek_declarator(void)
     Token *token;
 
     return peek_pointer() || peek_token(TK_IDENT, &token) || peek_reserved("(");
+}
+
+
+/*
+peek a struct-declarator
+*/
+static bool peek_struct_declarator(void)
+{
+    return peek_declarator() || peek_reserved(":");
 }
 
 

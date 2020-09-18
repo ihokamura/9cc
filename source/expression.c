@@ -700,7 +700,17 @@ static Expression *unary(void)
     }
     else if(consume_reserved("&"))
     {
-        node = new_node_unary(EXPR_ADDR, unary());
+        Expression *operand = unary();
+
+        if(   is_function(operand->type)
+           || (operand->lvalue && !((operand->member != NULL) && operand->member->bitfield)))
+        {
+            node = new_node_unary(EXPR_ADDR, operand);    
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary &");
+        }
     }
     else if (consume_reserved("*"))
     {

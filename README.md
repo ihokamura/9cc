@@ -99,7 +99,8 @@ struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declar
 struct-declaration-list ::= struct-declaration struct-declaration*
 struct-declaration ::= specifier-list (struct-declarator-list)? ";"
 specifier-qualifier-list ::= (type-specifier | type-qualifier)*
-struct-declarator-list ::= declarator ("," declarator)*
+struct-declarator-list ::= struct-declarator ("," struct-declarator)*
+struct-declarator-list ::= declarator | declarator? ":" const-expression
 enum-specifier ::= "enum" identifier? "{" enumerator-list (",")? "}"
                  | "enum" identifier
 enumerator-list ::= enumerator ("," enumerator)*

@@ -28,7 +28,12 @@ define_list_operations(Type)
 #define RANK_SHORT    (2)
 #define RANK_INT      (3)
 #define RANK_LONG     (4)
-
+#define WIDTHOF_BOOL     (1)
+#define WIDTHOF_CHAR     (8 * SIZEOF_CHAR)
+#define WIDTHOF_SHORT    (8 * SIZEOF_SHORT)
+#define WIDTHOF_INT      (8 * SIZEOF_INT)
+#define WIDTHOF_LONG     (8 * SIZEOF_LONG)
+#define WIDTHOF_ENUM     (WIDTHOF_INT)
 
 // global variable
 static Type void_types[] = {
@@ -277,6 +282,42 @@ Type *discard_sign(const Type *type)
     case TY_UINT:
     default:
         return &int_types[type->qual];
+    }
+}
+
+
+/*
+get the width of a bit-field with a given type
+* This function returns -1 if the member type is not applicable as a bit-field.
+*/
+long get_bitfield_width(const Type *type)
+{
+    switch(type->kind)
+    {
+    case TY_BOOL:
+        return WIDTHOF_BOOL;
+
+    case TY_CHAR:
+    case TY_UCHAR:
+        return WIDTHOF_CHAR;
+
+    case TY_SHORT:
+    case TY_USHORT:
+        return WIDTHOF_SHORT;
+
+    case TY_INT:
+    case TY_UINT:
+        return WIDTHOF_INT;
+
+    case TY_LONG:
+    case TY_ULONG:
+        return WIDTHOF_LONG;
+
+    case TY_ENUM:
+        return WIDTHOF_ENUM;
+
+    default:
+        return -1;
     }
 }
 
@@ -620,6 +661,9 @@ Member *new_member(const char *name, Type *type)
     member->type = type;
     member->name = name;
     member->offset = 0;
+    member->width = 0;
+    member->value = 0;
+    member->bitfield = false;
 
     return member;
 }

@@ -1335,6 +1335,9 @@ int test_struct()
     struct {int m1; struct {int mm1; struct {int mmm1; int mmm2;};};} st7;
     st7.m1 = 1; assert_int(1, st7.m1); st7.mm1 = 11; assert_int(11, st7.mm1); st7.mmm1 = 111; assert_int(111, st7.mmm1); st7.mmm2 = 222; assert_int(222, st7.mmm2);
 
+    struct {int m1:12, m2:12, m3:8; short m4:12, :0;} st8;
+    st8.m1 = 1; assert_int(1, st8.m1); st8.m2 = 2; assert_int(2, st8.m2); st8.m3 = 3; assert_int(3, st8.m3); st8.m4 = 4; assert_int(4, st8.m4);
+
     return 0;
 }
 

@@ -79,7 +79,9 @@ struct Member
     Type *type;       // type of member
     const char *name; // name of member
     size_t offset;    // offset of member (only for TY_STRUCT, TY_UNION)
+    size_t width;     // width of bit-field (only for TY_STRUCT, TY_UNION)
     int value;        // value of member (only for TY_ENUM)
+    bool bitfield;    // flag indicating that the member is bit-field (only for TY_STRUCT, TY_UNION)
 };
 
 // structure for type
@@ -103,6 +105,7 @@ ListEntry(Type) *new_type_list(Type *element);
 Type *copy_type(const Type *type, TypeQualifier qual);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
+long get_bitfield_width(const Type *type);
 ParameterClassKind get_parameter_class(const Type *type);
 bool is_void(const Type *type);
 bool is_bool(const Type *type);
