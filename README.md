@@ -73,7 +73,7 @@ const-expression ::= conditional
 # Declarations
 ```
 declaration ::= declaration-specifiers init-declarator-list? ";"
-declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier)*
+declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier | alignment-specifier)*
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
 
@@ -113,6 +113,8 @@ type-qualifier ::= "const"
                  | "restrict"
                  | "volatile"
                  | "_Atomic"
+
+alignment-specifier ::= "_Alignas" "(" type-name | const-expression ")"
 
 declarator ::= pointer? direct-declarator
 direct-declarator ::= identifier

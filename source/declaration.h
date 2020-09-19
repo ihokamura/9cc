@@ -49,7 +49,7 @@ struct Enumerator
 
 InitializerMap *new_string_initializer_map(const char *label, size_t offset);
 Statement *declaration(bool local);
-Type *declaration_specifiers(StorageClassSpecifier *sclass);
+Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
 Initializer *initializer(void);

@@ -78,8 +78,8 @@ static Initializer *new_initializer(void);
 static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset);
 static InitializerMap *new_zero_initialized_map(size_t size, size_t offset);
 static InitializerMap *new_uninitialized_map(size_t size, size_t offset);
-static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local);
-static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
+static List(Declaration) *init_declarator_list(Type *type, size_t align, StorageClassSpecifier sclass, bool local);
+static Declaration *init_declarator(Type *type, size_t align, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
 static Type *atomic_type_specifier(void);
@@ -93,6 +93,7 @@ static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
 static Member *enumerator(int val);
 static TypeQualifier type_qualifier(void);
+static size_t alignment_specifier(size_t current_align);
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
 static List(Type) *parameter_type_list(List(Variable) **arg_vars, bool *variadic);
@@ -122,6 +123,7 @@ static bool peek_user_type_specifier(void);
 static bool peek_atomic_specifier(void);
 static bool peek_type_qualifier(void);
 static bool peek_atomic_qualifier(void);
+static bool peek_alignment_specifier(void);
 static bool peek_declarator(void);
 static bool peek_struct_declarator(void);
 static bool peek_pointer(void);
@@ -131,6 +133,7 @@ static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_designator(void);
 static bool peek_atomic(bool spec);
+static bool is_valid_alignment(long align);
 static char *add_block_scope_label(const char *name);
 
 // global variable
@@ -291,14 +294,15 @@ declaration ::= declaration-specifiers init-declarator-list? ";"
 Statement *declaration(bool local)
 {
     // parse declaration specifier
+    size_t align;
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&sclass);
+    Type *type = declaration_specifiers(&align, &sclass);
 
     // parse init-declarator-list
     Statement *stmt = new_statement(STMT_DECL);
     if(peek_declarator())
     {
-        stmt->decl = init_declarator_list(type, sclass, local);
+        stmt->decl = init_declarator_list(type, align, sclass, local);
     }
     else
     {
@@ -314,30 +318,32 @@ Statement *declaration(bool local)
 /*
 make a declaration specifier
 ```
-declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier)*
+declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier | alignment-specifier)*
 ```
+* This function sets 0 to the argument 'align' if no alignment specifier is given.
 * This function sets SC_NONE to the argument 'sclass' if no storage-class specifier is given.
 */
-Type *declaration_specifiers(StorageClassSpecifier *sclass)
+Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass)
 {
     int spec_list[TYPESPEC_SIZE] = {0};
+    size_t alignment = 0;
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
-    StorageClassSpecifier sc_spec = SC_NONE;
+    StorageClassSpecifier sclass_spec = SC_NONE;
 
     // parse storage-class specifiers and type specifiers
     while(true)
     {
         if(peek_storage_class_specifier())
         {
-            sc_spec |= storage_class_specifier();
-            if((sc_spec & SC_THREAD_LOCAL) == SC_THREAD_LOCAL)
+            sclass_spec |= storage_class_specifier();
+            if((sclass_spec & SC_THREAD_LOCAL) == SC_THREAD_LOCAL)
             {
                 if(
-                      ((sc_spec & SC_TYPEDEF) == SC_TYPEDEF)
-                   || ((sc_spec & SC_AUTO) == SC_AUTO)
-                   || ((sc_spec & SC_REGISTER) == SC_REGISTER)
-                   )
+                      ((sclass_spec & SC_TYPEDEF) == SC_TYPEDEF)
+                   || ((sclass_spec & SC_AUTO) == SC_AUTO)
+                   || ((sclass_spec & SC_REGISTER) == SC_REGISTER)
+                  )
                 {
                     report_error(NULL, "'_Thread_local' used with invalid storage classic specifier");
                 }
@@ -345,11 +351,11 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
             else
             {
                 if(!(
-                       ((sc_spec & SC_TYPEDEF) == SC_TYPEDEF)
-                    || ((sc_spec & SC_EXTERN) == SC_EXTERN)
-                    || ((sc_spec & SC_STATIC) == SC_STATIC)
-                    || ((sc_spec & SC_AUTO) == SC_AUTO)
-                    || ((sc_spec & SC_REGISTER) == SC_REGISTER)
+                       ((sclass_spec & SC_TYPEDEF) == SC_TYPEDEF)
+                    || ((sclass_spec & SC_EXTERN) == SC_EXTERN)
+                    || ((sclass_spec & SC_STATIC) == SC_STATIC)
+                    || ((sclass_spec & SC_AUTO) == SC_AUTO)
+                    || ((sclass_spec & SC_REGISTER) == SC_REGISTER)
                     ))
                 {
                     report_error(NULL, "multiple storage classes in declaration specifiers");
@@ -364,6 +370,19 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
             continue;
         }
 
+        if(peek_alignment_specifier())
+        {
+            if(    (align == NULL) 
+                || ((sclass_spec & SC_TYPEDEF) == SC_TYPEDEF)
+                || ((sclass_spec & SC_REGISTER) == SC_REGISTER)
+              )
+            {
+                report_error(NULL, "cannot use alignment specifier");
+            }
+            alignment = alignment_specifier(alignment);
+            continue;
+        }
+
         if(!peek_reserved_type_specifier() && can_determine_type(spec_list))
         {
             break;
@@ -372,8 +391,19 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
         spec_list[type_specifier(&type)]++;
     }
 
-    *sclass = sc_spec;
-    return determine_type(spec_list, type, qual);
+    type = determine_type(spec_list, type, qual);
+    if((alignment > 0) && (type->align > alignment))
+    {
+        report_error(NULL, "'_Alignas' specifiers cannot reduce alignment");
+    }
+
+    if(align != NULL)
+    {
+        *align = alignment;
+    }
+    *sclass = sclass_spec;
+
+    return type;
 }
 
 
@@ -383,14 +413,14 @@ make a init-declarator-list
 init-declarator-list ::= init-declarator ("," init-declarator)*
 ```
 */
-static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier sclass, bool local)
+static List(Declaration) *init_declarator_list(Type *type, size_t align, StorageClassSpecifier sclass, bool local)
 {
     List(Declaration) *list = new_list(Declaration)();
-    add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, local));
+    add_list_entry_tail(Declaration)(list, init_declarator(type, align, sclass, local));
 
     while(consume_reserved(","))
     {
-        add_list_entry_tail(Declaration)(list, init_declarator(type, sclass, local));
+        add_list_entry_tail(Declaration)(list, init_declarator(type, align, sclass, local));
     }
 
     return list;
@@ -403,7 +433,7 @@ make a init-declarator-list
 init-declarator ::= declarator ("=" initializer)?
 ```
 */
-static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local)
+static Declaration *init_declarator(Type *type, size_t align, StorageClassSpecifier sclass, bool local)
 {
     // parse declarator
     Token *token;
@@ -461,7 +491,7 @@ report_duplicated_declaration:
         if(local && !((sclass == SC_EXTERN) || (sclass == SC_STATIC)))
         {
             // block scope identifier for an object with automatic storage duration
-            expr->var = new_lvar(name, type, sclass);
+            expr->var = new_lvar(name, type, max(align, type->align), sclass);
         }
         else
         {
@@ -471,7 +501,7 @@ report_duplicated_declaration:
                 name = add_block_scope_label(name);
             }
             bool emit = (type->kind != TY_FUNC) && (sclass != SC_EXTERN);
-            expr->var = new_gvar(name, type, sclass, emit);
+            expr->var = new_gvar(name, type, max(align, type->align), sclass, emit);
         }
 
         // parse initializer
@@ -1078,6 +1108,36 @@ static TypeQualifier type_qualifier(void)
 
 
 /*
+make a alignment specifier
+```
+alignment-specifier ::= "_Alignas" "(" type-name | const-expression ")"
+```
+*/
+static size_t alignment_specifier(size_t current_align)
+{
+    size_t align;
+
+    expect_reserved("_Alignas");
+    expect_reserved("(");
+    if(peek_type_name())
+    {
+        align = type_name()->align;
+    }
+    else
+    {
+        align = const_expression();
+        if(!is_valid_alignment(align))
+        {
+            report_error(NULL, "requested alignment is not a positive power of 2");
+        }
+    }
+    expect_reserved(")");
+
+    return max(current_align, align);
+}
+
+
+/*
 make a declarator
 ```
 declarator ::= pointer? direct-declarator
@@ -1275,7 +1335,7 @@ parameter-declaration ::= declaration-specifiers (declarator | abstract-declarat
 static Type *parameter_declaration(Variable **arg_var, bool omit_name)
 {
     StorageClassSpecifier sclass;
-    Type *arg_type = declaration_specifiers(&sclass);
+    Type *arg_type = declaration_specifiers(NULL, &sclass);
 
     if(!((sclass == SC_REGISTER) || (sclass == SC_NONE)))
     {
@@ -1310,7 +1370,7 @@ static Type *parameter_declaration(Variable **arg_var, bool omit_name)
         }
         else
         {
-            *arg_var = new_var(make_identifier(arg_token), arg_type, sclass, true);
+            *arg_var = new_var(make_identifier(arg_token), arg_type, arg_type->align, sclass, true);
         }
     }
 
@@ -1943,7 +2003,7 @@ peek declaration-specifiers
 */
 bool peek_declaration_specifiers(void)
 {
-    return peek_storage_class_specifier() || peek_type_specifier() || peek_type_qualifier();
+    return peek_storage_class_specifier() || peek_type_specifier() || peek_type_qualifier() || peek_alignment_specifier();
 }
 
 
@@ -2034,6 +2094,15 @@ peek _Atomic qualifier
 static bool peek_atomic_qualifier(void)
 {
     return peek_atomic(false);
+}
+
+
+/*
+peek alignment specifier
+*/
+static bool peek_alignment_specifier(void)
+{
+    return peek_reserved("_Alignas");
 }
 
 
@@ -2152,6 +2221,33 @@ static bool peek_atomic(bool spec)
     }
 
     return peek;
+}
+
+
+/*
+check if a given alignment is valid
+*/
+static bool is_valid_alignment(long align)
+{
+    bool valid = true;
+    if(align < 0)
+    {
+        valid = false;
+    }
+    else
+    {
+        while(align > 1)
+        {
+            if(align % 2 != 0)
+            {
+                valid = false;
+                break;
+            }
+            align /= 2;
+        }
+    }
+
+    return valid;
 }
 
 

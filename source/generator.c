@@ -411,6 +411,11 @@ static void generate_gvar(const Variable *gvar)
     {
         put_line(".global %s", gvar->name);
     }
+    // adjust alignment
+    if(gvar->align > gvar->type->align)
+    {
+        put_line_with_tab(".align %lu", gvar->align);
+    }
     put_line("%s:", gvar->name);
 
     if(gvar->str != NULL)

@@ -52,13 +52,14 @@ static Scope current_scope = {NULL, NULL, NULL, NULL, 0}; // current scope
 /*
 make a new variable
 */
-Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bool local)
+Variable *new_var(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool local)
 {
     Variable *var = calloc(1, sizeof(Variable));
     var->name = name;
     var->type = type;
     var->inits = NULL;
     var->str = NULL;
+    var->align = align;
     var->offset = 0;
     var->sclass = sclass;
     var->local = local;
@@ -73,9 +74,9 @@ Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bo
 /*
 make a new global variable
 */
-Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, bool entity)
+Variable *new_gvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool entity)
 {
-    Variable *gvar = new_var(name, type, sclass, false);
+    Variable *gvar = new_var(name, type, align, sclass, false);
     gvar->entity = entity;
     add_list_entry_tail(Variable)(gvar_list, gvar);
 
@@ -86,9 +87,9 @@ Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, b
 /*
 make a new local variable
 */
-Variable *new_lvar(const char *name, Type *type, StorageClassSpecifier sclass)
+Variable *new_lvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass)
 {
-    Variable *lvar = new_var(name, type, sclass, true);
+    Variable *lvar = new_var(name, type, align, sclass, true);
     add_list_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
@@ -118,7 +119,7 @@ StringLiteral *new_string(const Token *token)
     char *label = new_string_label();
     Type *type = new_type_array(new_type(TY_CHAR, TQ_NONE), token->len + 1);
 
-    Variable *gvar = new_var(label, type, SC_STATIC, false);
+    Variable *gvar = new_var(label, type, ALIGNOF_PTR, SC_STATIC, false);
     gvar->str = calloc(1, sizeof(StringLiteral));
     gvar->inits = new_list(InitializerMap)();
     add_list_entry_tail(InitializerMap)(gvar->inits, new_string_initializer_map(label, 0));
@@ -150,14 +151,14 @@ static Function *new_function(const Token *token, Type *type, StorageClassSpecif
     for_each_entry(Variable, cursor, args)
     {
         Variable *arg = get_element(Variable)(cursor);
-        offset = adjust_alignment(offset, arg->type->align);
+        offset = adjust_alignment(offset, arg->align);
         offset += (is_struct_or_union(arg->type) ? adjust_alignment(arg->type->size, STACK_ALIGNMENT) : arg->type->size);
         arg->offset = offset;
     }
     for_each_entry(Variable, cursor, lvar_list)
     {
         Variable *lvar = get_element(Variable)(cursor);
-        offset = adjust_alignment(offset, lvar->type->align);
+        offset = adjust_alignment(offset, lvar->align);
         offset += lvar->type->size;
         lvar->offset = offset;
     }
@@ -235,7 +236,7 @@ static void function_def(void)
 
     // parse declaration specifier and declarator
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&sclass);
+    Type *type = declaration_specifiers(NULL, &sclass);
     Token *token;
     List(Variable) *args = new_list(Variable)();
     type = declarator(type, &token, &args);
@@ -383,8 +384,9 @@ static bool peek_func(void)
     Scope scope = enter_scope();
 
     // parse declaration specifier and declarator
+    size_t align;
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&sclass);
+    Type *type = declaration_specifiers(&align, &sclass);
     Token *token;
     type = declarator(type, &token, NULL);
 
@@ -398,7 +400,7 @@ static bool peek_func(void)
     if(is_func)
     {
         // make a function declarator
-        new_gvar(make_identifier(token), type, sclass, false);
+        new_gvar(make_identifier(token), type, type->align, sclass, false);
     }
 
     return is_func;

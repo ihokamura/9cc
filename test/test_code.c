@@ -1046,7 +1046,7 @@ int test_sizeof()
 /*
 _Alignof operator
 */
-int test_Alignof()
+int test_alignof()
 {
     put_title("_Alignof operator");
 
@@ -1782,6 +1782,35 @@ int test_type_qualifier(void)
 
 
 /*
+alignment specifier
+*/
+char _Alignas(0) gvar_aligned_char0 = 0;
+char _Alignas(1) gvar_aligned_char1 = 1;
+char _Alignas(2) gvar_aligned_char2 = 2;
+char _Alignas(4) gvar_aligned_char4 = 4;
+_Alignas(1) const _Alignas(8) _Alignas(4) char gvar_aligned_char8 = 8;
+char _Alignas(16) gvar_aligned_char16 = 16;
+int test_alignas(void)
+{
+    put_title("alignment specifier");
+
+    assert_char(0, gvar_aligned_char0);
+    assert_char(1, gvar_aligned_char1);
+    assert_char(2, gvar_aligned_char2);
+    assert_char(4, gvar_aligned_char4);
+    assert_char(8, gvar_aligned_char8);
+    assert_char(16, gvar_aligned_char16);
+
+    int _Alignas(int) ia_int = 0; assert_int(0, ia_int);
+    _Alignas(sizeof(char) * 4) int ia4 = 4; assert_int(4, ia4);
+    _Alignas(1) const _Alignas(8) _Alignas(4) int ia8 = 8; assert_int(8, ia8);
+    _Alignas(64) int *pia64 = &ia4; assert_int(4, *pia64);
+
+    return 0;
+}
+
+
+/*
 conversion
 */
 int test_conversion(void)
@@ -1835,7 +1864,7 @@ int main()
     test_function_definition();
     test_address_dereference();
     test_sizeof();
-    test_Alignof();
+    test_alignof();
     test_pointer_operation();
     test_array();
     test_global_variable();
@@ -1857,6 +1886,7 @@ int main()
     test_scope();
     test_storage_class();
     test_type_qualifier();
+    test_alignas();
     test_conversion();
 
     return 0;

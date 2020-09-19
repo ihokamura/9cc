@@ -311,7 +311,7 @@ static Expression *primary(void)
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
-            Variable *var = new_gvar(name, type, SC_NONE, false);
+            Variable *var = new_gvar(name, type, type->align, SC_NONE, false);
             Expression *node = new_expression(EXPR_VAR, token, type);
             node->var = var;
             return node;
@@ -324,7 +324,7 @@ static Expression *primary(void)
             List(Type) *args = new_list(Type)();
             add_list_entry_tail(Type)(args, new_type(TY_VOID, TQ_NONE));
             Type *type = new_type_function(base, args, false);
-            Variable *var = new_gvar(name, type, SC_NONE, false);
+            Variable *var = new_gvar(name, type, type->align, SC_NONE, false);
             Expression *node = new_expression(EXPR_VAR, token, type);
             node->var = var;
 #if(WARN_IMPLICIT_DECLARATION_OF_FUNCTION == ENABLED)
@@ -445,7 +445,7 @@ static Expression *postfix(void)
             Type *type = type_name();
             expect_reserved(")");
             node = new_expression(EXPR_COMPOUND, get_token(), type);
-            node->var = new_lvar(new_compound_literal_label(), type, SC_NONE);
+            node->var = new_lvar(new_compound_literal_label(), type, type->align, SC_NONE);
             node->var->inits = make_initializer_map(type, initializer());
             goto postfix_end;
         }
