@@ -51,6 +51,7 @@ static Expression *search_generic_assoc_list(const Expression *control, const Li
 static Type *apply_integer_promotion(Type *type);
 static Type *apply_arithmetic_conversion(Type *lhs_type, Type *rhs_type);
 static Expression *apply_implicit_conversion(Expression *expr);
+static bool check_constraint_unary(ExpressionKind kind, const Expression *operand);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
 static bool is_modifiable_lvalue(const Expression *expr);
 static bool is_const_qualified(const Type *type);
@@ -444,7 +445,7 @@ static Expression *postfix(void)
             Type *type = type_name();
             expect_reserved(")");
             node = new_expression(EXPR_COMPOUND, get_token(), type);
-            node->var = new_lvar(new_compound_literal_label(), type);
+            node->var = new_lvar(new_compound_literal_label(), type, SC_NONE);
             node->var->inits = make_initializer_map(type, initializer());
             goto postfix_end;
         }
@@ -698,96 +699,67 @@ static Expression *unary(void)
             report_error(NULL, "wrong type argument to decrement");
         }
     }
-    else if(consume_reserved("&"))
-    {
-        Expression *operand = unary();
-
-        if(   is_function(operand->type)
-           || (operand->lvalue && !((operand->member != NULL) && operand->member->bitfield)))
-        {
-            node = new_node_unary(EXPR_ADDR, operand);    
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary &");
-        }
-    }
-    else if (consume_reserved("*"))
-    {
-        Expression *operand = apply_implicit_conversion(unary());
-
-        // check constraints
-        if(is_pointer(operand->type))
-        {
-            node = new_node_unary(EXPR_DEREF, operand);
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary *");
-        }
-    }
-    else if(consume_reserved("+"))
-    {
-        Expression *operand = unary();
-
-        // check constraints
-        if(is_arithmetic(operand->type))
-        {
-            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
-            node = new_node_unary(EXPR_PLUS, operand);
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary +");
-        }
-    }
-    else if(consume_reserved("-"))
-    {
-        Expression *operand = unary();
-
-        // check constraints
-        if(is_arithmetic(operand->type))
-        {
-            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
-            node = new_node_unary(EXPR_MINUS, operand);
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary -");
-        }
-    }
-    else if (consume_reserved("~"))
-    {
-        Expression *operand = unary();
-
-        // check constraints
-        if(is_integer(operand->type))
-        {
-            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
-            node = new_node_unary(EXPR_COMPL, operand);
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary ~");
-        }
-    }
-    else if (consume_reserved("!"))
-    {
-        Expression *operand = unary();
-
-        // check constraints
-        if(is_scalar(operand->type))
-        {
-            node = new_node_unary(EXPR_NEG, operand);
-        }
-        else
-        {
-            report_error(NULL, "wrong type argument to unary !");
-        }
-    }
     else
     {
-        node = postfix();
+        // unary operator
+        Expression *operand;
+        ExpressionKind kind;
+        char *operator = NULL;
+
+        if(consume_reserved("&"))
+        {
+            operand = unary();
+            kind = EXPR_ADDR;
+            operator = "&";
+        }
+        else if(consume_reserved("*"))
+        {
+            operand = apply_implicit_conversion(unary());
+            kind = EXPR_DEREF;
+            operator = "*";
+        }
+        else if(consume_reserved("+"))
+        {
+            operand = unary();
+            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
+            kind = EXPR_PLUS;
+            operator = "+";
+        }
+        else if(consume_reserved("-"))
+        {
+            operand = unary();
+            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
+            kind = EXPR_MINUS;
+            operator = "-";
+        }
+        else if(consume_reserved("~"))
+        {
+            operand = unary();
+            operand = new_node_cast(apply_integer_promotion(operand->type), operand);
+            kind = EXPR_COMPL;
+            operator = "~";
+        }
+        else if(consume_reserved("!"))
+        {
+            operand = unary();
+            kind = EXPR_NEG;
+            operator = "!";
+        }
+        else
+        {
+            node = postfix();
+            goto unary_end;
+        }
+
+        // check constraints
+        if(check_constraint_unary(kind, operand))
+        {
+            node = new_node_unary(kind, operand);
+        }
+        else
+        {
+            report_error(NULL, "wrong type argument to unary %s", operator);
+        }
     }
 
 unary_end:
@@ -1893,6 +1865,48 @@ static Expression *apply_implicit_conversion(Expression *expr)
     }
 
     return conv;
+}
+
+
+/*
+check constraints on unary operations
+*/
+static bool check_constraint_unary(ExpressionKind kind, const Expression *operand)
+{
+    bool valid = false;
+
+    switch(kind)
+    {
+    case EXPR_ADDR:
+        valid = (
+                     is_function(operand->type)
+                  || (operand->kind == EXPR_DEREF)
+                  || (operand->lvalue && !(((operand->member != NULL) && operand->member->bitfield) || ((operand->var != NULL) && (operand->var->sclass == SC_REGISTER))))
+                );
+        break;
+
+    case EXPR_DEREF:
+        valid = is_pointer(operand->type);
+        break;
+
+    case EXPR_PLUS:
+    case EXPR_MINUS:
+        valid = is_arithmetic(operand->type);
+        break;
+
+    case EXPR_COMPL:
+        valid = is_integer(operand->type);
+        break;
+
+    case EXPR_NEG:
+        valid = is_scalar(operand->type);
+        break;
+
+    default:
+        break;
+    }
+
+    return valid;
 }
 
 

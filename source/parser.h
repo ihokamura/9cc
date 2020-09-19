@@ -85,7 +85,7 @@ extern const size_t REGISTER_SAVE_AREA_SIZE;
 
 Variable *new_var(const char *name, Type *type, StorageClassSpecifier sclass, bool local);
 Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, bool entity);
-Variable *new_lvar(const char *name, Type *type);
+Variable *new_lvar(const char *name, Type *type, StorageClassSpecifier sclass);
 StringLiteral *new_string(const Token *token);
 void construct(Program *prog);
 Identifier *push_identifier_scope(const char *name);

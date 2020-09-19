@@ -433,7 +433,7 @@ report_duplicated_declaration:
         if(local && !((sclass == SC_EXTERN) || (sclass == SC_STATIC)))
         {
             // block scope identifier for an object with automatic storage duration
-            expr->var = new_lvar(name, type);
+            expr->var = new_lvar(name, type, sclass);
         }
         else
         {

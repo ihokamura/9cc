@@ -86,9 +86,9 @@ Variable *new_gvar(const char *name, Type *type, StorageClassSpecifier sclass, b
 /*
 make a new local variable
 */
-Variable *new_lvar(const char *name, Type *type)
+Variable *new_lvar(const char *name, Type *type, StorageClassSpecifier sclass)
 {
-    Variable *lvar = new_var(name, type, SC_NONE, true);
+    Variable *lvar = new_var(name, type, sclass, true);
     add_list_entry_head(Variable)(lvar_list, lvar);
 
     return lvar;
