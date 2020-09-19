@@ -1703,7 +1703,7 @@ int func_def_static_var2(void)
 static int static_int = 1000;
 extern int static_int;
 static int static_int;
-
+_Thread_local int thread_local_extern_int;
 int test_storage_class(void)
 {
     put_title("storage_class");
@@ -1750,6 +1750,11 @@ int test_storage_class(void)
         static_int = 0;
     }
     assert_int(0, static_int);
+
+    _Thread_local extern int thread_local_extern_int;
+    _Thread_local static int thread_local_static_int;
+    thread_local_extern_int = 1; assert_int(1, thread_local_extern_int);
+    thread_local_static_int = 2; assert_int(2, thread_local_static_int);
 
     return 0;
 }

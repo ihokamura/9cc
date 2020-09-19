@@ -14,12 +14,13 @@
 typedef enum StorageClassSpecifier StorageClassSpecifier;
 enum StorageClassSpecifier
 {
-    SC_NONE,     // no specifier
-    SC_TYPEDEF,  // "typdef"
-    SC_EXTERN,   // "extern"
-    SC_STATIC,   // "static"
-    SC_AUTO,     // "auto"
-    SC_REGISTER, // "register"
+    SC_NONE         = 0,      // no specifier
+    SC_TYPEDEF      = 1 << 0, // "typdef"
+    SC_EXTERN       = 1 << 1, // "extern"
+    SC_STATIC       = 1 << 2, // "static"
+    SC_THREAD_LOCAL = 1 << 3, // "_Thread_local"
+    SC_AUTO         = 1 << 4, // "auto"
+    SC_REGISTER     = 1 << 5, // "register"
 };
 
 // structure for contents in data segment

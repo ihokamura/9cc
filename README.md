@@ -80,6 +80,7 @@ init-declarator ::= declarator ("=" initializer)?
 storage-class-specifier ::= "typedef"
                           | "extern"
                           | "static"
+                          | "_Thread_local"
                           | "auto"
                           | "register"
 

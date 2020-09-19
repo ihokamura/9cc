@@ -323,18 +323,38 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
     int spec_list[TYPESPEC_SIZE] = {0};
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
-    *sclass = SC_NONE;
+    StorageClassSpecifier sc_spec = SC_NONE;
 
     // parse storage-class specifiers and type specifiers
     while(true)
     {
         if(peek_storage_class_specifier())
         {
-            if(*sclass != SC_NONE)
+            sc_spec |= storage_class_specifier();
+            if((sc_spec & SC_THREAD_LOCAL) == SC_THREAD_LOCAL)
             {
-                report_error(NULL, "multiple storage classes in declaration specifiers");
+                if(
+                      ((sc_spec & SC_TYPEDEF) == SC_TYPEDEF)
+                   || ((sc_spec & SC_AUTO) == SC_AUTO)
+                   || ((sc_spec & SC_REGISTER) == SC_REGISTER)
+                   )
+                {
+                    report_error(NULL, "'_Thread_local' used with invalid storage classic specifier");
+                }
             }
-            *sclass = storage_class_specifier();
+            else
+            {
+                if(!(
+                       ((sc_spec & SC_TYPEDEF) == SC_TYPEDEF)
+                    || ((sc_spec & SC_EXTERN) == SC_EXTERN)
+                    || ((sc_spec & SC_STATIC) == SC_STATIC)
+                    || ((sc_spec & SC_AUTO) == SC_AUTO)
+                    || ((sc_spec & SC_REGISTER) == SC_REGISTER)
+                    ))
+                {
+                    report_error(NULL, "multiple storage classes in declaration specifiers");
+                }
+            }
             continue;
         }
 
@@ -352,6 +372,7 @@ Type *declaration_specifiers(StorageClassSpecifier *sclass)
         spec_list[type_specifier(&type)]++;
     }
 
+    *sclass = sc_spec;
     return determine_type(spec_list, type, qual);
 }
 
@@ -468,6 +489,7 @@ make a storage-class specifier
 storage-class-specifier ::= "typedef"
                           | "extern"
                           | "static"
+                          | "_Thread_local"
                           | "auto"
                           | "register"
 ```
@@ -485,6 +507,10 @@ static StorageClassSpecifier storage_class_specifier(void)
     else if(consume_reserved("static"))
     {
         return SC_STATIC;
+    }
+    else if(consume_reserved("_Thread_local"))
+    {
+        return SC_THREAD_LOCAL;
     }
     else if(consume_reserved("auto"))
     {
@@ -1930,6 +1956,7 @@ static bool peek_storage_class_specifier(void)
            peek_reserved("typedef")
         || peek_reserved("extern")
         || peek_reserved("static")
+        || peek_reserved("_Thread_local")
         || peek_reserved("auto")
         || peek_reserved("register")
     );
