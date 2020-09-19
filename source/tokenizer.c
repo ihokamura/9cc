@@ -142,6 +142,7 @@ static const char *keyword_list[] = {
     "volatile",
     "while",
     "_Alignof",
+    "_Atomic",
     "_Bool",
     "_Generic",
 };

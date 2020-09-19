@@ -47,6 +47,7 @@ enum TypeKind
     TY_ULONG,   // unsigned long
     TY_PTR,     // pointer
     TY_ARRAY,   // array
+    TY_ATOMIC,  // atomic type
     TY_STRUCT,  // structure
     TY_UNION,   // union
     TY_ENUM,    // enumeration
@@ -62,6 +63,7 @@ enum TypeQualifier
     TQ_CONST    = 1 << 0, // const
     TQ_RESTRICT = 1 << 1, // restrict
     TQ_VOLATILE = 1 << 2, // volatile
+    TQ_ATOMIC   = 1 << 3, // _Atomic
 };
 
 // kind of parameter class
@@ -97,6 +99,7 @@ struct Type
     List(Type) *args;      // type of arguments (only for TY_FUNC)
     Tag *tag;              // tag (only for TY_STRUCT, TY_UNION, TY_ENUM)
     List(Member) *members; // members (only for TY_STRUCT, TY_UNION, TY_ENUM)
+    bool atomic;           // flag indicating that the type is atomic
     bool variadic;         // flag indicating that arguments is variadic (only for TY_FUNC)
 };
 

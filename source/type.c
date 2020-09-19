@@ -212,6 +212,7 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type->len = 0;
         type->args = NULL;
         type->members = NULL;
+        type->atomic = false;
         type->variadic = false;
         break;
     }

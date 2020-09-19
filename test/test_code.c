@@ -1293,6 +1293,23 @@ int test_longlong()
 
 
 /*
+atomic type
+*/
+int test_atomic()
+{
+    put_title("atomic type");
+
+    int i = 1; assert_int(1, i);
+    _Atomic(int) ai = 11; assert_int(11, ai);
+    _Atomic(int) *pai1 = &ai; assert_int(11, *pai1);
+    _Atomic int * pai2 = &ai; assert_int(11, *pai2);
+    int * _Atomic api = &i; assert_int(1, *api);
+
+    return 0;
+}
+
+
+/*
 struct type
 */
 int test_struct()
@@ -1824,6 +1841,7 @@ int main()
     test_int();
     test_long();
     test_longlong();
+    test_atomic();
     test_struct();
     test_union();
     test_enum();

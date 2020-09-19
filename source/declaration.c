@@ -33,7 +33,7 @@ define_list_operations(InitializerMap)
 define_list_operations(Designator)
 
 // macro
-#define TYPESPEC_SIZE ((size_t)12) // number of type specifiers
+#define TYPESPEC_SIZE ((size_t)13) // number of valid type specifiers
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 // kind of type specifiers
@@ -48,10 +48,12 @@ enum TypeSpecifier
     TS_SIGNED,   // "signed"
     TS_UNSIGNED, // "unsigned"
     TS_BOOL,     // "_Bool"
+    TS_ATOMIC,   // "_Atomic"
     TS_STRUCT,   // structure
     TS_UNION,    // union
     TS_ENUM,     // enumeration
     TS_TYPEDEF,  // typedef name
+    TS_INVALID,  // invalid type specifier
 };
 
 // structure for initializer
@@ -80,6 +82,7 @@ static List(Declaration) *init_declarator_list(Type *type, StorageClassSpecifier
 static Declaration *init_declarator(Type *type, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
 static TypeSpecifier type_specifier(Type **type);
+static Type *atomic_type_specifier(void);
 static Type *struct_or_union_specifier(void);
 static List(Member) *struct_declaration_list(void);
 static List(Member) *struct_declaration(void);
@@ -116,7 +119,9 @@ static bool peek_storage_class_specifier(void);
 static bool peek_type_specifier(void);
 static bool peek_reserved_type_specifier(void);
 static bool peek_user_type_specifier(void);
+static bool peek_atomic_specifier(void);
 static bool peek_type_qualifier(void);
+static bool peek_atomic_qualifier(void);
 static bool peek_declarator(void);
 static bool peek_struct_declarator(void);
 static bool peek_pointer(void);
@@ -125,57 +130,59 @@ static bool peek_abstract_declarator(void);
 static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_designator(void);
+static bool peek_atomic(bool spec);
 static char *add_block_scope_label(const char *name);
 
 // global variable
 const char *STATIC_VARIABLE_PUNCTUATOR = ".";
 static const struct {int spec_list[TYPESPEC_SIZE]; TypeKind type_kind;} TYPE_SPECS_MAP[] = {
     // synonym of 'void'
-    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
+    {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_VOID},    // void
     // synonym of 'char'
-    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
+    {{0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_CHAR},    // char
     // synonym of 'signed char'
-    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SCHAR},   // signed char
+    {{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SCHAR},   // signed char
     // synonym of 'unsigned char'
-    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
+    {{0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_UCHAR},   // unsigned char
     // synonym of 'short'
-    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short
-    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short
-    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short int
-    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short int
+    {{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short
+    {{0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short
+    {{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // short int
+    {{0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_SHORT},   // signed short int
     // synonym of 'unsigned short'
-    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short
-    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short int
+    {{0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short
+    {{0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_USHORT},  // unsigned short int
     // synonym of 'int'
-    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // int
-    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed
-    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed int
+    {{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // int
+    {{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed
+    {{0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_INT},     // signed int
     // synonym of 'unsigned'
-    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned
-    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned int
+    {{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned
+    {{0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0}, TY_UINT},    // unsigned int
     // synonym of 'long'
-    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long
-    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long
-    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long int
-    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long int
+    {{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long
+    {{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long
+    {{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long int
+    {{0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long int
     // synonym of 'unsigned long'
-    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
-    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
+    {{0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long
+    {{0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long int
     // synonym of 'long long', which is equivalent to 'long' in this implementation
-    {{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long
-    {{0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long
-    {{0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long int
-    {{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long int
+    {{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long
+    {{0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long
+    {{0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // long long int
+    {{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0}, TY_LONG},    // signed long long int
     // synonym of 'unsigned long long', which is equivalent to 'unsigned long' in this implementation
-    {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
-    {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
+    {{0, 0, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long
+    {{0, 0, 0, 1, 2, 0, 1, 0, 0, 0, 0, 0, 0}, TY_ULONG},   // unsigned long long int
     // synonym of '_Bool'
-    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_BOOL},    // _Bool
+    {{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}, TY_BOOL},    // _Bool
     // other type specifiers
-    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_ENUM},    // enumeration
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_TYPEDEF}, // typedef name
+    {{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0}, TY_ATOMIC},  // atomic type
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, TY_STRUCT},  // structure
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0}, TY_UNION},   // union
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, TY_ENUM},    // enumeration
+    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, TY_TYPEDEF}, // typedef name
 }; // map from list of specifiers to kind of type
 static const size_t TYPE_SPECS_MAP_SIZE = sizeof(TYPE_SPECS_MAP) / sizeof(TYPE_SPECS_MAP[0]); // size of map from list of specifiers to kind of type
 
@@ -506,6 +513,7 @@ type-specifier ::= "void"
                  | "signed"
                  | "unsigned"
                  | "_Bool"
+                 | atomic-type-specifier
                  | struct-or-union-specifier
                  | enum-specifier
                  | typedef-name
@@ -545,6 +553,11 @@ static TypeSpecifier type_specifier(Type **type)
     {
         return TS_BOOL;
     }
+    else if(peek_reserved("_Atomic"))
+    {
+        *type = atomic_type_specifier();
+        return TS_ATOMIC;
+    }
     else if(peek_reserved("struct"))
     {
         *type = struct_or_union_specifier();
@@ -572,9 +585,37 @@ static TypeSpecifier type_specifier(Type **type)
         else
         {
             report_error(token->str, "invalid type specifier\n");
-            return SC_NONE;
+            return TS_INVALID;
         }
     }
+}
+
+
+/*
+make a atomic-type-specifier
+```
+atomic-type-specifier ::= "_Atomic" "(" type-name ")"
+```
+*/
+static Type *atomic_type_specifier(void)
+{
+    Type *type = NULL;
+
+    expect_reserved("_Atomic");
+    expect_reserved("(");
+    Type *applied_type = type_name();
+    if(is_array(applied_type) || is_function(applied_type) || applied_type->atomic || applied_type->qual)
+    {
+        report_error(NULL, "'_Atomic' applied to an invalid type");
+    }
+    else
+    {
+        type = copy_type(applied_type, applied_type->qual);
+        type->atomic = true;
+    }
+    expect_reserved(")");
+
+    return type;
 }
 
 
@@ -982,6 +1023,7 @@ make a type qualifier
 type-qualifier ::= "const"
                  | "restrict"
                  | "volatile"
+                 | "_Atomic"
 ```
 */
 static TypeQualifier type_qualifier(void)
@@ -997,6 +1039,10 @@ static TypeQualifier type_qualifier(void)
     else if(consume_reserved("volatile"))
     {
         return TQ_VOLATILE;
+    }
+    else if(consume_reserved("_Atomic"))
+    {
+        return TQ_ATOMIC;
     }
     else
     {
@@ -1821,6 +1867,7 @@ static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual
             case TY_BOOL:
                 return new_type(type_kind, qual);
 
+            case TY_ATOMIC:
             case TY_STRUCT:
             case TY_UNION:
             case TY_ENUM:
@@ -1922,11 +1969,21 @@ peek a user-defined type-specifier
 static bool peek_user_type_specifier(void)
 {
     return (
-           peek_reserved("struct")
+           peek_atomic_specifier()
+        || peek_reserved("struct")
         || peek_reserved("union")
         || peek_reserved("enum")
         || peek_typedef_name()
     );
+}
+
+
+/*
+peek _Atomic specifier
+*/
+static bool peek_atomic_specifier(void)
+{
+    return peek_atomic(true);
 }
 
 
@@ -1939,7 +1996,17 @@ static bool peek_type_qualifier(void)
            peek_reserved("const")
         || peek_reserved("restrict")
         || peek_reserved("volatile")
+        || peek_atomic_qualifier()
     );
+}
+
+
+/*
+peek _Atomic qualifier
+*/
+static bool peek_atomic_qualifier(void)
+{
+    return peek_atomic(false);
 }
 
 
@@ -2031,6 +2098,33 @@ peek a designator
 static bool peek_designator(void)
 {
     return peek_reserved("[") || peek_reserved(".");
+}
+
+
+/*
+peek _Atomic specifier or _Atomic qualifier
+* If the argument 'spec' is true, this function peeks _Atomic specifier.
+* Otherwise, this function peeks _Atomic qualifier.
+*/
+static bool peek_atomic(bool spec)
+{
+    bool peek = false;
+
+    Token *token = get_token();
+    if(consume_reserved("_Atomic"))
+    {
+        if(spec)
+        {
+            peek = peek_reserved("(");
+        }
+        else
+        {
+            peek = !peek_reserved("(");
+        }
+        set_token(token);
+    }
+
+    return peek;
 }
 
 

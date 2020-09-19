@@ -91,9 +91,11 @@ type-specifier ::= "void"
                  | "signed"
                  | "unsigned"
                  | "_Bool"
+                 | atomic-type-specifier
                  | struct-or-union-specifier
                  | enum-specifier
                  | typedef-name
+atomic-type-specifier ::= "_Atomic" "(" type-name ")"
 struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declaration-list "}"
                             | ("struct" | "union") identifier
 struct-declaration-list ::= struct-declaration struct-declaration*
@@ -109,6 +111,7 @@ enumerator ::= identifier ("=" const-expression)?
 type-qualifier ::= "const"
                  | "restrict"
                  | "volatile"
+                 | "_Atomic"
 
 declarator ::= pointer? direct-declarator
 direct-declarator ::= identifier
