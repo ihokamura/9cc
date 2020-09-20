@@ -1464,6 +1464,22 @@ int test_integer_constant()
     unsigned long ulong_suffix = 12UL; assert_long(12lu, ulong_suffix);
     long long longlong_suffix = 12LL; assert_longlong(12ll, longlong_suffix);
     unsigned long ulonglong_suffix = 12ULL; assert_longlong(12llu, ulonglong_suffix);
+
+    return 0;
+}
+
+
+/*
+floating-constant
+*/
+int test_floating_constant()
+{
+    put_title("floating-constant");
+
+    float f = 1; assert_int(1, f);
+    double d = 2; assert_int(2, d);
+
+    return 0;
 }
 
 
@@ -1490,6 +1506,8 @@ int test_character_constant()
     assert_char(1, '\1');
     assert_char(10, '\12');
     assert_char(83, '\123');
+
+    return 0;
 }
 
 
@@ -1907,6 +1925,7 @@ int main()
     test_enum();
     test_string_literal();
     test_integer_constant();
+    test_floating_constant();
     test_character_constant();
     test_initializer();
     test_scope();

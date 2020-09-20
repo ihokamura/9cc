@@ -146,6 +146,36 @@ static Type ulong_types[] = {
     {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_RESTRICT | TQ_VOLATILE,            true},
     {TY_ULONG, SIZEOF_LONG, ALIGNOF_LONG, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
 };
+static Type float_types[] = {
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_NONE,                              true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_CONST,                             true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_RESTRICT,                          true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_VOLATILE,                          true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_FLOAT, SIZEOF_FLOAT, ALIGNOF_FLOAT, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type double_types[] = {
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_NONE,                              true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_CONST,                             true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_RESTRICT,                          true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_VOLATILE,                          true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_DOUBLE, SIZEOF_DOUBLE, ALIGNOF_DOUBLE, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
+static Type ldouble_types[] = {
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_NONE,                              true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_CONST,                             true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_RESTRICT,                          true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_CONST | TQ_RESTRICT,               true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_VOLATILE,                          true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_CONST | TQ_VOLATILE,               true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_RESTRICT | TQ_VOLATILE,            true},
+    {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
+};
 
 
 /*
@@ -199,6 +229,18 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
 
     case TY_ULONG:
         type = &ulong_types[qual];
+        break;
+
+    case TY_FLOAT:
+        type = &float_types[qual];
+        break;
+
+    case TY_DOUBLE:
+        type = &double_types[qual];
+        break;
+
+    case TY_LDOUBLE:
+        type = &ldouble_types[qual];
         break;
 
     default:

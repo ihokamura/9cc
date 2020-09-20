@@ -19,6 +19,9 @@
 #define SIZEOF_LONG     (8)
 #define SIZEOF_PTR      (8)
 #define SIZEOF_ENUM     (SIZEOF_INT)
+#define SIZEOF_FLOAT    (4)
+#define SIZEOF_DOUBLE   (8)
+#define SIZEOF_LDOUBLE  (16)
 
 // alignment of type
 #define ALIGNOF_VOID     (1)
@@ -29,6 +32,9 @@
 #define ALIGNOF_LONG     (8)
 #define ALIGNOF_PTR      (8)
 #define ALIGNOF_ENUM     (ALIGNOF_INT)
+#define ALIGNOF_FLOAT    (4)
+#define ALIGNOF_DOUBLE   (8)
+#define ALIGNOF_LDOUBLE  (16)
 
 // kind of types
 typedef enum TypeKind TypeKind;
@@ -45,6 +51,9 @@ enum TypeKind
     TY_UINT,    // unsigned int
     TY_LONG,    // long
     TY_ULONG,   // unsigned long
+    TY_FLOAT,   // float
+    TY_DOUBLE,  // double
+    TY_LDOUBLE, // long double
     TY_PTR,     // pointer
     TY_ARRAY,   // array
     TY_ATOMIC,  // atomic type
