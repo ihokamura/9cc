@@ -63,7 +63,7 @@ Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
 Initializer *initializer(void);
 List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init);
-bool peek_declaration_specifiers(void);
+bool peek_declaration(void);
 bool peek_type_name(void);
 
 extern const char *STATIC_VARIABLE_PUNCTUATOR;

@@ -117,6 +117,7 @@ static int compare_offset(const void *data1, const void *data2);
 static Type *determine_type(const int *spec_list, Type *type, TypeQualifier qual);
 static bool can_determine_type(const int *spec_list);
 static bool is_string(const Expression *expr);
+static bool peek_declaration_specifiers(void);
 static bool peek_storage_class_specifier(void);
 static bool peek_type_specifier(void);
 static bool peek_reserved_type_specifier(void);
@@ -134,6 +135,7 @@ static bool peek_abstract_declarator(void);
 static bool peek_direct_abstract_declarator(void);
 static bool peek_declarator_suffix(void);
 static bool peek_designator(void);
+static bool peek_static_assertion_declaration(void);
 static bool peek_atomic(bool spec);
 static bool is_valid_alignment(long align);
 static char *add_block_scope_label(const char *name);
@@ -291,28 +293,62 @@ InitializerMap *new_string_initializer_map(const char *label, size_t offset)
 make a declaration
 ```
 declaration ::= declaration-specifiers init-declarator-list? ";"
+              | static_assert-declaration
 ```
 */
 Statement *declaration(bool local)
 {
-    // parse declaration specifier
-    size_t align;
-    StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&align, &sclass, NULL);
+    Statement *stmt = NULL;
 
-    // parse init-declarator-list
-    Statement *stmt = new_statement(STMT_DECL);
-    if(peek_declarator())
+    if(peek_static_assertion_declaration())
     {
-        stmt->decl = init_declarator_list(type, align, sclass, local);
+        // parse static assertion
+        expect_reserved("_Static_assert");
+        expect_reserved("(");
+
+        long test = const_expression();
+
+        expect_reserved(",");
+
+        Token *token;
+        if(consume_token(TK_STR, &token))
+        {
+            if(!test)
+            {
+                StringLiteral *message = new_string(token);
+                report_error(NULL, "static assertion failed: \"%s\"", message->content);
+            }
+        }
+        else
+        {
+            report_error(NULL, "expected string literal");
+        }
+
+        expect_reserved(")");
+        expect_reserved(";");
+
+        stmt = new_statement(STMT_NULL);
     }
     else
     {
-        stmt->decl = new_list(Declaration)(); // make a dummy list
+        // parse declaration specifier
+        size_t align;
+        StorageClassSpecifier sclass;
+        Type *type = declaration_specifiers(&align, &sclass, NULL);
+
+        // parse init-declarator-list
+        stmt = new_statement(STMT_DECL);
+        if(peek_declarator())
+        {
+            stmt->decl = init_declarator_list(type, align, sclass, local);
+        }
+        else
+        {
+            stmt->decl = new_list(Declaration)(); // make a dummy list
+        }
+
+        expect_reserved(";");
     }
-
-    expect_reserved(";");
-
     return stmt;
 }
 
@@ -2040,9 +2076,18 @@ static bool is_string(const Expression *expr)
 
 
 /*
+peek declaration
+*/
+bool peek_declaration(void)
+{
+    return peek_declaration_specifiers() || peek_static_assertion_declaration();
+}
+
+
+/*
 peek declaration-specifiers
 */
-bool peek_declaration_specifiers(void)
+static bool peek_declaration_specifiers(void)
 {
     return (
             peek_storage_class_specifier()
@@ -2250,6 +2295,15 @@ peek a designator
 static bool peek_designator(void)
 {
     return peek_reserved("[") || peek_reserved(".");
+}
+
+
+/*
+peek a static assertion declaration
+*/
+static bool peek_static_assertion_declaration(void)
+{
+    return peek_reserved("_Static_assert");
 }
 
 

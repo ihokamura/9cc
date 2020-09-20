@@ -73,6 +73,7 @@ const-expression ::= conditional
 # Declarations
 ```
 declaration ::= declaration-specifiers init-declarator-list? ";"
+              | static_assert-declaration
 declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier | function-specifier | alignment-specifier)*
 init-declarator-list ::= init-declarator ("," init-declarator)*
 init-declarator ::= declarator ("=" initializer)?
@@ -142,6 +143,8 @@ initializer-list ::= designation? initializer ("," designation? initializer)*
 designation ::= designator-list "="
 designator-list ::= designator designator*
 designator ::= "[" const-expression "]" | "." identifier
+
+static_assert-declaration ::= "_Static_assert" "(" const-expression "," string-literal ")"
 ```
 
 # Statements

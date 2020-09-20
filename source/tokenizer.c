@@ -148,6 +148,7 @@ static const char *keyword_list[] = {
     "_Bool",
     "_Generic",
     "_Noreturn",
+    "_Static_assert",
     "_Thread_local",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords

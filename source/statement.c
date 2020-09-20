@@ -158,7 +158,7 @@ static Statement *statement(void)
         // parse clause-1
         if(!consume_reserved(";"))
         {
-            if(peek_declaration_specifiers())
+            if(peek_declaration())
             {
                 scope = enter_scope();
                 stmt->predecl = declaration(true);
@@ -309,7 +309,7 @@ List(Statement) *compound_statement(void)
     List(Statement) *list = new_list(Statement)();
     while(!consume_reserved("}"))
     {
-        if(peek_declaration_specifiers())
+        if(peek_declaration())
         {
             // declaration
             add_list_entry_tail(Statement)(list, declaration(true));

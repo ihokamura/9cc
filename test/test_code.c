@@ -1824,6 +1824,19 @@ int test_alignas(void)
 
 
 /*
+static assertion
+*/
+int test_static_assertion(void)
+{
+    put_title("static assertion");
+
+    _Static_assert(0 + 1, "failed at test_static_assertion()");
+
+    return 0;
+}
+
+
+/*
 conversion
 */
 int test_conversion(void)
@@ -1900,6 +1913,7 @@ int main()
     test_storage_class();
     test_type_qualifier();
     test_alignas();
+    test_static_assertion();
     test_conversion();
 
     return 0;
