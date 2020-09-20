@@ -124,6 +124,7 @@ static const char *keyword_list[] = {
     "for",
     "goto",
     "if",
+    "inline",
     "int",
     "long",
     "register",
@@ -146,6 +147,7 @@ static const char *keyword_list[] = {
     "_Atomic",
     "_Bool",
     "_Generic",
+    "_Noreturn",
     "_Thread_local",
 };
 static const size_t KEYWORD_LIST_SIZE = sizeof(keyword_list) / sizeof(keyword_list[0]); // number of keywords

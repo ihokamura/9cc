@@ -31,7 +31,7 @@ define_list_operations(Tag)
 define_list_operations(Variable)
 
 // function prototype
-static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, List(Variable) *args, List(Statement) *body);
+static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, FunctionSpecifier fspec, List(Variable) *args, List(Statement) *body);
 static char *new_string_label(void);
 static void program(void);
 static void function_def(void);
@@ -138,13 +138,14 @@ StringLiteral *new_string(const Token *token)
 /*
 make a new function
 */
-static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, List(Variable) *args, List(Statement) *body)
+static Function *new_function(const Token *token, Type *type, StorageClassSpecifier sclass, FunctionSpecifier fspec, List(Variable) *args, List(Statement) *body)
 {
     Function *new_func = calloc(1, sizeof(Function));
     new_func->name = make_identifier(token);
     new_func->type = type;
     new_func->body = body;
     new_func->sclass = sclass;
+    new_func->fspec = fspec;
 
     // set offset of arguments and local variables and accumulate stack size
     size_t offset = (type->variadic ? REGISTER_SAVE_AREA_SIZE + STACK_ALIGNMENT : 0);
@@ -236,7 +237,8 @@ static void function_def(void)
 
     // parse declaration specifier and declarator
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(NULL, &sclass);
+    FunctionSpecifier fspec;
+    Type *type = declaration_specifiers(NULL, &sclass, &fspec);
     Token *token;
     List(Variable) *args = new_list(Variable)();
     type = declarator(type, &token, &args);
@@ -248,7 +250,7 @@ static void function_def(void)
     leave_scope(scope);
 
     // make a new function
-    new_function(token, type, sclass, args, body);
+    new_function(token, type, sclass, fspec, args, body);
 }
 
 
@@ -386,7 +388,8 @@ static bool peek_func(void)
     // parse declaration specifier and declarator
     size_t align;
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&align, &sclass);
+    FunctionSpecifier fspec;
+    Type *type = declaration_specifiers(&align, &sclass, &fspec);
     Token *token;
     type = declarator(type, &token, NULL);
 

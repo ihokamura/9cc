@@ -893,6 +893,18 @@ int func_def_variadic(int count, ...)
 
     return sum;
 }
+static inline int func_def_inline(int i)
+{
+    return i;
+}
+void _Noreturn func_def_noreturn(int status)
+{
+    exit(status);
+}
+static inline void _Noreturn func_def_inline_noreturn(int status)
+{
+    exit(status);
+}
 int test_function_definition()
 {
     put_title("function definition");
@@ -917,6 +929,7 @@ int test_function_definition()
     assert_int(6, func_def_factorial(3));    
     assert_int(21, func_def_fibonacci(8));
     assert_int(10, func_def_variadic(5, 0, 1, 2, 3, 4)); assert_int(15, func_def_variadic(6, 0, 1, 2, 3, 4, 5)); assert_int(21, func_def_variadic(7, 0, 1, 2, 3, 4, 5, 6));
+    assert_int(1, func_def_inline(1));
 
     return 0;
 }

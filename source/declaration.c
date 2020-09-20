@@ -93,6 +93,7 @@ static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
 static Member *enumerator(int val);
 static TypeQualifier type_qualifier(void);
+static FunctionSpecifier function_specifier(void);
 static size_t alignment_specifier(size_t current_align);
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars);
 static Type *pointer(Type *base);
@@ -123,6 +124,7 @@ static bool peek_user_type_specifier(void);
 static bool peek_atomic_specifier(void);
 static bool peek_type_qualifier(void);
 static bool peek_atomic_qualifier(void);
+static bool peek_function_specifier(void);
 static bool peek_alignment_specifier(void);
 static bool peek_declarator(void);
 static bool peek_struct_declarator(void);
@@ -296,7 +298,7 @@ Statement *declaration(bool local)
     // parse declaration specifier
     size_t align;
     StorageClassSpecifier sclass;
-    Type *type = declaration_specifiers(&align, &sclass);
+    Type *type = declaration_specifiers(&align, &sclass, NULL);
 
     // parse init-declarator-list
     Statement *stmt = new_statement(STMT_DECL);
@@ -318,18 +320,20 @@ Statement *declaration(bool local)
 /*
 make a declaration specifier
 ```
-declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier | alignment-specifier)*
+declaration-specifiers ::= (storage-class-specifier | type-specifier | type-qualifier | function-specifier | alignment-specifier)*
 ```
 * This function sets 0 to the argument 'align' if no alignment specifier is given.
 * This function sets SC_NONE to the argument 'sclass' if no storage-class specifier is given.
+* This function sets FS_NONE to the argument 'fspec' if function specifier is given.
 */
-Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass)
+Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass, FunctionSpecifier *fspec)
 {
     int spec_list[TYPESPEC_SIZE] = {0};
     size_t alignment = 0;
     Type *type = NULL;
     TypeQualifier qual = TQ_NONE;
     StorageClassSpecifier sclass_spec = SC_NONE;
+    FunctionSpecifier func_spec = FS_NONE;
 
     // parse storage-class specifiers and type specifiers
     while(true)
@@ -370,6 +374,16 @@ Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass)
             continue;
         }
 
+        if(peek_function_specifier())
+        {
+            if(fspec == NULL)
+            {
+                report_error(NULL, "cannot use function specifier");
+            }
+            func_spec |= function_specifier();
+            continue;
+        }
+
         if(peek_alignment_specifier())
         {
             if(    (align == NULL) 
@@ -402,6 +416,10 @@ Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass)
         *align = alignment;
     }
     *sclass = sclass_spec;
+    if(fspec != NULL)
+    {
+        *fspec = func_spec;
+    }
 
     return type;
 }
@@ -1108,7 +1126,30 @@ static TypeQualifier type_qualifier(void)
 
 
 /*
-make a alignment specifier
+make a function specifier
+```
+function-specifier ::= "inline" | "_Noreturn"
+```
+*/
+static FunctionSpecifier function_specifier(void)
+{
+    if(consume_reserved("inline"))
+    {
+        return FS_INLINE;
+    }
+    else if(consume_reserved("_Noreturn"))
+    {
+        return FS_NORETURN;
+    }
+    else
+    {
+        return FS_NONE;
+    }
+}
+
+
+/*
+make an alignment specifier
 ```
 alignment-specifier ::= "_Alignas" "(" type-name | const-expression ")"
 ```
@@ -1335,7 +1376,7 @@ parameter-declaration ::= declaration-specifiers (declarator | abstract-declarat
 static Type *parameter_declaration(Variable **arg_var, bool omit_name)
 {
     StorageClassSpecifier sclass;
-    Type *arg_type = declaration_specifiers(NULL, &sclass);
+    Type *arg_type = declaration_specifiers(NULL, &sclass, NULL);
 
     if(!((sclass == SC_REGISTER) || (sclass == SC_NONE)))
     {
@@ -2003,7 +2044,13 @@ peek declaration-specifiers
 */
 bool peek_declaration_specifiers(void)
 {
-    return peek_storage_class_specifier() || peek_type_specifier() || peek_type_qualifier() || peek_alignment_specifier();
+    return (
+            peek_storage_class_specifier()
+         || peek_type_specifier()
+         || peek_type_qualifier()
+         || peek_function_specifier()
+         || peek_alignment_specifier()
+    );
 }
 
 
@@ -2094,6 +2141,15 @@ peek _Atomic qualifier
 static bool peek_atomic_qualifier(void)
 {
     return peek_atomic(false);
+}
+
+
+/*
+peek function specifier
+*/
+static bool peek_function_specifier(void)
+{
+    return peek_reserved("inline") || peek_reserved("_Noreturn");
 }
 
 

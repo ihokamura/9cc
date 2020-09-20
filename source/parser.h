@@ -21,6 +21,7 @@ struct Function
     List(Variable) *locals;       // list of local variables (including arguments)
     size_t stack_size;            // size of stack in bytes
     StorageClassSpecifier sclass; // storage class specifier
+    FunctionSpecifier fspec;      // function specifer
 };
 
 // structure for identifier

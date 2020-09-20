@@ -23,6 +23,15 @@ enum StorageClassSpecifier
     SC_REGISTER     = 1 << 5, // "register"
 };
 
+// kind of function specifiers
+typedef enum FunctionSpecifier FunctionSpecifier;
+enum FunctionSpecifier
+{
+    FS_NONE     = 0,      // no specifier
+    FS_INLINE   = 1 << 0, // "inline"
+    FS_NORETURN = 1 << 1, // "_Noreturn"
+};
+
 // structure for contents in data segment
 struct InitializerMap
 {
@@ -49,7 +58,7 @@ struct Enumerator
 
 InitializerMap *new_string_initializer_map(const char *label, size_t offset);
 Statement *declaration(bool local);
-Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass);
+Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass, FunctionSpecifier *fspec);
 Type *declarator(Type *type, Token **token, List(Variable) **arg_vars);
 Type *type_name(void);
 Initializer *initializer(void);
