@@ -32,10 +32,11 @@ enum FunctionSpecifier
     FS_NORETURN = 1 << 1, // "_Noreturn"
 };
 
-// structure for contents in data segment
+// structure for map from offset to initializer
 struct InitializerMap
 {
     const char *label;        // label (symbol)
+    const Type *type;         // type of data
     const Expression *assign; // assignment expression in initializer
     size_t size;              // size of data
     size_t offset;            // offset from base

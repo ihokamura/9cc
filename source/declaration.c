@@ -77,9 +77,9 @@ struct Designator
 static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
-static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset);
+static InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset);
 static InitializerMap *new_zero_initialized_map(size_t size, size_t offset);
-static InitializerMap *new_uninitialized_map(size_t size, size_t offset);
+static InitializerMap *new_uninitialized_map(const Type *type, size_t offset);
 static List(Declaration) *init_declarator_list(Type *type, size_t align, StorageClassSpecifier sclass, bool local);
 static Declaration *init_declarator(Type *type, size_t align, StorageClassSpecifier sclass, bool local);
 static StorageClassSpecifier storage_class_specifier(void);
@@ -248,12 +248,13 @@ static Initializer *new_initializer(void)
 /*
 make a new map from offset to initializer
 */
-static InitializerMap *new_initializer_map(const Expression *assign, size_t size, size_t offset)
+static InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset)
 {
     InitializerMap *init_map = calloc(1, sizeof(InitializerMap));
     init_map->label = NULL;
+    init_map->type = type;
     init_map->assign = assign;
-    init_map->size = size;
+    init_map->size = ((type == NULL) ? 0 : type->size);
     init_map->offset= offset;
     init_map->initialized = true;
     init_map->zero = false;
@@ -267,7 +268,8 @@ make a new zero-initialized map from offset to initializer
 */
 static InitializerMap *new_zero_initialized_map(size_t size, size_t offset)
 {
-    InitializerMap *init_map = new_initializer_map(NULL, size, offset);
+    InitializerMap *init_map = new_initializer_map(NULL, NULL, offset);
+    init_map->size = size;
     init_map->zero = true;
 
     return init_map;
@@ -277,9 +279,9 @@ static InitializerMap *new_zero_initialized_map(size_t size, size_t offset)
 /*
 make a new uninitialized map from offset to initializer
 */
-static InitializerMap *new_uninitialized_map(size_t size, size_t offset)
+static InitializerMap *new_uninitialized_map(const Type *type, size_t offset)
 {
-    InitializerMap *init_map = new_initializer_map(NULL, size, offset);
+    InitializerMap *init_map = new_initializer_map(type, NULL, offset);
     init_map->initialized = false;
 
     return init_map;
@@ -291,7 +293,7 @@ make a new map from offset to initializer for string-literal
 */
 InitializerMap *new_string_initializer_map(const char *label, size_t offset)
 {
-    InitializerMap *init_map = new_initializer_map(NULL, SIZEOF_PTR, offset);
+    InitializerMap *init_map = new_initializer_map(new_type_pointer(new_type(TY_CHAR, TQ_CONST)), NULL, offset);
     init_map->label = label;
 
     return init_map;
@@ -1775,7 +1777,7 @@ List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init)
     if(init == NULL)
     {
         // assign zero
-        add_list_entry_tail(InitializerMap)(init_maps, new_uninitialized_map(type->size, 0));
+        add_list_entry_tail(InitializerMap)(init_maps, new_uninitialized_map(type, 0));
     }
     else
     {
@@ -1866,7 +1868,7 @@ static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init
         else
         {
             // initialize scalar
-            add_list_entry_tail(InitializerMap)(init_maps, new_initializer_map(init->assign, type->size, offset));
+            add_list_entry_tail(InitializerMap)(init_maps, new_initializer_map(type, init->assign, offset));
         }
     }
 

@@ -58,11 +58,11 @@ static void generate_push_struct(const Type *type);
 static void generate_push_offset(const char *reg, size_t offset);
 static void generate_pop(const char *reg_or_mem);
 static void generate_load(const Type *type);
-static void generate_store(size_t size);
+static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
 static void generate_lvar_init(const Variable *lvar);
 static void generate_gvar(const Variable *gvar);
-static void generate_gvar_data(size_t size, const Expression *expr);
+static void generate_gvar_data(const Type *type, const Expression *expr);
 static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
@@ -214,8 +214,9 @@ static void generate_load(const Type *type)
 /*
 generate assembler code to store value
 */
-static void generate_store(size_t size)
+static void generate_store(const Type *type)
 {
+    size_t size = type->size;
     if(size <= 8)
     {
         generate_pop("rdi");
@@ -333,12 +334,13 @@ static void generate_lvar_init(const Variable *lvar)
     {
         // allocate memory for string-literal
         const char *content = lvar->str->content;
+        Type *char_type = new_type(TY_CHAR, TQ_NONE);
         for(size_t index = 0; index < strlen(content) + 1; index++)
         {
             generate_push_offset("rbp", lvar->offset - index);
             put_line_with_tab("mov rax, %d", content[index]);
             generate_push_reg_or_mem("rax");
-            generate_store(SIZEOF_CHAR);
+            generate_store(char_type);
             generate_pop("rax");
         }
     }
@@ -392,7 +394,7 @@ static void generate_lvar_init(const Variable *lvar)
                     {
                         generate_expression(map->assign);
                     }
-                    generate_store(map->size);
+                    generate_store(map->type);
                     generate_pop("rax");
                 }
             }
@@ -433,7 +435,7 @@ static void generate_gvar(const Variable *gvar)
 /*
 generate data of a given size
 */
-static void generate_gvar_data(size_t size, const Expression *expr)
+static void generate_gvar_data(const Type *type, const Expression *expr)
 {
     const Expression *base = NULL;
     long value = evaluate(expr, &base);
@@ -444,6 +446,7 @@ static void generate_gvar_data(size_t size, const Expression *expr)
     else
     {
         // allocate memory with an integer
+        size_t size = type->size;
         if(size == 1)
         {
             put_line_with_tab(".byte %ld", value);
@@ -487,7 +490,7 @@ static void generate_gvar_inits(const List(InitializerMap) *inits)
                 }
                 else
                 {
-                    generate_gvar_data(map->size, map->assign);
+                    generate_gvar_data(map->type, map->assign);
                 }
             }
         }
@@ -621,7 +624,7 @@ static void generate_func(const Function *func)
         generate_push_reg_or_mem("rax");
 
         generate_load(arg->type);
-        generate_store(arg->type->size);
+        generate_store(arg->type);
 
         args_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
@@ -1140,7 +1143,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         generate_pop("rax");
         generate_push_reg_or_mem("rdx");
         return;
@@ -1154,7 +1157,7 @@ static void generate_expression(const Expression *expr)
         generate_push_reg_or_mem("rax");
         generate_push_imm(1);
         generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         generate_pop("rax");
         generate_push_reg_or_mem("rdx");
         return;
@@ -1247,7 +1250,7 @@ static void generate_expression(const Expression *expr)
     case EXPR_ASSIGN:
         generate_lvalue(expr->lhs);
         generate_expression(expr->rhs);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_ADD_EQ:
@@ -1256,7 +1259,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_ADD);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_PTR_ADD_EQ:
@@ -1265,7 +1268,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_ADD);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_SUB_EQ:
@@ -1274,7 +1277,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_SUB);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_PTR_SUB_EQ:
@@ -1283,7 +1286,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_PTR_SUB);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_MUL_EQ:
@@ -1292,7 +1295,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MUL);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_DIV_EQ:
@@ -1301,7 +1304,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_DIV);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_MOD_EQ:
@@ -1310,7 +1313,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_MOD);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_LSHIFT_EQ:
@@ -1319,7 +1322,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_LSHIFT);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_RSHIFT_EQ:
@@ -1328,7 +1331,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_RSHIFT);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_AND_EQ:
@@ -1337,7 +1340,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_AND);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_XOR_EQ:
@@ -1346,7 +1349,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_XOR);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_OR_EQ:
@@ -1355,7 +1358,7 @@ static void generate_expression(const Expression *expr)
         generate_load(expr->lhs->type);
         generate_expression(expr->rhs);
         generate_binary(expr, BINOP_OR);
-        generate_store(expr->type->size);
+        generate_store(expr->type);
         return;
 
     case EXPR_COMMA:
