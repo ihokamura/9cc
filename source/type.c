@@ -458,11 +458,29 @@ bool is_integer(const Type *type)
 
 
 /*
+check if a given type is a real floating type
+*/
+bool is_real_floating(const Type *type)
+{
+    return (type->kind == TY_FLOAT) || (type->kind == TY_DOUBLE) || (type->kind == TY_LDOUBLE);
+}
+
+
+/*
+check if a given type is a floating type
+*/
+bool is_floating(const Type *type)
+{
+    return is_real_floating(type);
+}
+
+
+/*
 check if a given type is a real type
 */
 bool is_real(const Type *type)
 {
-    return is_integer(type);
+    return is_integer(type) || is_real_floating(type);
 }
 
 
@@ -471,7 +489,7 @@ check if a given type is an arithmetic type
 */
 bool is_arithmetic(const Type *type)
 {
-    return is_integer(type);
+    return is_integer(type) || is_floating(type);
 }
 
 
