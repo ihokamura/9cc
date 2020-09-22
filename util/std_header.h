@@ -42,10 +42,12 @@ int vfprintf(FILE *stream, const char *format, va_list ap);
 void *calloc(size_t count, size_t size);
 void exit(int status);
 void qsort(void *base, size_t nel, size_t width, int (*compar)(const void *, const void *));
+double strtod(const char *nptr, char **endptr);
 long strtol(const char *str, char **endptr, int base);
 unsigned long strtoul(const char *str, char **endptr, int base);
 
 // string.h
+char *strchr(const char *s, int c);
 int strcmp(const char *s1, const char *s2);
 int strncmp(const char *s1, const char *s2, size_t n);
 size_t strlen(const char *s);

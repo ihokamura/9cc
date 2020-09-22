@@ -48,12 +48,14 @@ static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
 static int is_constant(const char *str, Constant **value);
+static int is_floating_constant(const char *str);
 static int is_octal_digit(int character);
 static int is_hexadeciaml_digit(int character);
 static int parse_escape_sequence(const char *str);
 static long convert_integer_constant(const char *start, int base, IntegerSuffix suffix, TypeKind *kind);
 static int convert_character_constant(const char *str);
 static void report_position(const char *loc);
+static char *new_floating_constant_label(void);
 
 
 // global variable
@@ -169,12 +171,6 @@ static const struct {int character; int value;} simple_escape_sequence_map[] = {
     {'v', '\v'},
 };
 static const size_t SIMPLE_ESCAPE_SEQUENCE_SIZE = sizeof(simple_escape_sequence_map) / sizeof(simple_escape_sequence_map[0]); // number of simple escape sequences
-// list of octal digits
-static const char octal_digit_list[] = "01234567";
-static const size_t OCTAL_DIGIT_LIST_SIZE = sizeof(octal_digit_list) / sizeof(octal_digit_list[0]); // number of octal digits
-// list of hexadecimal digits
-static const char hexadecimal_digit_list[] = "0123456789abcdefABCDEF";
-static const size_t HEXADECIMAL_DIGIT_LIST_SIZE = sizeof(hexadecimal_digit_list) / sizeof(hexadecimal_digit_list[0]); // number of hexadecimal digits
 // list of integer suffixes
 // It is necessary to put longer strings above than shorter strings.
 static const struct {const char *string; IntegerSuffix suffix;} integer_suffix_list[] = {
@@ -641,7 +637,11 @@ static int is_reserved(const char *str)
         size_t len = strlen(punc);
         if(strncmp(str, punc, len) == 0)
         {
-            return len;
+            // distinguish member access operator from decimal point
+            if(!((*str == '.') && (is_hexadeciaml_digit(*str))))
+            {
+                return len;
+            }
         }
     }
 
@@ -760,6 +760,30 @@ static int is_constant(const char *str, Constant **value)
         long int_value = convert_character_constant(str);
         *value = new_constant(&(Constant){.kind = CN_CHAR, .type = new_type(TY_INT, TQ_NONE), .int_value = int_value});
     }
+    else if(is_floating_constant(str))
+    {
+        // floating constant
+        char *end;
+        double float_value = strtod(str, &end);
+        len += (int)(end - str);
+
+        TypeKind kind;
+        if((str[len] == 'f') || (str[len] == 'F'))
+        {
+            len++;
+            kind = TY_FLOAT;
+        }
+        else if((str[len] == 'l') || (str[len] == 'L'))
+        {
+            len++;
+            kind = TY_LDOUBLE;
+        }
+        else
+        {
+            kind = TY_DOUBLE;
+        }
+        *value = new_constant(&(Constant){.kind = CN_FLOAT, .type = new_type(kind, TQ_NONE), .float_value = float_value, .float_label = new_floating_constant_label()});
+    }
     else
     {
         // integer constant
@@ -816,19 +840,43 @@ static int is_constant(const char *str, Constant **value)
 
 
 /*
+check if the following string is a floating constant
+*/
+static int is_floating_constant(const char *str)
+{
+    int len = 0;
+    int (*check_digit)(int);
+    const char *exponent_string;
+
+    // check prefix
+    if((strncmp(&str[len], "0x", 2) == 0) || (strncmp(&str[len], "0X", 2) == 0))
+    {
+        len += 2;
+        check_digit = is_hexadeciaml_digit;
+        exponent_string = "pP";
+    }
+    else
+    {
+        check_digit = isdigit;
+        exponent_string = "eE";
+    }
+
+    // consume digits
+    while(check_digit(str[len]))
+    {
+        len++;
+    }
+
+    return ((str[len] == '.') || (strchr(exponent_string, str[len]) != NULL));
+}
+
+
+/*
 check if the character is an octal digit
 */
 static int is_octal_digit(int character)
 {
-    for(size_t i = 0; i < OCTAL_DIGIT_LIST_SIZE; i++)
-    {
-        if(character == octal_digit_list[i])
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return (strchr("01234567", character) != NULL);
 }
 
 
@@ -837,15 +885,7 @@ check if the character is a hexadecimal digit
 */
 static int is_hexadeciaml_digit(int character)
 {
-    for(size_t i = 0; i < HEXADECIMAL_DIGIT_LIST_SIZE; i++)
-    {
-        if(character == hexadecimal_digit_list[i])
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return (strchr("0123456789abcdefABCDEF", character) != NULL);
 }
 
 
@@ -1047,4 +1087,21 @@ static void report_position(const char *loc)
 
     // emphasize the position
     fprintf(stderr, "%*s^\n", pos, "");
+}
+
+
+/*
+make a new label for floating constant
+*/
+static char *new_floating_constant_label(void)
+{
+    static int fc_number = 0;
+
+    // A label for floating constant is of the form "FC<number>", so the length of buffer should be more than 2 + 10.
+    char *label = calloc(13, sizeof(char));
+
+    sprintf(label, "FC%d", fc_number);
+    fc_number++;
+
+    return label;
 }
