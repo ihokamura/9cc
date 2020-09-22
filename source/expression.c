@@ -73,7 +73,7 @@ Expression *new_expression(ExpressionKind kind, const Token *token, const Type *
     node->lhs = NULL;
     node->rhs = NULL;
     node->operand = NULL;
-    node->value = 0;
+    node->value = NULL;
     node->str = NULL;
     node->var = NULL;
     node->member = NULL;
@@ -87,10 +87,10 @@ Expression *new_expression(ExpressionKind kind, const Token *token, const Type *
 /*
 make a new node for constant
 */
-Expression *new_node_constant(const Type *type, long value)
+Expression *new_node_constant(const Constant *value)
 {
-    Expression *node = new_expression(EXPR_CONST, get_token(), type);
-    node->value = value;
+    Expression *node = new_expression(EXPR_CONST, get_token(), value->type);
+    node->value = new_constant(value);
 
     return node;
 }
@@ -101,7 +101,9 @@ make a new node for subscripting
 */
 Expression *new_node_subscript(Expression *base, size_t index)
 {
-    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_constant(new_type_size_t(TQ_NONE), index));
+    const Type *type = new_type_size_t(TQ_NONE);
+    Expression *offset = new_node_constant(&(Constant){.kind = CN_INT, .type = type, .int_value = index});
+    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, offset);
     Expression *dest = new_node_unary(EXPR_DEREF, addr);
 
     return dest;
@@ -301,7 +303,7 @@ static Expression *primary(void)
             else if(ident->en != NULL)
             {
                 // enumeration
-                return new_node_constant(new_type_enum(), ident->en->value);
+                return new_node_constant(&(Constant){.kind = CN_ENUM, .type = new_type(TY_INT, TQ_NONE), .int_value = ident->en->value});
             }
         }
 
@@ -352,7 +354,7 @@ static Expression *primary(void)
 
     // constant
     token = expect_constant();
-    return new_node_constant(token->type, token->value);
+    return new_node_constant(token->value);
 }
 
 
@@ -446,6 +448,7 @@ static Expression *postfix(void)
             Type *type = type_name();
             expect_reserved(")");
             node = new_expression(EXPR_COMPOUND, get_token(), type);
+            node->lvalue = true;
             node->var = new_lvar(new_compound_literal_label(), type, type->align, SC_NONE);
             node->var->inits = make_initializer_map(type, initializer());
             goto postfix_end;
@@ -634,7 +637,7 @@ static Expression *unary(void)
             if(peek_type_name())
             {
                 Type *type = type_name();
-                node = new_node_constant(new_type_size_t(TQ_NONE), type->size);
+                node = new_node_constant(&(Constant){.kind = CN_INT, .type = new_type_size_t(TQ_NONE), .int_value = type->size});
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -645,13 +648,13 @@ static Expression *unary(void)
         }
 
         Expression *operand = unary();
-        node = new_node_constant(new_type_size_t(TQ_NONE), operand->type->size);
+        node = new_node_constant(&(Constant){.kind = CN_INT, .type = new_type_size_t(TQ_NONE), .int_value = operand->type->size});
     }
     else if(consume_reserved("_Alignof"))
     {
         expect_reserved("(");
         Type *type = type_name();
-        node = new_node_constant(new_type_size_t(TQ_NONE), type->align);
+        node = new_node_constant(&(Constant){.kind = CN_INT, .type = new_type_size_t(TQ_NONE), .int_value = type->align});
         expect_reserved(")");
     }
     else if(consume_reserved("++"))
@@ -665,11 +668,11 @@ static Expression *unary(void)
         }
         if(is_real(operand->type))
         {
-            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
+            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(&(Constant){.kind = CN_INT, .type = new_type(TY_INT, TQ_NONE), .int_value = 1}));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
+            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_constant(&(Constant){.kind = CN_INT, .type = new_type(TY_INT, TQ_NONE), .int_value = 1}));
         }
         else
         {
@@ -687,11 +690,11 @@ static Expression *unary(void)
         }
         if(is_integer(operand->type))
         {
-            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
+            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(&(Constant){.kind = CN_INT, .type = new_type(TY_INT, TQ_NONE), .int_value = 1}));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
+            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_constant(&(Constant){.kind = CN_INT, .type = new_type(TY_INT, TQ_NONE), .int_value = 1}));
         }
         else
         {
@@ -1584,7 +1587,7 @@ long evaluate(const Expression *expr, const Expression **base)
 #define LHS     (evaluate(expr->lhs, base))
 #define RHS     (evaluate(expr->rhs, base))
     case EXPR_CONST:
-        return expr->value;
+        return expr->value->int_value;
 
     case EXPR_VAR:
         if((expr->lvalue && !expr->var->local) || is_function(expr->var->type))

@@ -47,7 +47,7 @@ static int is_comment(const char *str);
 static int is_reserved(const char *str);
 static int is_identifier(const char *str);
 static int is_string(const char *str);
-static int is_constant(const char *str, TypeKind *kind, long *value);
+static int is_constant(const char *str, Constant **value);
 static int is_octal_digit(int character);
 static int is_hexadeciaml_digit(int character);
 static int parse_escape_sequence(const char *str);
@@ -210,6 +210,18 @@ static const char *file_name; // name of source file
 
 
 /*
+make a new constant
+*/
+Constant *new_constant(const Constant *value)
+{
+    Constant *constant = calloc(1, sizeof(Constant));
+    *constant = *value;
+
+    return constant;
+}
+
+
+/*
 make a new token and concatenate it to the current token
 */
 static Token *new_token(TokenKind kind, char *str, int len)
@@ -218,8 +230,7 @@ static Token *new_token(TokenKind kind, char *str, int len)
     token->kind = kind;
     token->str = str;
     token->len = len;
-    token->type = NULL;
-    token->value = 0;
+    token->value = NULL;
 
     return token;
 }
@@ -437,14 +448,12 @@ void tokenize(char *str)
         }
 
         // parse a constant
-        TypeKind kind;
-        long value;
-        len = is_constant(str, &kind, &value);
+        Constant *value;
+        len = is_constant(str, &value);
         if(len > 0)
         {
             Token *token = new_token(TK_CONST, str, len);
             current_token = add_list_entry_tail(Token)(token_list, token);
-            token->type = new_type(kind, TQ_NONE);
             token->value = value;
             str += len;
             continue;
@@ -715,7 +724,7 @@ static int is_string(const char *str)
 /*
 check if the following string is a constant
 */
-static int is_constant(const char *str, TypeKind *kind, long *value)
+static int is_constant(const char *str, Constant **value)
 {
     int len = 0;
 
@@ -748,8 +757,8 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
             report_error(str, "expected \"'\"");
         }
 
-        *kind = TY_INT;
-        *value = convert_character_constant(str);
+        long int_value = convert_character_constant(str);
+        *value = new_constant(&(Constant){.kind = CN_CHAR, .type = new_type(TY_INT, TQ_NONE), .int_value = int_value});
     }
     else
     {
@@ -797,7 +806,9 @@ static int is_constant(const char *str, TypeKind *kind, long *value)
             }
         }
 
-        *value = convert_integer_constant(start, base, suffix, kind);
+        TypeKind kind;
+        long int_value = convert_integer_constant(start, base, suffix, &kind);
+        *value = new_constant(&(Constant){.kind = CN_INT, .type = new_type(kind, TQ_NONE), .int_value = int_value});
     }
 
     return len;

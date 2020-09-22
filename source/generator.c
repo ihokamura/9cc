@@ -1063,13 +1063,13 @@ static void generate_expression(const Expression *expr)
     {
     case EXPR_CONST:
         // It is assumed that the size of 'int' is 4 bytes.
-        if(expr->value == (int)expr->value)
+        if(expr->value->int_value == (int)expr->value->int_value)
         {
-            generate_push_imm(expr->value);
+            generate_push_imm(expr->value->int_value);
         }
         else
         {
-            put_line_with_tab("mov rax, %ld", expr->value);
+            put_line_with_tab("mov rax, %ld", expr->value->int_value);
             generate_push_reg_or_mem("rax");
         }
         return;

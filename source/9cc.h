@@ -19,6 +19,7 @@
 #define WARN_IMPLICIT_DECLARATION_OF_FUNCTION    (ENABLED) // warn implicit declaration of function
 
 // forward declaration of structure types
+typedef struct Constant Constant;
 typedef struct Declaration Declaration;
 typedef struct Enumerator Enumerator;
 typedef struct Expression Expression;

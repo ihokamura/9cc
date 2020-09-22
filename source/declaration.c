@@ -1855,7 +1855,7 @@ static List(InitializerMap) *make_initializer_map_sub(List(InitializerMap) *init
             for(size_t i = 0; i < strlen(content) + 1; i++)
             {
                 Initializer *init  = new_initializer();
-                init->assign = new_node_constant(new_type(TY_INT, TQ_NONE), content[i]);
+                init->assign = new_node_constant(&(Constant){.kind = CN_INT, .type = new_type(TY_INT, TQ_NONE), .int_value = content[i]});
                 add_list_entry_tail(Initializer)(init_string->list, init);
             }
             make_initializer_map_sub(init_maps, type, init_string, offset);

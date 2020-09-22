@@ -9,6 +9,7 @@
 #define __EXPRESSION_H__
 
 #include "9cc.h"
+#include "tokenizer.h"
 #include "type.h"
 
 // kind of expressions
@@ -75,7 +76,7 @@ struct Expression
     Expression *lhs;                  // left hand side of binary operation
     Expression *rhs;                  // right hand side of binary operation
     Expression *operand;              // operand of unary operation or condition of conditional expression or result of generic selection
-    long value;                       // value of expression (only for EXPR_CONST)
+    const Constant *value;            // value of expression (only for EXPR_CONST)
     StringLiteral *str;               // information of string-literal (only for EXPR_STR)
     Variable *var;                    // information of variable (only for EXPR_VAR)
     Member *member;                   // member (only for EXPR_MEMBER)
@@ -91,7 +92,7 @@ struct GenericAssociation
 };
 
 Expression *new_expression(ExpressionKind kind, const Token *token, const Type *type);
-Expression *new_node_constant(const Type *type, long value);
+Expression *new_node_constant(const Constant *value);
 Expression *new_node_subscript(Expression *base, size_t index);
 Expression *new_node_member(Expression *expr, Member *member);
 Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs);
