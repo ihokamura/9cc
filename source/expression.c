@@ -27,7 +27,7 @@ define_list_operations(GenericAssociation)
 
 // function prototype
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand);
-static Expression *new_node_cast(Type *type, Expression *operand);
+static Expression *new_node_cast(const Type *type, Expression *operand);
 static Expression *primary(void);
 static Expression *generic_selection(void);
 static List(GenericAssociation) *generic_assoc_list(void);
@@ -48,8 +48,8 @@ static Expression *logical_and(void);
 static Expression *logical_or(void);
 static Expression *conditional(void);
 static Expression *search_generic_assoc_list(const Expression *control, const List(GenericAssociation) *assoc_list);
-static Type *apply_integer_promotion(Type *type);
-static Type *apply_arithmetic_conversion(Type *lhs_type, Type *rhs_type);
+static const Type *apply_integer_promotion(const Type *type);
+static const Type *apply_arithmetic_conversion(const Type *lhs_type, const Type *rhs_type);
 static Expression *apply_implicit_conversion(Expression *expr);
 static bool check_constraint_unary(ExpressionKind kind, const Expression *operand);
 static bool check_constraint_binary(ExpressionKind kind, const Type *lhs_type, const Type *rhs_type);
@@ -64,7 +64,7 @@ static int cl_number; // sequential number for compound-literal
 /*
 make a new expression
 */
-Expression *new_expression(ExpressionKind kind, const Token *token, Type *type)
+Expression *new_expression(ExpressionKind kind, const Token *token, const Type *type)
 {
     Expression *node = calloc(1, sizeof(Expression));
     node->kind = kind;
@@ -87,9 +87,9 @@ Expression *new_expression(ExpressionKind kind, const Token *token, Type *type)
 /*
 make a new node for constant
 */
-Expression *new_node_constant(TypeKind kind, long value)
+Expression *new_node_constant(const Type *type, long value)
 {
-    Expression *node = new_expression(EXPR_CONST, get_token(), new_type(kind, TQ_NONE));
+    Expression *node = new_expression(EXPR_CONST, get_token(), type);
     node->value = value;
 
     return node;
@@ -101,7 +101,7 @@ make a new node for subscripting
 */
 Expression *new_node_subscript(Expression *base, size_t index)
 {
-    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_constant(TY_ULONG, index));
+    Expression *addr = new_node_binary(EXPR_PTR_ADD, base, new_node_constant(new_type_size_t(TQ_NONE), index));
     Expression *dest = new_node_unary(EXPR_DEREF, addr);
 
     return dest;
@@ -127,11 +127,12 @@ make a new node for unary operations
 static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 {
     // determine type of unary expression
-    Type *type;
+    const Type *type;
     switch(kind)
     {
     case EXPR_ADDR:
-        type = new_type_pointer(operand->type);
+        type = operand->type;
+        type = new_type_pointer(copy_type(type, type->qual));
         break;
 
     case EXPR_DEREF:
@@ -169,7 +170,7 @@ static Expression *new_node_unary(ExpressionKind kind, Expression *operand)
 /*
 make a new node for cast operation
 */
-static Expression *new_node_cast(Type *type, Expression *operand)
+static Expression *new_node_cast(const Type *type, Expression *operand)
 {
     if(type != operand->type)
     {
@@ -300,7 +301,7 @@ static Expression *primary(void)
             else if(ident->en != NULL)
             {
                 // enumeration
-                return new_node_constant(TY_INT, ident->en->value);
+                return new_node_constant(new_type_enum(), ident->en->value);
             }
         }
 
@@ -627,15 +628,13 @@ static Expression *unary(void)
 
     if(consume_reserved("sizeof"))
     {
-        // The type of the result of 'sizeof' operator is 'size_t'.
-        // This implementation regards 'size_t' as 'unsigned long'.
         Token *saved_token = get_token();
         if(consume_reserved("("))
         {
             if(peek_type_name())
             {
                 Type *type = type_name();
-                node = new_node_constant(TY_ULONG, type->size);
+                node = new_node_constant(new_type_size_t(TQ_NONE), type->size);
                 expect_reserved(")");
                 goto unary_end;
             }
@@ -646,13 +645,13 @@ static Expression *unary(void)
         }
 
         Expression *operand = unary();
-        node = new_node_constant(TY_ULONG, operand->type->size);
+        node = new_node_constant(new_type_size_t(TQ_NONE), operand->type->size);
     }
     else if(consume_reserved("_Alignof"))
     {
         expect_reserved("(");
         Type *type = type_name();
-        node = new_node_constant(TY_ULONG, type->align);
+        node = new_node_constant(new_type_size_t(TQ_NONE), type->align);
         expect_reserved(")");
     }
     else if(consume_reserved("++"))
@@ -666,11 +665,11 @@ static Expression *unary(void)
         }
         if(is_real(operand->type))
         {
-            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
+            node = new_node_binary(EXPR_ADD_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_constant(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_ADD_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
         }
         else
         {
@@ -688,11 +687,11 @@ static Expression *unary(void)
         }
         if(is_integer(operand->type))
         {
-            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
+            node = new_node_binary(EXPR_SUB_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
         }
         else if(is_pointer(operand->type))
         {
-            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_constant(TY_INT, 1));
+            node = new_node_binary(EXPR_PTR_SUB_EQ, operand, new_node_constant(new_type(TY_INT, TQ_NONE), 1));
         }
         else
         {
@@ -859,7 +858,7 @@ static Expression *multiplicative(void)
         if(check_constraint_binary(kind, lhs->type, rhs->type))
         {
             // perform the usual arithmetic conversions
-            Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+            const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
             lhs = new_node_cast(type, lhs);
             rhs = new_node_cast(type, rhs);
             node = new_node_binary(kind, lhs, rhs);
@@ -893,7 +892,7 @@ static Expression *additive(void)
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 // perform the usual arithmetic conversions
-                Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+                const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
                 lhs = new_node_cast(type, lhs);
                 rhs = new_node_cast(type, rhs);
                 node = new_node_binary(EXPR_ADD, lhs, rhs);
@@ -919,7 +918,7 @@ static Expression *additive(void)
             if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
             {
                 // perform the usual arithmetic conversions
-                Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+                const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
                 lhs = new_node_cast(type, lhs);
                 rhs = new_node_cast(type, rhs);
                 node = new_node_binary(EXPR_SUB, lhs, rhs);
@@ -1055,7 +1054,7 @@ static Expression *relational(void)
         if(is_real(lhs->type) && is_real(rhs->type))
         {
             // perform the usual arithmetic conversions
-            Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+            const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
             lhs = new_node_cast(type, lhs);
             rhs = new_node_cast(type, rhs);
         }
@@ -1117,7 +1116,7 @@ static Expression *equality(void)
         if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
             // perform the usual arithmetic conversions
-            Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+            const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
             lhs = new_node_cast(type, lhs);
             rhs = new_node_cast(type, rhs);
             valid = true;
@@ -1175,7 +1174,7 @@ static Expression *bitwise_and(void)
             if(check_constraint_binary(EXPR_BIT_AND, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+                const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
                 lhs = new_node_cast(type, lhs);
                 rhs = new_node_cast(type, rhs);
                 node = new_node_binary(EXPR_BIT_AND, lhs, rhs);
@@ -1215,7 +1214,7 @@ static Expression *bitwise_xor(void)
             if(check_constraint_binary(EXPR_BIT_XOR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+                const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
                 lhs = new_node_cast(type, lhs);
                 rhs = new_node_cast(type, rhs);
                 node = new_node_binary(EXPR_BIT_XOR, lhs, rhs);
@@ -1255,7 +1254,7 @@ static Expression *bitwise_or(void)
             if(check_constraint_binary(EXPR_BIT_OR, lhs->type, rhs->type))
             {
                 // perform the usual arithmetic conversions
-                Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
+                const Type *type = apply_arithmetic_conversion(lhs->type, rhs->type);
                 lhs = new_node_cast(type, lhs);
                 rhs = new_node_cast(type, rhs);
                 node = new_node_binary(EXPR_BIT_OR, lhs, rhs);
@@ -1368,7 +1367,7 @@ static Expression *conditional(void)
         Expression *lhs = apply_implicit_conversion(expression());
         expect_reserved(":");
         Expression *rhs = apply_implicit_conversion(conditional());
-        Type *type = NULL;
+        const Type *type = NULL;
         bool valid = false;
         if(is_arithmetic(lhs->type) && is_arithmetic(rhs->type))
         {
@@ -1747,7 +1746,7 @@ apply integer promotion
     * The size of 'int' is 4 bytes.
     * Therefore, 'int' can represent '_Bool', 'char', 'signed char', 'unsigned char', 'signed short' and 'unsigned short'.
 */
-static Type *apply_integer_promotion(Type *type)
+static const Type *apply_integer_promotion(const Type *type)
 {
     if((type->kind == TY_BOOL)
     || (type->kind == TY_CHAR)
@@ -1768,9 +1767,9 @@ static Type *apply_integer_promotion(Type *type)
 /*
 apply usual arithmetic conversion
 */
-static Type *apply_arithmetic_conversion(Type *lhs_type, Type *rhs_type)
+static const Type *apply_arithmetic_conversion(const Type *lhs_type, const Type *rhs_type)
 {
-    Type *type;
+    const Type *type;
 
     // perform integer promotions on both operands at first
     lhs_type = apply_integer_promotion(lhs_type);

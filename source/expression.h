@@ -71,7 +71,7 @@ struct Expression
 {
     ExpressionKind kind;              // kind of expression
     const Token *token;               // token of expression
-    Type *type;                       // type of expression
+    const Type *type;                 // type of expression
     Expression *lhs;                  // left hand side of binary operation
     Expression *rhs;                  // right hand side of binary operation
     Expression *operand;              // operand of unary operation or condition of conditional expression or result of generic selection
@@ -90,8 +90,8 @@ struct GenericAssociation
     Expression *assign; // result expression
 };
 
-Expression *new_expression(ExpressionKind kind, const Token *token, Type *type);
-Expression *new_node_constant(TypeKind kind, long value);
+Expression *new_expression(ExpressionKind kind, const Token *token, const Type *type);
+Expression *new_node_constant(const Type *type, long value);
 Expression *new_node_subscript(Expression *base, size_t index);
 Expression *new_node_member(Expression *expr, Member *member);
 Expression *new_node_binary(ExpressionKind kind, Expression *lhs, Expression *rhs);

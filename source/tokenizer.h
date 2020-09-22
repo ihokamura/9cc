@@ -33,11 +33,11 @@ enum TokenKind
 // structure for token
 struct Token
 {
-    TokenKind kind; // kind of token
-    char *str;      // pointer to token string
-    size_t len;     // length of token string
-    TypeKind type;  // type of token (only for TK_CONST)
-    long value;     // value of token (only for TK_CONST)
+    TokenKind kind;   // kind of token
+    char *str;        // pointer to token string
+    size_t len;       // length of token string
+    const Type *type; // type of token (only for TK_CONST)
+    long value;       // value of token (only for TK_CONST)
 };
 
 bool peek_reserved(const char *str);

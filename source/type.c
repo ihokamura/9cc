@@ -655,6 +655,16 @@ bool is_compatible(const Type *self, const Type *other)
 
 
 /*
+make a size_t type
+* This implementation regards 'size_t' as 'unsigned long'.
+*/
+Type *new_type_size_t(TypeQualifier qual)
+{
+    return new_type(TY_ULONG, qual);
+}
+
+
+/*
 make an enumeration type
 */
 Type *new_type_enum(void)

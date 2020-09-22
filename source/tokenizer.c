@@ -218,7 +218,7 @@ static Token *new_token(TokenKind kind, char *str, int len)
     token->kind = kind;
     token->str = str;
     token->len = len;
-    token->type = TY_INT;
+    token->type = NULL;
     token->value = 0;
 
     return token;
@@ -437,14 +437,14 @@ void tokenize(char *str)
         }
 
         // parse a constant
-        TypeKind type;
+        TypeKind kind;
         long value;
-        len = is_constant(str, &type, &value);
+        len = is_constant(str, &kind, &value);
         if(len > 0)
         {
             Token *token = new_token(TK_CONST, str, len);
             current_token = add_list_entry_tail(Token)(token_list, token);
-            token->type = type;
+            token->type = new_type(kind, TQ_NONE);
             token->value = value;
             str += len;
             continue;
