@@ -169,3 +169,39 @@ int func_call_variadic(int count, ...)
     va_end(ap);
     return sum;
 }
+
+
+/*
+assertion for float type
+*/
+int assert_float(float expected, float actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%f expected, but got %f\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}
+
+
+/*
+assertion for double type
+*/
+int assert_double(double expected, double actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%f expected, but got %f\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}

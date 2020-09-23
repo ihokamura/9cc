@@ -52,7 +52,7 @@ static Scope current_scope = {NULL, NULL, NULL, NULL, 0}; // current scope
 /*
 make a new variable
 */
-Variable *new_var(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool local)
+Variable *new_var(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass, bool local)
 {
     Variable *var = calloc(1, sizeof(Variable));
     var->name = name;
@@ -74,7 +74,7 @@ Variable *new_var(const char *name, Type *type, size_t align, StorageClassSpecif
 /*
 make a new global variable
 */
-Variable *new_gvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool entity)
+Variable *new_gvar(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass, bool entity)
 {
     Variable *gvar = new_var(name, type, align, sclass, false);
     gvar->entity = entity;
@@ -87,7 +87,7 @@ Variable *new_gvar(const char *name, Type *type, size_t align, StorageClassSpeci
 /*
 make a new local variable
 */
-Variable *new_lvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass)
+Variable *new_lvar(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass)
 {
     Variable *lvar = new_var(name, type, align, sclass, true);
     add_list_entry_head(Variable)(lvar_list, lvar);

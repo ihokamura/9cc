@@ -77,7 +77,6 @@ struct Designator
 static Declaration *new_declaration(Variable *var);
 static Member *new_enumerator(const char *name, int value);
 static Initializer *new_initializer(void);
-static InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset);
 static InitializerMap *new_zero_initialized_map(size_t size, size_t offset);
 static InitializerMap *new_uninitialized_map(const Type *type, size_t offset);
 static List(Declaration) *init_declarator_list(Type *type, size_t align, StorageClassSpecifier sclass, bool local);
@@ -248,7 +247,7 @@ static Initializer *new_initializer(void)
 /*
 make a new map from offset to initializer
 */
-static InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset)
+InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset)
 {
     InitializerMap *init_map = calloc(1, sizeof(InitializerMap));
     init_map->label = NULL;
@@ -526,7 +525,8 @@ static Declaration *init_declarator(Type *type, size_t align, StorageClassSpecif
                     goto report_duplicated_declaration;
                 }
                 // initialize the prior declaration of identifier with internal linkage
-                ident->var->inits = make_initializer_map(ident->var->type, initializer());
+                ident->var->inits = make_initializer_map(type, initializer());
+                ident->var->type = type;
             }
             // return the prior declaration of identifier with internal linkage
             return new_declaration(ident->var);
@@ -571,7 +571,8 @@ report_duplicated_declaration:
 
         // parse initializer
         Initializer *init = consume_reserved("=") ? initializer() : NULL;
-        expr->var->inits = make_initializer_map(expr->var->type, init);
+        expr->var->inits = make_initializer_map(type, init);
+        expr->var->type = type;
 
         return new_declaration(expr->var);
     }

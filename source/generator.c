@@ -54,9 +54,11 @@ enum BinaryOperationKind
 // function prototype
 static void generate_push_imm(int value);
 static void generate_push_reg_or_mem(const char *reg_or_mem);
+static void generate_push_xmm(int number);
 static void generate_push_struct(const Type *type);
 static void generate_push_offset(const char *reg, size_t offset);
 static void generate_pop(const char *reg_or_mem);
+static void generate_pop_xmm(int number);
 static void generate_load(const Type *type);
 static void generate_store(const Type *type);
 static void generate_lvalue(const Expression *expr);
@@ -65,11 +67,11 @@ static void generate_gvar(const Variable *gvar);
 static void generate_gvar_data(const Type *type, const Expression *expr);
 static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
-static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack);
+static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_statement(const Statement *stmt);
 static void generate_expression(const Expression *expr);
-static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_stack);
+static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_xmm, List(Expression) *args_stack);
 static void put_line(const char *fmt, ...);
 static void put_line_with_tab(const char *fmt, ...);
 #if(CHECK_STACK_SIZE == ENABLED)
@@ -142,6 +144,17 @@ static void generate_push_reg_or_mem(const char *reg_or_mem)
 
 
 /*
+generate assembler code to push a xmm register to the stack
+*/
+static void generate_push_xmm(int number)
+{
+    put_line_with_tab("sub rsp, 8");
+    put_line_with_tab("movsd [rsp], xmm%d", number);
+    stack_size += STACK_ALIGNMENT;
+}
+
+
+/*
 generate assembler code to push contents of a structure to the stack
 */
 static void generate_push_struct(const Type *type)
@@ -180,34 +193,64 @@ static void generate_pop(const char *reg_or_mem)
 
 
 /*
+generate assembler code to pop from the stack to a xmm register
+*/
+static void generate_pop_xmm(int number)
+{
+    put_line_with_tab("movsd xmm%d, [rsp]", number);
+    put_line_with_tab("add rsp, 8");
+    stack_size -= STACK_ALIGNMENT;
+#if(CHECK_STACK_SIZE == ENABLED)
+    assert(stack_size >= 0);
+#endif /* CHECK_STACK_SIZE */
+}
+
+
+/*
 generate assembler code to load value
 */
 static void generate_load(const Type *type)
 {
     generate_pop("rax");
-    if(type->size == 1)
+
+    if(is_floating(type))
     {
-        put_line_with_tab("movsxb rax, byte ptr [rax]");
+        if(type->size == 4)
+        {
+            put_line_with_tab("movss xmm0, [rax]");
+        }
+        else
+        {
+            put_line_with_tab("movsd xmm0, [rax]");
+        }
+        generate_push_xmm(0);
     }
-    else if(type->size == 2)
+    else
     {
-        put_line_with_tab("movsxw rax, word ptr [rax]");
+        if(type->size == 1)
+        {
+            put_line_with_tab("movsxb rax, byte ptr [rax]");
+        }
+        else if(type->size == 2)
+        {
+            put_line_with_tab("movsxw rax, word ptr [rax]");
+        }
+        else if(type->size <= 4)
+        {
+            put_line_with_tab("movsxd rax, dword ptr [rax]");
+        }
+        else if(type->size <= 8)
+        {
+            put_line_with_tab("mov rax, [rax]");
+        }
+        else if(type->size <= 16)
+        {
+            put_line_with_tab("mov r11, [rax+8]");
+            put_line_with_tab("mov rax, [rax]");
+            generate_push_reg_or_mem("r11");
+        }
+        generate_push_reg_or_mem("rax");
     }
-    else if(type->size <= 4)
-    {
-        put_line_with_tab("movsxd rax, dword ptr [rax]");
-    }
-    else if(type->size <= 8)
-    {
-        put_line_with_tab("mov rax, [rax]");
-    }
-    else if(type->size <= 16)
-    {
-        put_line_with_tab("mov r11, [rax+8]");
-        put_line_with_tab("mov rax, [rax]");
-        generate_push_reg_or_mem("r11");
-    }
-    generate_push_reg_or_mem("rax");
 }
 
 
@@ -217,65 +260,83 @@ generate assembler code to store value
 static void generate_store(const Type *type)
 {
     size_t size = type->size;
-    if(size <= 8)
+
+    if(is_floating(type))
     {
-        generate_pop("rdi");
+        generate_pop_xmm(0);
         generate_pop("rax");
-        if(size == 1)
+        if(size <= 4)
         {
-            put_line_with_tab("mov byte ptr [rax], dil");
-        }
-        else if(size <= 2)
-        {
-            put_line_with_tab("mov word ptr [rax], di");
-        }
-        else if(size <= 4)
-        {
-            put_line_with_tab("mov dword ptr [rax], edi");
+            put_line_with_tab("movss [rax], xmm0");
         }
         else
         {
-            put_line_with_tab("mov [rax], rdi");
+            put_line_with_tab("movsd [rax], xmm0");
         }
-    }
-    else if(size <= 16)
-    {
-        generate_pop("rdi");
-        generate_pop("r11");
-        generate_pop("rax");
-        put_line_with_tab("mov [rax], rdi");
-        put_line_with_tab("mov [rax+8], r11");
+        generate_push_xmm(0);
     }
     else
     {
-        // pop source address (rdi) and destination address (rax)
-        generate_pop("rdi");
-        generate_pop("rax");
+        if(size <= 8)
+        {
+            generate_pop("rdi");
+            generate_pop("rax");
+            if(size == 1)
+            {
+                put_line_with_tab("mov byte ptr [rax], dil");
+            }
+            else if(size <= 2)
+            {
+                put_line_with_tab("mov word ptr [rax], di");
+            }
+            else if(size <= 4)
+            {
+                put_line_with_tab("mov dword ptr [rax], edi");
+            }
+            else
+            {
+                put_line_with_tab("mov [rax], rdi");
+            }
+        }
+        else if(size <= 16)
+        {
+            generate_pop("rdi");
+            generate_pop("r11");
+            generate_pop("rax");
+            put_line_with_tab("mov [rax], rdi");
+            put_line_with_tab("mov [rax+8], r11");
+        }
+        else
+        {
+            // pop source address (rdi) and destination address (rax)
+            generate_pop("rdi");
+            generate_pop("rax");
 
-        // copy bytes from rdi to rax
-        size_t offset = 0;
-        for(; offset + 8 <= size; offset += 8)
-        {
-            put_line_with_tab("mov r11, [rdi+%lu]", offset);
-            put_line_with_tab("mov [rax+%lu], r11", offset);
+            // copy bytes from rdi to rax
+            size_t offset = 0;
+            for(; offset + 8 <= size; offset += 8)
+            {
+                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov [rax+%lu], r11", offset);
+            }
+            for(; offset + 4 <= size; offset += 4)
+            {
+                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov dword ptr [rax+%lu], r11d", offset);
+            }
+            for(; offset + 2 <= size; offset += 2)
+            {
+                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov word ptr [rax+%lu], r11w", offset);
+            }
+            for(; offset + 1 <= size; offset += 1)
+            {
+                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov byte ptr [rax+%lu], r11b", offset);
+            }
         }
-        for(; offset + 4 <= size; offset += 4)
-        {
-            put_line_with_tab("mov r11, [rdi+%lu]", offset);
-            put_line_with_tab("mov dword ptr [rax+%lu], r11d", offset);
-        }
-        for(; offset + 2 <= size; offset += 2)
-        {
-            put_line_with_tab("mov r11, [rdi+%lu]", offset);
-            put_line_with_tab("mov word ptr [rax+%lu], r11w", offset);
-        }
-        for(; offset + 1 <= size; offset += 1)
-        {
-            put_line_with_tab("mov r11, [rdi+%lu]", offset);
-            put_line_with_tab("mov byte ptr [rax+%lu], r11b", offset);
-        }
+        generate_push_reg_or_mem("rdi");
     }
-    generate_push_reg_or_mem("rdi");
 }
 
 
@@ -437,31 +498,48 @@ generate data of a given size
 */
 static void generate_gvar_data(const Type *type, const Expression *expr)
 {
-    const Expression *base = NULL;
-    long value = evaluate(expr, &base);
-    if(base != NULL)
+    if(is_floating(type))
     {
-        put_line_with_tab(".quad %s%+ld", base->var->name, value);
-    }
-    else
-    {
-        // allocate memory with an integer
         size_t size = type->size;
-        if(size == 1)
+        if(size == 4)
         {
-            put_line_with_tab(".byte %ld", value);
-        }
-        else if(size == 2)
-        {
-            put_line_with_tab(".value %ld", value);
-        }
-        else if(size == 4)
-        {
-            put_line_with_tab(".long %ld", value);
+            float value = (float)expr->value->float_value;
+            put_line_with_tab(".long %u", *(unsigned int *)&value);
         }
         else
         {
-            put_line_with_tab(".quad %ld", value);
+            double value = expr->value->float_value;
+            put_line_with_tab(".quad %lu", *(unsigned long *)&value);
+        }
+    }
+    else
+    {
+        const Expression *base = NULL;
+        long value = evaluate(expr, &base);
+        if(base != NULL)
+        {
+            put_line_with_tab(".quad %s%+ld", base->var->name, value);
+        }
+        else
+        {
+            // allocate memory with an integer
+            size_t size = type->size;
+            if(size == 1)
+            {
+                put_line_with_tab(".byte %ld", value);
+            }
+            else if(size == 2)
+            {
+                put_line_with_tab(".value %ld", value);
+            }
+            else if(size == 4)
+            {
+                put_line_with_tab(".long %ld", value);
+            }
+            else
+            {
+                put_line_with_tab(".quad %ld", value);
+            }
         }
     }
 }
@@ -659,7 +737,7 @@ static void generate_func(const Function *func)
 /*
 generate assembler code of function arguments
 */
-static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_stack)
+static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack)
 {
     // count number of registers used for passing arguments
     size_t argc_reg = (pass_address ? 1 : 0);
@@ -693,6 +771,21 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
             argc_reg--;
             generate_pop(arg_registers64[argc_reg]);
         }
+    }
+
+    // count number of xmm registers used for passing arguments
+    size_t argc_xmm = get_length(Expression)(args_xmm);
+
+    // evaluate arguments and pass them by xmm registers
+    for_each_entry(Expression, cursor, args_xmm)
+    {
+        Expression *arg = get_element(Expression)(cursor);
+        generate_expression(arg);
+    }
+    for_each_entry_reversed(Expression, cursor, args_xmm)
+    {
+        argc_xmm--;
+        generate_pop_xmm(argc_xmm);
     }
 
     // evaluate arguments and push them to the stack in reverse order
@@ -1062,15 +1155,23 @@ static void generate_expression(const Expression *expr)
     switch(expr->kind)
     {
     case EXPR_CONST:
-        // It is assumed that the size of 'int' is 4 bytes.
-        if(expr->value->int_value == (int)expr->value->int_value)
+        if(is_floating(expr->value->type))
         {
-            generate_push_imm(expr->value->int_value);
+            put_line_with_tab("movsd xmm0, %s[rip]", expr->value->float_label);
+            generate_push_xmm(0);
         }
         else
         {
-            put_line_with_tab("mov rax, %ld", expr->value->int_value);
-            generate_push_reg_or_mem("rax");
+            // It is assumed that the size of 'int' is 4 bytes.
+            if(expr->value->int_value == (int)expr->value->int_value)
+            {
+                generate_push_imm(expr->value->int_value);
+            }
+            else
+            {
+                put_line_with_tab("mov rax, %ld", expr->value->int_value);
+                generate_push_reg_or_mem("rax");
+            }
         }
         return;
 
@@ -1406,8 +1507,9 @@ static void generate_expression(const Expression *expr)
 
         // classify arguments
         List(Expression) *args_reg = new_list(Expression)();
+        List(Expression) *args_xmm = new_list(Expression)();
         List(Expression) *args_stack = new_list(Expression)();
-        size_t args_stack_size = classify_args(expr->args, pass_address, args_reg, args_stack);
+        size_t args_stack_size = classify_args(expr->args, pass_address, args_reg, args_xmm, args_stack);
 
         // adjust alignment of rsp before generating arguments since the callee expects that arguments on the stack be just above the return address
         if(((stack_size + space + args_stack_size) % STACK_POINTER_ALIGNMENT) != 0)
@@ -1421,9 +1523,8 @@ static void generate_expression(const Expression *expr)
         }
 
         // generate arguments
-        generate_args(pass_address, args_reg, args_stack);
+        generate_args(pass_address, args_reg, args_xmm, args_stack);
         stack_adjustment += args_stack_size; // increment the variable stack_adjustment here because the variable stack_size can be changed in the above function call
-        put_line_with_tab("mov rax, 0");
 
         if((body != NULL) && (body->var != NULL))
         {
@@ -1432,18 +1533,20 @@ static void generate_expression(const Expression *expr)
             assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
             check_stack_pointer();
 #endif /* CHECK_STACK_SIZE */
+            put_line_with_tab("mov rax, 0");
             put_line_with_tab("call %s", body->var->name);
         }
         else
         {
             // call function through pointer
             generate_expression(expr->operand);
-            generate_pop("rax");
+            generate_pop("r11");
 #if(CHECK_STACK_SIZE == ENABLED)
             assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
             check_stack_pointer();
 #endif /* CHECK_STACK_SIZE */
-            put_line_with_tab("call rax");
+            put_line_with_tab("mov rax, 0");
+            put_line_with_tab("call r11");
         }
 
         // restore the stack
@@ -1560,7 +1663,7 @@ static void generate_expression(const Expression *expr)
 separate arguments which are passed by registers from those passed by the stack
 * This function returns size of the stack allocated for arguments.
 */
-static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_stack)
+static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_xmm, List(Expression) *args_stack)
 {
     size_t arg_stack_size = 0;
     size_t argc_reg = (pass_address ? 1 : 0);
@@ -1568,6 +1671,12 @@ static size_t classify_args(const List(Expression) *args, bool pass_address, Lis
     for_each_entry(Expression, cursor, args)
     {
         Expression *arg = get_element(Expression)(cursor);
+
+        if(is_floating(arg->type))
+        {
+            add_list_entry_tail(Expression)(args_xmm, arg);
+            continue;
+        }
 
         // pass up to ARG_REGISTERS_SIZE arguments by registers
         if(argc_reg >= ARG_REGISTERS_SIZE)

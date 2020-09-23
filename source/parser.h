@@ -72,7 +72,7 @@ struct Tag
 struct Variable
 {
     const char *name;             // name of variable
-    Type *type;                   // type of variable
+    const Type *type;             // type of variable
     List(InitializerMap) *inits;  // list of maps from offset to initializer
     StringLiteral *str;           // information of string-literal (only for string-literal)
     size_t align;                 // alignment of variable
@@ -85,9 +85,9 @@ struct Variable
 extern const size_t STACK_ALIGNMENT;
 extern const size_t REGISTER_SAVE_AREA_SIZE;
 
-Variable *new_var(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool local);
-Variable *new_gvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass, bool entity);
-Variable *new_lvar(const char *name, Type *type, size_t align, StorageClassSpecifier sclass);
+Variable *new_var(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass, bool local);
+Variable *new_gvar(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass, bool entity);
+Variable *new_lvar(const char *name, const Type *type, size_t align, StorageClassSpecifier sclass);
 StringLiteral *new_string(const Token *token);
 void construct(Program *prog);
 Identifier *push_identifier_scope(const char *name);

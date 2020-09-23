@@ -57,6 +57,7 @@ struct Enumerator
     int value;        // value of enumerator
 };
 
+InitializerMap *new_initializer_map(const Type *type, const Expression *assign, size_t offset);
 InitializerMap *new_string_initializer_map(const char *label, size_t offset);
 Statement *declaration(bool local);
 Type *declaration_specifiers(size_t *align, StorageClassSpecifier *sclass, FunctionSpecifier *fspec);

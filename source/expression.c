@@ -91,6 +91,12 @@ Expression *new_node_constant(const Constant *value)
 {
     Expression *node = new_expression(EXPR_CONST, get_token(), value->type);
     node->value = new_constant(value);
+    if(is_floating(value->type))
+    {
+        node->var = new_gvar(value->float_label, value->type, value->type->align, SC_NONE, true);
+        node->var->inits = new_list(InitializerMap)();
+        add_list_entry_tail(InitializerMap)(node->var->inits, new_initializer_map(value->type, node, 0));
+    }
 
     return node;
 }
@@ -294,7 +300,7 @@ static Expression *primary(void)
             {
                 // variable
                 Variable *var = ident->var;
-                Type *type = var->type;
+                const Type *type = var->type;
                 Expression *node = new_expression(EXPR_VAR, token, type);
                 node->var = var;
                 node->lvalue = !is_function(type);
@@ -344,7 +350,7 @@ static Expression *primary(void)
     {
         StringLiteral *str = new_string(token);
         Variable *var = str->var;
-        Type *type = var->type;
+        const Type *type = var->type;
         Expression *node = new_expression(EXPR_VAR, token, type);
         node->str = str;
         node->var = var;

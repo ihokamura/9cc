@@ -41,6 +41,8 @@ struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int
 int func_call_arg_array(int a[10]);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 extern int func_call_variadic(int count, ...);
+extern int assert_float(float expected, float actual);
+extern int assert_double(double expected, double actual);
 
 
 /*
@@ -1476,8 +1478,8 @@ int test_floating_constant()
 {
     put_title("floating-constant");
 
-    float f = 1; assert_int(1, f);
-    double d = 2; assert_int(2, d);
+    float f = 1.0f; assert_float(1.0f, f);
+    double d = 2.0; assert_double(2.0, d);
 
     return 0;
 }
