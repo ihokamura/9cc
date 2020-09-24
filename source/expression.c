@@ -1780,60 +1780,90 @@ static const Type *apply_arithmetic_conversion(const Type *lhs_type, const Type 
 {
     const Type *type;
 
-    // perform integer promotions on both operands at first
-    lhs_type = apply_integer_promotion(lhs_type);
-    rhs_type = apply_integer_promotion(rhs_type);
-
-    if(lhs_type->kind == rhs_type->kind)
+    if(is_floating(lhs_type)|| is_floating(rhs_type))
     {
-        // If both operands have the same type, then no further conversion is needed.
-        type = lhs_type;
-    }
-    else
-    {
-        if((is_signed(lhs_type) && is_signed(rhs_type)) || (is_unsigned(lhs_type) && is_unsigned(rhs_type)))
+        if(lhs_type->kind == TY_LDOUBLE)
         {
-            // Otherwise, if both operands have signed integer types or both have unsigned integer types, the operand with the type of lesser integer conversion rank is converted to the type of the operand with greater rank.
-            if(lhs_type->kind < rhs_type->kind)
-            {
-                type = rhs_type;
-            }
-            else
-            {
-                type = lhs_type;
-            }
+            type = lhs_type;
+        }
+        else if(rhs_type->kind == TY_LDOUBLE)
+        {
+            type = rhs_type;
+        }
+        else if(lhs_type->kind == TY_DOUBLE)
+        {
+            type = lhs_type;
+        }
+        else if(rhs_type->kind == TY_DOUBLE)
+        {
+            type = rhs_type;
+        }
+        else if(lhs_type->kind == TY_FLOAT)
+        {
+            type = lhs_type;
         }
         else
         {
-            // Otherwise, if the operand that has unsigned integer type has rank greater or equal to the rank of the type of the other operand, then the operand with signed integer type is converted to the type of the operand with unsigned integer type.
-            if(is_unsigned(lhs_type) && is_signed(rhs_type) && (get_conversion_rank(lhs_type) >= get_conversion_rank(rhs_type)))
+            type = rhs_type;
+        }
+    }
+    else
+    {
+        // perform integer promotions on both operands at first
+        lhs_type = apply_integer_promotion(lhs_type);
+        rhs_type = apply_integer_promotion(rhs_type);
+
+        if(lhs_type->kind == rhs_type->kind)
+        {
+            // If both operands have the same type, then no further conversion is needed.
+            type = lhs_type;
+        }
+        else
+        {
+            if((is_signed(lhs_type) && is_signed(rhs_type)) || (is_unsigned(lhs_type) && is_unsigned(rhs_type)))
             {
-                type = lhs_type;
-            }
-            else if(is_unsigned(rhs_type) && is_signed(lhs_type) && (get_conversion_rank(rhs_type) >= get_conversion_rank(lhs_type)))
-            {
-                type = rhs_type;
-            }
-            // Otherwise, if the type of the operand with signed integer type can represent all of the values of the type of the operand with unsigned integer type, then the operand with unsigned integer type is converted to the type of the operand with signed integer type.
-            // In this implementation, this rule can be checked only by comparing integer conversion ranks of operands.
-            else if(is_signed(lhs_type) && is_unsigned(rhs_type) && (get_conversion_rank(lhs_type) > get_conversion_rank(rhs_type)))
-            {
-                type = lhs_type;
-            }
-            else if(is_signed(rhs_type) && is_unsigned(lhs_type) && (get_conversion_rank(rhs_type) > get_conversion_rank(lhs_type)))
-            {
-                type = rhs_type;
-            }
-            // Otherwise, both operands are converted to the unsigned integer type corresponding to the type of the operand with signed integer type.
-            else
-            {
-                if(is_signed(lhs_type))
+                // Otherwise, if both operands have signed integer types or both have unsigned integer types, the operand with the type of lesser integer conversion rank is converted to the type of the operand with greater rank.
+                if(lhs_type->kind < rhs_type->kind)
                 {
-                    type = discard_sign(lhs_type);
+                    type = rhs_type;
                 }
                 else
                 {
-                    type = discard_sign(rhs_type);
+                    type = lhs_type;
+                }
+            }
+            else
+            {
+                // Otherwise, if the operand that has unsigned integer type has rank greater or equal to the rank of the type of the other operand, then the operand with signed integer type is converted to the type of the operand with unsigned integer type.
+                if(is_unsigned(lhs_type) && is_signed(rhs_type) && (get_conversion_rank(lhs_type) >= get_conversion_rank(rhs_type)))
+                {
+                    type = lhs_type;
+                }
+                else if(is_unsigned(rhs_type) && is_signed(lhs_type) && (get_conversion_rank(rhs_type) >= get_conversion_rank(lhs_type)))
+                {
+                    type = rhs_type;
+                }
+                // Otherwise, if the type of the operand with signed integer type can represent all of the values of the type of the operand with unsigned integer type, then the operand with unsigned integer type is converted to the type of the operand with signed integer type.
+                // In this implementation, this rule can be checked only by comparing integer conversion ranks of operands.
+                else if(is_signed(lhs_type) && is_unsigned(rhs_type) && (get_conversion_rank(lhs_type) > get_conversion_rank(rhs_type)))
+                {
+                    type = lhs_type;
+                }
+                else if(is_signed(rhs_type) && is_unsigned(lhs_type) && (get_conversion_rank(rhs_type) > get_conversion_rank(lhs_type)))
+                {
+                    type = rhs_type;
+                }
+                // Otherwise, both operands are converted to the unsigned integer type corresponding to the type of the operand with signed integer type.
+                else
+                {
+                    if(is_signed(lhs_type))
+                    {
+                        type = discard_sign(lhs_type);
+                    }
+                    else
+                    {
+                        type = discard_sign(rhs_type);
+                    }
                 }
             }
         }

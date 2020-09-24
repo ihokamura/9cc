@@ -203,6 +203,9 @@ int test_additive()
 
     assert_int(21, 5+20-4);
 
+    assert_float(21.0f, 5.0f+20.0f-4.0f);
+    assert_double(21.0, 5.0+20.0-4.0);
+
     return 0;
 }
 
@@ -219,6 +222,9 @@ int test_multiplicative()
     assert_int(4, (3 + 5) / 2);
     assert_int(0, 123 % 3);
     assert_int(1, ((123 + 1) % 5) % 3);
+
+    assert_float(3.0f, 0.5f * (9.0f - 6.0f / 2.0f));
+    assert_double(3.0, 0.5 * (9.0 - 6.0 / 2.0));
 
     return 0;
 }

@@ -807,105 +807,168 @@ generate assembler code of binary operation
 */
 static void generate_binary(const Expression *expr, BinaryOperationKind kind)
 {
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    switch(kind)
+    if(is_floating(expr->type))
     {
-    case BINOP_ADD:
-        put_line_with_tab("add rax, rdi");
-        break;
+        // pop RHS to xmm1 and LHS to xmm0
+        generate_pop_xmm(1);
+        generate_pop_xmm(0);
 
-    case BINOP_PTR_ADD:
-        put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-        put_line_with_tab("add rax, rdi");
-        break;
+        // execute operation
+        switch(kind)
+        {
+        case BINOP_ADD:
+            if(expr->type->kind == TY_FLOAT)
+            {
+                put_line_with_tab("addss xmm0, xmm1");
+            }
+            else
+            {
+                put_line_with_tab("addsd xmm0, xmm1");
+            }
+            break;
 
-    case BINOP_SUB:
-        put_line_with_tab("sub rax, rdi");
-        break;
+        case BINOP_SUB:
+            if(expr->type->kind == TY_FLOAT)
+            {
+                put_line_with_tab("subss xmm0, xmm1");
+            }
+            else
+            {
+                put_line_with_tab("subsd xmm0, xmm1");
+            }
+            break;
 
-    case BINOP_PTR_SUB:
-        put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-        put_line_with_tab("sub rax, rdi");
-        break;
+        case BINOP_MUL:
+            if(expr->type->kind == TY_FLOAT)
+            {
+                put_line_with_tab("mulss xmm0, xmm1");
+            }
+            else
+            {
+                put_line_with_tab("mulsd xmm0, xmm1");
+            }
+            break;
 
-    case BINOP_PTR_DIFF:
-        put_line_with_tab("sub rax, rdi");
-        put_line_with_tab("cqo");
-        put_line_with_tab("mov rdi, %lu", expr->lhs->type->base->size);
-        put_line_with_tab("idiv rdi");
-        break;
+        case BINOP_DIV:
+            if(expr->type->kind == TY_FLOAT)
+            {
+                put_line_with_tab("divss xmm0, xmm1");
+            }
+            else
+            {
+                put_line_with_tab("divsd xmm0, xmm1");
+            }
+            break;
 
-    case BINOP_MUL:
-        put_line_with_tab("imul rax, rdi");
-        break;
+        default:
+            break;
+        }
 
-    case BINOP_DIV:
-        put_line_with_tab("cqo");
-        put_line_with_tab("idiv rdi");
-        break;
-
-    case BINOP_MOD:
-        put_line_with_tab("cqo");
-        put_line_with_tab("idiv rdi");
-        put_line_with_tab("mov rax, rdx");
-        break;
-
-    case BINOP_LSHIFT:
-        put_line_with_tab("mov rcx, rdi");
-        put_line_with_tab("shl rax, cl");
-        break;
-
-    case BINOP_RSHIFT:
-        put_line_with_tab("mov rcx, rdi");
-        put_line_with_tab("sar rax, cl");
-        break;
-
-    case BINOP_EQ:
-        put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("sete al");
-        put_line_with_tab("movzb rax, al");
-        break;
-
-    case BINOP_NEQ:
-        put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("setne al");
-        put_line_with_tab("movzb rax, al");
-        break;
-
-    case BINOP_L:
-        put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
-        put_line_with_tab("movzb rax, al");
-        break;
-
-    case BINOP_LEQ:
-        put_line_with_tab("cmp rax, rdi");
-        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
-        put_line_with_tab("movzb rax, al");
-        break;
-
-    case BINOP_AND:
-        put_line_with_tab("and rax, rdi");
-        break;
-
-    case BINOP_XOR:
-        put_line_with_tab("xor rax, rdi");
-        break;
-
-    case BINOP_OR:
-        put_line_with_tab("or rax, rdi");
-        break;
-
-    default:
-        break;
+        // push the result of operation
+        generate_push_xmm(0);
     }
+    else
+    {
+        // pop RHS to rdi and LHS to rax
+        generate_pop("rdi");
+        generate_pop("rax");
 
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+        // execute operation
+        switch(kind)
+        {
+        case BINOP_ADD:
+            put_line_with_tab("add rax, rdi");
+            break;
+
+        case BINOP_PTR_ADD:
+            put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+            put_line_with_tab("add rax, rdi");
+            break;
+
+        case BINOP_SUB:
+            put_line_with_tab("sub rax, rdi");
+            break;
+
+        case BINOP_PTR_SUB:
+            put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+            put_line_with_tab("sub rax, rdi");
+            break;
+
+        case BINOP_PTR_DIFF:
+            put_line_with_tab("sub rax, rdi");
+            put_line_with_tab("cqo");
+            put_line_with_tab("mov rdi, %lu", expr->lhs->type->base->size);
+            put_line_with_tab("idiv rdi");
+            break;
+
+        case BINOP_MUL:
+            put_line_with_tab("imul rax, rdi");
+            break;
+
+        case BINOP_DIV:
+            put_line_with_tab("cqo");
+            put_line_with_tab("idiv rdi");
+            break;
+
+        case BINOP_MOD:
+            put_line_with_tab("cqo");
+            put_line_with_tab("idiv rdi");
+            put_line_with_tab("mov rax, rdx");
+            break;
+
+        case BINOP_LSHIFT:
+            put_line_with_tab("mov rcx, rdi");
+            put_line_with_tab("shl rax, cl");
+            break;
+
+        case BINOP_RSHIFT:
+            put_line_with_tab("mov rcx, rdi");
+            put_line_with_tab("sar rax, cl");
+            break;
+
+        case BINOP_EQ:
+            put_line_with_tab("cmp rax, rdi");
+            put_line_with_tab("sete al");
+            put_line_with_tab("movzb rax, al");
+            break;
+
+        case BINOP_NEQ:
+            put_line_with_tab("cmp rax, rdi");
+            put_line_with_tab("setne al");
+            put_line_with_tab("movzb rax, al");
+            break;
+
+        case BINOP_L:
+            put_line_with_tab("cmp rax, rdi");
+            put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
+            put_line_with_tab("movzb rax, al");
+            break;
+
+        case BINOP_LEQ:
+            put_line_with_tab("cmp rax, rdi");
+            put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
+            put_line_with_tab("movzb rax, al");
+            break;
+
+        case BINOP_AND:
+            put_line_with_tab("and rax, rdi");
+            break;
+
+        case BINOP_XOR:
+            put_line_with_tab("xor rax, rdi");
+            break;
+
+        case BINOP_OR:
+            put_line_with_tab("or rax, rdi");
+            break;
+
+        default:
+            break;
+        }
+
+        // push the result of operation
+        generate_push_reg_or_mem("rax");
+    }
 }
 
 
