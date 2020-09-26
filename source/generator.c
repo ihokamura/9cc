@@ -698,10 +698,17 @@ static void generate_func(const Function *func)
     // separate arguments which are passed by registers from those passed by the stack
     size_t argc_reg = (pass_address ? 1 : 0);
     List(Variable) *args_reg = new_list(Variable)();
+    List(Variable) *args_xmm = new_list(Variable)();
     List(Variable) *args_stack = new_list(Variable)();
     for_each_entry(Variable, cursor, func->args)
     {
         Variable *arg = get_element(Variable)(cursor);
+
+        if(is_floating(arg->type))
+        {
+            add_list_entry_tail(Variable)(args_xmm, arg);
+            continue;
+        }
 
         // pass up to ARG_REGISTERS_SIZE arguments by registers
         if(argc_reg >= ARG_REGISTERS_SIZE)
@@ -774,6 +781,25 @@ static void generate_func(const Function *func)
             }
             argc_reg++;
         }
+    }
+
+    size_t argc_xmm = 0;
+    for_each_entry(Variable, cursor, args_xmm)
+    {
+        // load argument from a register
+        Variable *arg = get_element(Variable)(cursor);
+
+        put_line_with_tab("mov rax, rbp");
+        put_line_with_tab("sub rax, %lu", arg->offset);
+        if(arg->type->size == 4)
+        {
+            put_line_with_tab("movss dword ptr [rax], xmm%d", argc_xmm);
+        }
+        else
+        {
+            put_line_with_tab("movsd [rax], xmm%d", argc_xmm);
+        }
+        argc_xmm++;
     }
 
     size_t args_stack_size = 0;

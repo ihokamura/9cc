@@ -41,8 +41,6 @@ struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int
 int func_call_arg_array(int a[10]);
 extern void alloc4(int **p, int a0, int a1, int a2, int a3);
 extern int func_call_variadic(int count, ...);
-extern int assert_float(float expected, float actual);
-extern int assert_double(double expected, double actual);
 
 
 /*
@@ -174,6 +172,42 @@ int assert_pointer(const void *expected, const void *actual)
     else
     {
         printf("%p expected, but got %p\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}
+
+
+/*
+assertion for float type
+*/
+int assert_float(float expected, float actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%f expected, but got %f\n", expected, actual);
+        exit(1);
+        return 1;
+    }
+}
+
+
+/*
+assertion for double type
+*/
+int assert_double(double expected, double actual)
+{
+    if(expected == actual)
+    {
+        return 0;
+    }
+    else
+    {
+        printf("%f expected, but got %f\n", expected, actual);
         exit(1);
         return 1;
     }
