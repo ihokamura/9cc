@@ -69,6 +69,21 @@ static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack);
 static void generate_statement(const Statement *stmt);
+static void generate_stmt_label(const Statement *stmt);
+static void generate_stmt_case(const Statement *stmt);
+static void generate_stmt_compound(const Statement *stmt);
+static void generate_stmt_decl(const Statement *stmt);
+static void generate_stmt_expr(const Statement *stmt);
+static void generate_stmt_null(const Statement *stmt);
+static void generate_stmt_if(const Statement *stmt);
+static void generate_stmt_switch(const Statement *stmt);
+static void generate_stmt_while(const Statement *stmt);
+static void generate_stmt_do(const Statement *stmt);
+static void generate_stmt_for(const Statement *stmt);
+static void generate_stmt_goto(const Statement *stmt);
+static void generate_stmt_continue(const Statement *stmt);
+static void generate_stmt_break(const Statement *stmt);
+static void generate_stmt_return(const Statement *stmt);
 static void generate_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_binop_add_int(const Expression *expr);
 static void generate_binop_add_float(const Expression *expr);
@@ -157,11 +172,17 @@ static const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; /
 static const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
 static const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
 static const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
-static int lab_number; // sequential number for labels
-static int brk_number; // sequential number for break statements
-static int cnt_number; // sequential number for continue statements
+static int lab_number; // sequential number for labels (see [Notes] below)
+static int brk_number; // sequential number for break statements (see [Notes] below)
+static int cnt_number; // sequential number for continue statements (see [Notes] below)
 static int stack_size; // size of the stack
 static unsigned int gp_offset; // offset from reg_save_area to the place where the next available general purpose argument register is saved
+/*
+# [Notes]
+* Because functions to generate statements and expressions are recursively called,
+    * `lab_number` is saved and incremented at the top of each sub-functions.
+    * `brk_number` and `cnt_number` are saved at the top of each sub-functions and restored at the end of each sub-functions.
+*/
 
 
 /*
@@ -878,234 +899,360 @@ generate assembler code of a statement
 */
 static void generate_statement(const Statement *stmt)
 {
-    // Because this function is recursively called, 
-    // * `lab_number` is saved and incremented at the top of each case-statement.
-    // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
+
     switch(stmt->kind)
     {
     case STMT_LABEL:
-        put_line(".L%s:", stmt->ident);
-        generate_statement(stmt->body);
+        generate_stmt_label(stmt);
         return;
 
     case STMT_CASE:
-        put_line(".Lcase%d:", stmt->case_label);
-        generate_statement(stmt->body);
+        generate_stmt_case(stmt);
         return;
 
     case STMT_COMPOUND:
-        for_each_entry(Statement, cursor, stmt->compound)
-        {
-            Statement *s = get_element(Statement)(cursor);
-            generate_statement(s);
-        }
+        generate_stmt_compound(stmt);
         return;
 
     case STMT_DECL:
-        for_each_entry(Declaration, cursor, stmt->decl)
-        {
-            Declaration *decl = get_element(Declaration)(cursor);
-            if((decl->var != NULL) && decl->var->local)
-            {
-                generate_lvar_init(decl->var);
-            }
-        }
+        generate_stmt_decl(stmt);
         return;
 
     case STMT_EXPR:
-        generate_expression(stmt->expr);
-        generate_pop("rax");
+        generate_stmt_expr(stmt);
         return;
 
     case STMT_NULL:
+        generate_stmt_null(stmt);
         return;
 
     case STMT_IF:
-    {
-        int lab = lab_number;
-        lab_number++;
-
-        generate_expression(stmt->cond);
-        generate_pop("rax");
-        put_line_with_tab("cmp rax, 0");
-        if(stmt->false_case == NULL)
-        {
-            // if ( expression ) statement
-            put_line_with_tab("je  .Lend%d", lab);
-            generate_statement(stmt->true_case);
-            put_line(".Lend%d:", lab);
-        }
-        else
-        {
-            // if ( expression ) statement else statement
-            put_line_with_tab("je  .Lelse%d", lab);
-            generate_statement(stmt->true_case);
-            put_line_with_tab("jmp .Lend%d", lab);
-            put_line(".Lelse%d:", lab);
-            generate_statement(stmt->false_case);
-            put_line(".Lend%d:", lab);
-        }
+        generate_stmt_if(stmt);
         return;
-    }
 
     case STMT_SWITCH:
-    {
-        int lab = lab_number;
-        int brk = brk_number;
-        brk_number = lab_number;
-        lab_number++;
-
-        generate_expression(stmt->cond);
-        generate_pop("rax");
-
-        for_each_entry(Statement, cursor, stmt->case_list)
-        {
-            Statement *s = get_element(Statement)(cursor);
-            int case_label = lab_number;
-            lab_number++;
-
-            s->case_label = case_label;
-            put_line_with_tab("cmp rax, %d", s->value);
-            put_line_with_tab("je .Lcase%d", case_label);
-        }
-        if(stmt->default_case != NULL)
-        {
-            int case_label = lab_number;
-            lab_number++;
-
-            stmt->default_case->case_label = case_label;
-            put_line_with_tab("jmp .Lcase%d", case_label);
-        }
-
-        generate_statement(stmt->body);
-        put_line(".Lbreak%d:", lab);
-
-        brk_number = brk;
+        generate_stmt_switch(stmt);
         return;
-    }
 
     case STMT_WHILE:
-    {
-        int lab = lab_number;
-        int brk = brk_number;
-        int cnt = cnt_number;
-        brk_number = cnt_number = lab_number;
-        lab_number++;
-
-        put_line(".Lbegin%d:", lab);
-        put_line(".Lcontinue%d:", lab);
-        generate_expression(stmt->cond);
-        generate_pop("rax");
-        put_line_with_tab("cmp rax, 0");
-        put_line_with_tab("je  .Lend%d", lab);
-        generate_statement(stmt->body);
-        put_line_with_tab("jmp .Lbegin%d", lab);
-        put_line(".Lend%d:", lab);
-        put_line(".Lbreak%d:", lab);
-
-        brk_number = brk;
-        cnt_number = cnt;
+        generate_stmt_while(stmt);
         return;
-    }
 
     case STMT_DO:
-    {
-        int lab = lab_number;
-        int brk = brk_number;
-        int cnt = cnt_number;
-        brk_number = cnt_number = lab_number;
-        lab_number++;
-
-        put_line(".Lbegin%d:", lab);
-        generate_statement(stmt->body);
-        put_line(".Lcontinue%d:", lab);
-        generate_expression(stmt->cond);
-        generate_pop("rax");
-        put_line_with_tab("cmp rax, 0");
-        put_line_with_tab("jne .Lbegin%d", lab);
-        put_line(".Lend%d:", lab);
-        put_line(".Lbreak%d:", lab);
-
-        brk_number = brk;
-        cnt_number = cnt;
+        generate_stmt_do(stmt);
         return;
-    }
 
     case STMT_FOR:
-    {
-        int lab = lab_number;
-        int brk = brk_number;
-        int cnt = cnt_number;
-        brk_number = cnt_number = lab_number;
-        lab_number++;
-
-        if(stmt->preexpr != NULL)
-        {
-            generate_expression(stmt->preexpr);
-            generate_pop("rax");
-        }
-        if(stmt->predecl != NULL)
-        {
-            generate_statement(stmt->predecl);
-        }
-        put_line(".Lbegin%d:", lab);
-        if(stmt->cond != NULL)
-        {
-            generate_expression(stmt->cond);
-            generate_pop("rax");
-            put_line_with_tab("cmp rax, 0");
-            put_line_with_tab("je  .Lend%d", lab);
-        }
-        generate_statement(stmt->body);
-        put_line(".Lcontinue%d:", lab);
-        if(stmt->postexpr != NULL)
-        {
-            generate_expression(stmt->postexpr);
-            generate_pop("rax");
-        }
-        put_line_with_tab("jmp .Lbegin%d", lab);
-        put_line(".Lend%d:", lab);
-        put_line(".Lbreak%d:", lab);
-
-        brk_number = brk;
-        cnt_number = cnt;
+        generate_stmt_for(stmt);
         return;
-    }
 
     case STMT_GOTO:
-        put_line_with_tab("jmp .L%s", stmt->ident);
+        generate_stmt_goto(stmt);
         return;
 
     case STMT_CONTINUE:
-        put_line_with_tab("jmp .Lcontinue%d", cnt_number);
+        generate_stmt_continue(stmt);
         return;
 
     case STMT_BREAK:
-        put_line_with_tab("jmp .Lbreak%d", brk_number);
+        generate_stmt_break(stmt);
         return;
 
     case STMT_RETURN:
-        if(stmt->expr != NULL)
-        {
-            // return value
-            generate_expression(stmt->expr);
-            if(is_struct_or_union(stmt->expr->type) && (adjust_alignment(stmt->expr->type->size, STACK_ALIGNMENT) == 16))
-            {
-                generate_pop("rax");
-                generate_pop("rdx");
-            }
-            else
-            {
-                generate_pop("rax");
-            }
-        }
-        put_line_with_tab("leave");
-        put_line_with_tab("ret");
+        generate_stmt_return(stmt);
         return;
 
     default:
         break;
     }
+}
+
+
+/*
+generate assembler code of statement of kind STMT_LABEL
+*/
+static void generate_stmt_label(const Statement *stmt)
+{
+    put_line(".L%s:", stmt->ident);
+    generate_statement(stmt->body);
+}
+
+
+/*
+generate assembler code of statement of kind STMT_CASE
+*/
+static void generate_stmt_case(const Statement *stmt)
+{
+    put_line(".Lcase%d:", stmt->case_label);
+    generate_statement(stmt->body);
+}
+
+
+/*
+generate assembler code of statement of kind STMT_COMPOUND
+*/
+static void generate_stmt_compound(const Statement *stmt)
+{
+    for_each_entry(Statement, cursor, stmt->compound)
+    {
+        Statement *s = get_element(Statement)(cursor);
+        generate_statement(s);
+    }
+}
+
+
+/*
+generate assembler code of statement of kind STMT_DECL
+*/
+static void generate_stmt_decl(const Statement *stmt)
+{
+    for_each_entry(Declaration, cursor, stmt->decl)
+    {
+        Declaration *decl = get_element(Declaration)(cursor);
+        if((decl->var != NULL) && decl->var->local)
+        {
+            generate_lvar_init(decl->var);
+        }
+    }
+}
+
+
+/*
+generate assembler code of statement of kind STMT_EXPR
+*/
+static void generate_stmt_expr(const Statement *stmt)
+{
+    generate_expression(stmt->expr);
+    generate_pop("rax");
+}
+
+
+/*
+generate assembler code of statement of kind STMT_NULL
+*/
+static void generate_stmt_null(const Statement *stmt)
+{
+    // do nothing
+}
+
+
+/*
+generate assembler code of statement of kind STMT_IF
+*/
+static void generate_stmt_if(const Statement *stmt)
+{
+    int lab = lab_number;
+    lab_number++;
+
+    generate_expression(stmt->cond);
+    generate_pop("rax");
+    put_line_with_tab("cmp rax, 0");
+    if(stmt->false_case == NULL)
+    {
+        // if ( expression ) statement
+        put_line_with_tab("je  .Lend%d", lab);
+        generate_statement(stmt->true_case);
+        put_line(".Lend%d:", lab);
+    }
+    else
+    {
+        // if ( expression ) statement else statement
+        put_line_with_tab("je  .Lelse%d", lab);
+        generate_statement(stmt->true_case);
+        put_line_with_tab("jmp .Lend%d", lab);
+        put_line(".Lelse%d:", lab);
+        generate_statement(stmt->false_case);
+        put_line(".Lend%d:", lab);
+    }
+}
+
+
+/*
+generate assembler code of statement of kind STMT_SWITCH
+*/
+static void generate_stmt_switch(const Statement *stmt)
+{
+    int lab = lab_number;
+    int brk = brk_number;
+    brk_number = lab_number;
+    lab_number++;
+
+    generate_expression(stmt->cond);
+    generate_pop("rax");
+
+    for_each_entry(Statement, cursor, stmt->case_list)
+    {
+        Statement *s = get_element(Statement)(cursor);
+        int case_label = lab_number;
+        lab_number++;
+
+        s->case_label = case_label;
+        put_line_with_tab("cmp rax, %d", s->value);
+        put_line_with_tab("je .Lcase%d", case_label);
+    }
+    if(stmt->default_case != NULL)
+    {
+        int case_label = lab_number;
+        lab_number++;
+
+        stmt->default_case->case_label = case_label;
+        put_line_with_tab("jmp .Lcase%d", case_label);
+    }
+
+    generate_statement(stmt->body);
+    put_line(".Lbreak%d:", lab);
+
+    brk_number = brk;
+}
+
+
+/*
+generate assembler code of statement of kind STMT_SWITCH
+*/
+static void generate_stmt_while(const Statement *stmt)
+{
+    int lab = lab_number;
+    int brk = brk_number;
+    int cnt = cnt_number;
+    brk_number = cnt_number = lab_number;
+    lab_number++;
+
+    put_line(".Lbegin%d:", lab);
+    put_line(".Lcontinue%d:", lab);
+    generate_expression(stmt->cond);
+    generate_pop("rax");
+    put_line_with_tab("cmp rax, 0");
+    put_line_with_tab("je  .Lend%d", lab);
+    generate_statement(stmt->body);
+    put_line_with_tab("jmp .Lbegin%d", lab);
+    put_line(".Lend%d:", lab);
+    put_line(".Lbreak%d:", lab);
+
+    brk_number = brk;
+    cnt_number = cnt;
+}
+
+
+/*
+generate assembler code of statement of kind STMT_DO
+*/
+static void generate_stmt_do(const Statement *stmt)
+{
+    int lab = lab_number;
+    int brk = brk_number;
+    int cnt = cnt_number;
+    brk_number = cnt_number = lab_number;
+    lab_number++;
+
+    put_line(".Lbegin%d:", lab);
+    generate_statement(stmt->body);
+    put_line(".Lcontinue%d:", lab);
+    generate_expression(stmt->cond);
+    generate_pop("rax");
+    put_line_with_tab("cmp rax, 0");
+    put_line_with_tab("jne .Lbegin%d", lab);
+    put_line(".Lend%d:", lab);
+    put_line(".Lbreak%d:", lab);
+
+    brk_number = brk;
+    cnt_number = cnt;
+    return;
+}
+
+
+/*
+generate assembler code of statement of kind STMT_FOR
+*/
+static void generate_stmt_for(const Statement *stmt)
+{
+    int lab = lab_number;
+    int brk = brk_number;
+    int cnt = cnt_number;
+    brk_number = cnt_number = lab_number;
+    lab_number++;
+
+    if(stmt->preexpr != NULL)
+    {
+        generate_expression(stmt->preexpr);
+        generate_pop("rax");
+    }
+    if(stmt->predecl != NULL)
+    {
+        generate_statement(stmt->predecl);
+    }
+    put_line(".Lbegin%d:", lab);
+    if(stmt->cond != NULL)
+    {
+        generate_expression(stmt->cond);
+        generate_pop("rax");
+        put_line_with_tab("cmp rax, 0");
+        put_line_with_tab("je  .Lend%d", lab);
+    }
+    generate_statement(stmt->body);
+    put_line(".Lcontinue%d:", lab);
+    if(stmt->postexpr != NULL)
+    {
+        generate_expression(stmt->postexpr);
+        generate_pop("rax");
+    }
+    put_line_with_tab("jmp .Lbegin%d", lab);
+    put_line(".Lend%d:", lab);
+    put_line(".Lbreak%d:", lab);
+
+    brk_number = brk;
+    cnt_number = cnt;
+    return;
+}
+
+
+/*
+generate assembler code of statement of kind STMT_GOTO
+*/
+static void generate_stmt_goto(const Statement *stmt)
+{
+    put_line_with_tab("jmp .L%s", stmt->ident);
+}
+
+
+/*
+generate assembler code of statement of kind STMT_CONTINUE
+*/
+static void generate_stmt_continue(const Statement *stmt)
+{
+    put_line_with_tab("jmp .Lcontinue%d", cnt_number);
+}
+
+
+/*
+generate assembler code of statement of kind STMT_BREAK
+*/
+static void generate_stmt_break(const Statement *stmt)
+{
+    put_line_with_tab("jmp .Lbreak%d", brk_number);
+}
+
+
+/*
+generate assembler code of statement of kind STMT_RETURN
+*/
+static void generate_stmt_return(const Statement *stmt)
+{
+    if(stmt->expr != NULL)
+    {
+        // return value
+        generate_expression(stmt->expr);
+        if(is_struct_or_union(stmt->expr->type) && (adjust_alignment(stmt->expr->type->size, STACK_ALIGNMENT) == 16))
+        {
+            generate_pop("rax");
+            generate_pop("rdx");
+        }
+        else
+        {
+            generate_pop("rax");
+        }
+    }
+    put_line_with_tab("leave");
+    put_line_with_tab("ret");
 }
 
 
