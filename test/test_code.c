@@ -467,6 +467,22 @@ int test_comparision()
     assert_int(0, 42 > 6 * 7);
     assert_int(1, 42 >= 6 * 7);
 
+    float f = 1.0f;
+    assert_int(1, 1.0f == f); assert_int(0, 0.0f == f);
+    assert_int(0, 1.0f != f); assert_int(1, 0.0f != f);
+    assert_int(0, 1.0f < f); assert_int(1, 0.0f < f);
+    assert_int(1, 1.0f <= f); assert_int(0, 2.0f <= f);
+    assert_int(0, 1.0f > f); assert_int(1, 2.0f > f);
+    assert_int(1, 1.0f >= f); assert_int(0, 0.0f >= f);
+
+    double d = 2.0;
+    assert_int(1, 2.0 == d); assert_int(0, 0.0 == d);
+    assert_int(0, 2.0 != d); assert_int(1, 0.0 != d);
+    assert_int(0, 2.0 < d); assert_int(1, 0.0 < d);
+    assert_int(1, 2.0 <= d); assert_int(0, 3.0 <= d);
+    assert_int(0, 2.0 > d); assert_int(1, 3.0 > d);
+    assert_int(1, 2.0 >= d); assert_int(0, 0.0 >= d);
+
     return 0;
 }
 

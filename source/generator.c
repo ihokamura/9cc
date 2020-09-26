@@ -84,18 +84,14 @@ static void generate_stmt_goto(const Statement *stmt);
 static void generate_stmt_continue(const Statement *stmt);
 static void generate_stmt_break(const Statement *stmt);
 static void generate_stmt_return(const Statement *stmt);
-static void generate_binary(const Expression *expr, BinaryOperationKind kind);
-static void generate_binop_add_int(const Expression *expr);
-static void generate_binop_add_float(const Expression *expr);
+static void generate_binary_operation(const Expression *expr, BinaryOperationKind kind);
+static void generate_binop_add(const Expression *expr);
 static void generate_binop_ptr_add(const Expression *expr);
-static void generate_binop_sub_int(const Expression *expr);
-static void generate_binop_sub_float(const Expression *expr);
+static void generate_binop_sub(const Expression *expr);
 static void generate_binop_ptr_sub(const Expression *expr);
 static void generate_binop_ptr_diff(const Expression *expr);
-static void generate_binop_mul_int(const Expression *expr);
-static void generate_binop_mul_float(const Expression *expr);
-static void generate_binop_div_int(const Expression *expr);
-static void generate_binop_div_float(const Expression *expr);
+static void generate_binop_mul(const Expression *expr);
+static void generate_binop_div(const Expression *expr);
 static void generate_binop_mod(const Expression *expr);
 static void generate_binop_lshift(const Expression *expr);
 static void generate_binop_rshift(const Expression *expr);
@@ -156,6 +152,7 @@ static void generate_expr_and_eq(const Expression *expr);
 static void generate_expr_xor_eq(const Expression *expr);
 static void generate_expr_or_eq(const Expression *expr);
 static void generate_expr_comma(const Expression *expr);
+static void generate_expr_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_expr_compound_assignment(const Expression *expr, BinaryOperationKind kind);
 static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_xmm, List(Expression) *args_stack);
 static void put_line(const char *fmt, ...);
@@ -1259,148 +1256,126 @@ static void generate_stmt_return(const Statement *stmt)
 /*
 generate assembler code of binary operation
 */
-static void generate_binary(const Expression *expr, BinaryOperationKind kind)
+static void generate_binary_operation(const Expression *expr, BinaryOperationKind kind)
 {
-    if(is_floating(expr->type))
+    if(is_floating(expr->lhs->type))
     {
         // pop RHS to xmm1 and LHS to xmm0
         generate_pop_xmm(1);
         generate_pop_xmm(0);
-
-        // execute operation
-        switch(kind)
-        {
-        case BINOP_ADD:
-            generate_binop_add_float(expr);
-            break;
-
-        case BINOP_SUB:
-            generate_binop_sub_float(expr);
-            break;
-
-        case BINOP_MUL:
-            generate_binop_mul_float(expr);
-            break;
-
-        case BINOP_DIV:
-            generate_binop_div_float(expr);
-            break;
-
-        default:
-            break;
-        }
-
-        // push the result of operation
-        generate_push_xmm(0);
     }
     else
     {
         // pop RHS to rdi and LHS to rax
         generate_pop("rdi");
         generate_pop("rax");
+    }
 
-        // execute operation
-        switch(kind)
-        {
-        case BINOP_ADD:
-            generate_binop_add_int(expr);
-            break;
+    // execute operation
+    switch(kind)
+    {
+    case BINOP_ADD:
+        generate_binop_add(expr);
+        break;
 
-        case BINOP_PTR_ADD:
-            generate_binop_ptr_add(expr);
-            break;
+    case BINOP_PTR_ADD:
+        generate_binop_ptr_add(expr);
+        break;
 
-        case BINOP_SUB:
-            generate_binop_sub_int(expr);
-            break;
+    case BINOP_SUB:
+        generate_binop_sub(expr);
+        break;
 
-        case BINOP_PTR_SUB:
-            generate_binop_ptr_sub(expr);
-            break;
+    case BINOP_PTR_SUB:
+        generate_binop_ptr_sub(expr);
+        break;
 
-        case BINOP_PTR_DIFF:
-            generate_binop_ptr_diff(expr);
-            break;
+    case BINOP_PTR_DIFF:
+        generate_binop_ptr_diff(expr);
+        break;
 
-        case BINOP_MUL:
-            generate_binop_mul_int(expr);
-            break;
+    case BINOP_MUL:
+        generate_binop_mul(expr);
+        break;
 
-        case BINOP_DIV:
-            generate_binop_div_int(expr);
-            break;
+    case BINOP_DIV:
+        generate_binop_div(expr);
+        break;
 
-        case BINOP_MOD:
-            generate_binop_mod(expr);
-            break;
+    case BINOP_MOD:
+        generate_binop_mod(expr);
+        break;
 
-        case BINOP_LSHIFT:
-            generate_binop_lshift(expr);
-            break;
+    case BINOP_LSHIFT:
+        generate_binop_lshift(expr);
+        break;
 
-        case BINOP_RSHIFT:
-            generate_binop_rshift(expr);
-            break;
+    case BINOP_RSHIFT:
+        generate_binop_rshift(expr);
+        break;
 
-        case BINOP_EQ:
-            generate_binop_eq(expr);
-            break;
+    case BINOP_EQ:
+        generate_binop_eq(expr);
+        break;
 
-        case BINOP_NEQ:
-            generate_binop_neq(expr);
-            break;
+    case BINOP_NEQ:
+        generate_binop_neq(expr);
+        break;
 
-        case BINOP_L:
-            generate_binop_l(expr);
-            break;
+    case BINOP_L:
+        generate_binop_l(expr);
+        break;
 
-        case BINOP_LEQ:
-            generate_binop_leq(expr);
-            break;
+    case BINOP_LEQ:
+        generate_binop_leq(expr);
+        break;
 
-        case BINOP_AND:
-            generate_binop_and(expr);
-            break;
+    case BINOP_AND:
+        generate_binop_and(expr);
+        break;
 
-        case BINOP_XOR:
-            generate_binop_xor(expr);
-            break;
+    case BINOP_XOR:
+        generate_binop_xor(expr);
+        break;
 
-        case BINOP_OR:
-            generate_binop_or(expr);
-            break;
+    case BINOP_OR:
+        generate_binop_or(expr);
+        break;
 
-        default:
-            break;
-        }
+    default:
+        break;
+    }
 
-        // push the result of operation
+    // push the result of operation
+    if(is_floating(expr->type))
+    {
+        generate_push_xmm(0);
+    }
+    else
+    {
         generate_push_reg_or_mem("rax");
     }
 }
 
 
 /*
-generate assembler code of binary operation of kind BINOP_ADD for integer type
+generate assembler code of binary operation of kind BINOP_ADD
 */
-static void generate_binop_add_int(const Expression *expr)
+static void generate_binop_add(const Expression *expr)
 {
-    put_line_with_tab("add rax, rdi");
-}
-
-
-/*
-generate assembler code of binary operation of kind BINOP_ADD for floating type
-*/
-static void generate_binop_add_float(const Expression *expr)
-{
-    if(expr->type->kind == TY_FLOAT)
+    switch(expr->type->kind)
     {
+    case TY_FLOAT:
         put_line_with_tab("addss xmm0, xmm1");
-    }
-    else
-    {
+        break;
+
+    case TY_DOUBLE:
         put_line_with_tab("addsd xmm0, xmm1");
+        break;
+
+    default:
+        put_line_with_tab("add rax, rdi");
+        break;
     }
 }
 
@@ -1411,31 +1386,28 @@ generate assembler code of binary operation of kind BINOP_PTR_ADD
 static void generate_binop_ptr_add(const Expression *expr)
 {
     put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-    put_line_with_tab("add rax, rdi");
+    generate_binop_add(expr);
 }
 
 
 /*
-generate assembler code of binary operation of kind BINOP_SUB for integer type
+generate assembler code of binary operation of kind BINOP_SUB
 */
-static void generate_binop_sub_int(const Expression *expr)
+static void generate_binop_sub(const Expression *expr)
 {
-    put_line_with_tab("sub rax, rdi");
-}
-
-
-/*
-generate assembler code of binary operation of kind BINOP_SUB for floating type
-*/
-static void generate_binop_sub_float(const Expression *expr)
-{
-    if(expr->type->kind == TY_FLOAT)
+    switch(expr->type->kind)
     {
+    case TY_FLOAT:
         put_line_with_tab("subss xmm0, xmm1");
-    }
-    else
-    {
+        break;
+
+    case TY_DOUBLE:
         put_line_with_tab("subsd xmm0, xmm1");
+        break;
+
+    default:
+        put_line_with_tab("sub rax, rdi");
+        break;
     }
 }
 
@@ -1446,7 +1418,7 @@ generate assembler code of binary operation of kind BINOP_PTR_SUB
 static void generate_binop_ptr_sub(const Expression *expr)
 {
     put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-    put_line_with_tab("sub rax, rdi");
+    generate_binop_sub(expr);
 }
 
 
@@ -1463,53 +1435,46 @@ static void generate_binop_ptr_diff(const Expression *expr)
 
 
 /*
-generate assembler code of binary operation of kind BINOP_MUL for integer type
+generate assembler code of binary operation of kind BINOP_MUL
 */
-static void generate_binop_mul_int(const Expression *expr)
+static void generate_binop_mul(const Expression *expr)
 {
-    put_line_with_tab("imul rax, rdi");
-}
-
-
-/*
-generate assembler code of binary operation of kind BINOP_MUL for floating-type
-*/
-static void generate_binop_mul_float(const Expression *expr)
-{
-    if(expr->type->kind == TY_FLOAT)
+    switch(expr->type->kind)
     {
+    case TY_FLOAT:
         put_line_with_tab("mulss xmm0, xmm1");
-    }
-    else
-    {
+        break;
+
+    case TY_DOUBLE:
         put_line_with_tab("mulsd xmm0, xmm1");
+        break;
+
+    default:
+        put_line_with_tab("imul rax, rdi");
+        break;
     }
 }
 
 
 /*
-generate assembler code of binary operation of kind BINOP_DIV for integer type
+generate assembler code of binary operation of kind BINOP_DIV
 */
-static void generate_binop_div_int(const Expression *expr)
+static void generate_binop_div(const Expression *expr)
 {
-    put_line_with_tab("cqo");
-    put_line_with_tab("idiv rdi");
-
-}
-
-
-/*
-generate assembler code of binary operation of kind BINOP_DIV for floating type
-*/
-static void generate_binop_div_float(const Expression *expr)
-{
-    if(expr->type->kind == TY_FLOAT)
+    switch(expr->type->kind)
     {
+    case TY_FLOAT:
         put_line_with_tab("divss xmm0, xmm1");
-    }
-    else
-    {
-        put_line_with_tab("subsd xmm0, xmm1");
+        break;
+
+    case TY_DOUBLE:
+        put_line_with_tab("divsd xmm0, xmm1");
+        break;
+
+    default:
+        put_line_with_tab("cqo");
+        put_line_with_tab("idiv rdi");
+        break;
     }
 }
 
@@ -1550,9 +1515,20 @@ generate assembler code of binary operation of kind BINOP_EQ
 */
 static void generate_binop_eq(const Expression *expr)
 {
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("sete al");
-    put_line_with_tab("movzb rax, al");
+    if(is_floating(expr->lhs->type))
+    {
+        put_line_with_tab("%s xmm0, xmm1", (expr->lhs->type->kind == TY_FLOAT ? "ucomiss" : "ucomisd"));;
+        put_line_with_tab("setnp al");
+        put_line_with_tab("movzx eax, al");
+        put_line_with_tab("mov edx, 0");
+        put_line_with_tab("cmovne eax, edx");
+    }
+    else
+    {
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("sete al");
+        put_line_with_tab("movzb rax, al");
+    }
 }
 
 
@@ -1561,9 +1537,20 @@ generate assembler code of binary operation of kind BINOP_NEQ
 */
 static void generate_binop_neq(const Expression *expr)
 {
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("setne al");
-    put_line_with_tab("movzb rax, al");
+    if(is_floating(expr->lhs->type))
+    {
+        put_line_with_tab("%s xmm0, xmm1", (expr->lhs->type->kind == TY_FLOAT ? "ucomiss" : "ucomisd"));;
+        put_line_with_tab("setp al");
+        put_line_with_tab("movzx eax, al");
+        put_line_with_tab("mov edx, 1");
+        put_line_with_tab("cmovne eax, edx");
+    }
+    else
+    {
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("setne al");
+        put_line_with_tab("movzb rax, al");
+    }
 }
 
 
@@ -1572,9 +1559,18 @@ generate assembler code of binary operation of kind BINOP_L
 */
 static void generate_binop_l(const Expression *expr)
 {
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
-    put_line_with_tab("movzb rax, al");
+    if(is_floating(expr->lhs->type))
+    {
+        put_line_with_tab("%s xmm1, xmm0", (expr->lhs->type->kind == TY_FLOAT ? "comiss" : "comisd"));;
+        put_line_with_tab("seta al");
+        put_line_with_tab("movzx eax, al");
+    }
+    else
+    {
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
+        put_line_with_tab("movzb rax, al");
+    }
 }
 
 
@@ -1583,9 +1579,18 @@ generate assembler code of binary operation of kind BINOP_LEQ
 */
 static void generate_binop_leq(const Expression *expr)
 {
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
-    put_line_with_tab("movzb rax, al");
+    if(is_floating(expr->lhs->type))
+    {
+        put_line_with_tab("%s xmm1, xmm0", (expr->lhs->type->kind == TY_FLOAT ? "comiss" : "comisd"));;
+        put_line_with_tab("setnb al");
+        put_line_with_tab("movzx eax, al");
+    }
+    else
+    {
+        put_line_with_tab("cmp rax, rdi");
+        put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
+        put_line_with_tab("movzb rax, al");
+    }
 }
 
 
@@ -2008,7 +2013,17 @@ static void generate_expr_post_inc(const Expression *expr)
     put_line_with_tab("mov rdx, rax");
     generate_push_reg_or_mem("rax");
     generate_push_imm(1);
-    generate_binary(expr, (is_integer(expr->type) ? BINOP_ADD : BINOP_PTR_ADD));
+    generate_pop("rdi");
+    generate_pop("rax");
+    if(is_integer(expr->type))
+    {
+        generate_binop_add(expr);
+    }
+    else
+    {
+        generate_binop_ptr_add(expr);
+    }
+    generate_push_reg_or_mem("rax");
     generate_store(expr->type);
     generate_pop("rax");
     generate_push_reg_or_mem("rdx");
@@ -2027,7 +2042,17 @@ static void generate_expr_post_dec(const Expression *expr)
     put_line_with_tab("mov rdx, rax");
     generate_push_reg_or_mem("rax");
     generate_push_imm(1);
-    generate_binary(expr, (is_integer(expr->type) ? BINOP_SUB : BINOP_PTR_SUB));
+    generate_pop("rdi");
+    generate_pop("rax");
+    if(is_integer(expr->type))
+    {
+        generate_binop_sub(expr);
+    }
+    else
+    {
+        generate_binop_ptr_sub(expr);
+    }
+    generate_push_reg_or_mem("rax");
     generate_store(expr->type);
     generate_pop("rax");
     generate_push_reg_or_mem("rdx");
@@ -2144,41 +2169,7 @@ generate assembler code of expression of kind EXPR_MUL
 */
 static void generate_expr_mul(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    if(is_floating(expr->type))
-    {
-        // pop RHS to xmm1 and LHS to xmm0
-        generate_pop_xmm(1);
-        generate_pop_xmm(0);
-
-        // execute operation
-        if(expr->type->kind == TY_FLOAT)
-        {
-            put_line_with_tab("mulss xmm0, xmm1");
-        }
-        else
-        {
-            put_line_with_tab("mulsd xmm0, xmm1");
-        }
-
-        // push the result of operation
-        generate_push_xmm(0);
-    }
-    else
-    {
-        // pop RHS to rdi and LHS to rax
-        generate_pop("rdi");
-        generate_pop("rax");
-
-        // execute operation
-        put_line_with_tab("imul rax, rdi");
-
-        // push the result of operation
-        generate_push_reg_or_mem("rax");
-    }
+    generate_expr_binary(expr, BINOP_MUL);
 }
 
 
@@ -2187,42 +2178,7 @@ generate assembler code of expression of kind EXPR_DIV
 */
 static void generate_expr_div(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    if(is_floating(expr->type))
-    {
-        // pop RHS to xmm1 and LHS to xmm0
-        generate_pop_xmm(1);
-        generate_pop_xmm(0);
-
-        // execute operation
-        if(expr->type->kind == TY_FLOAT)
-        {
-            put_line_with_tab("divss xmm0, xmm1");
-        }
-        else
-        {
-            put_line_with_tab("divsd xmm0, xmm1");
-        }
-
-        // push the result of operation
-        generate_push_xmm(0);
-    }
-    else
-    {
-        // pop RHS to rdi and LHS to rax
-        generate_pop("rdi");
-        generate_pop("rax");
-
-        // execute operation
-        put_line_with_tab("cqo");
-        put_line_with_tab("idiv rdi");
-
-        // push the result of operation
-        generate_push_reg_or_mem("rax");
-    }
+    generate_expr_binary(expr, BINOP_DIV);
 }
 
 
@@ -2231,21 +2187,7 @@ generate assembler code of expression of kind EXPR_MOD
 */
 static void generate_expr_mod(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("cqo");
-    put_line_with_tab("idiv rdi");
-    put_line_with_tab("mov rax, rdx");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_MOD);
 }
 
 
@@ -2254,41 +2196,7 @@ generate assembler code of expression of kind EXPR_ADD
 */
 static void generate_expr_add(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    if(is_floating(expr->type))
-    {
-        // pop RHS to xmm1 and LHS to xmm0
-        generate_pop_xmm(1);
-        generate_pop_xmm(0);
-
-        // execute operation
-        if(expr->type->kind == TY_FLOAT)
-        {
-            put_line_with_tab("addss xmm0, xmm1");
-        }
-        else
-        {
-            put_line_with_tab("addsd xmm0, xmm1");
-        }
-
-        // push the result of operation
-        generate_push_xmm(0);
-    }
-    else
-    {
-        // pop RHS to rdi and LHS to rax
-        generate_pop("rdi");
-        generate_pop("rax");
-
-        // execute operation
-        put_line_with_tab("add rax, rdi");
-
-        // push the result of operation
-        generate_push_reg_or_mem("rax");
-    }
+    generate_expr_binary(expr, BINOP_ADD);
 }
 
 
@@ -2297,20 +2205,7 @@ generate assembler code of expression of kind EXPR_PTR_ADD
 */
 static void generate_expr_ptr_add(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-    put_line_with_tab("add rax, rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_PTR_ADD);
 }
 
 
@@ -2319,41 +2214,7 @@ generate assembler code of expression of kind EXPR_SUB
 */
 static void generate_expr_sub(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    if(is_floating(expr->type))
-    {
-        // pop RHS to xmm1 and LHS to xmm0
-        generate_pop_xmm(1);
-        generate_pop_xmm(0);
-
-        // execute operation
-        if(expr->type->kind == TY_FLOAT)
-        {
-            put_line_with_tab("subss xmm0, xmm1");
-        }
-        else
-        {
-            put_line_with_tab("subsd xmm0, xmm1");
-        }
-
-        // push the result of operation
-        generate_push_xmm(0);
-    }
-    else
-    {
-        // pop RHS to rdi and LHS to rax
-        generate_pop("rdi");
-        generate_pop("rax");
-
-        // execute operation
-        put_line_with_tab("sub rax, rdi");
-
-        // push the result of operation
-        generate_push_reg_or_mem("rax");
-    }
+    generate_expr_binary(expr, BINOP_SUB);
 }
 
 
@@ -2362,20 +2223,7 @@ generate assembler code of expression of kind EXPR_PTR_SUB
 */
 static void generate_expr_ptr_sub(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("imul rdi, %lu", expr->type->base->size);
-    put_line_with_tab("sub rax, rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_PTR_SUB);
 }
 
 
@@ -2384,22 +2232,7 @@ generate assembler code of expression of kind EXPR_PTR_DIFF
 */
 static void generate_expr_ptr_diff(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("sub rax, rdi");
-    put_line_with_tab("cqo");
-    put_line_with_tab("mov rdi, %lu", expr->lhs->type->base->size);
-    put_line_with_tab("idiv rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_PTR_DIFF);
 }
 
 
@@ -2408,20 +2241,7 @@ generate assembler code of expression of kind EXPR_LSHIFT
 */
 static void generate_expr_lshift(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("mov rcx, rdi");
-    put_line_with_tab("shl rax, cl");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_LSHIFT);
 }
 
 
@@ -2430,20 +2250,7 @@ generate assembler code of expression of kind EXPR_RSHIFT
 */
 static void generate_expr_rshift(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("mov rcx, rdi");
-    put_line_with_tab("sar rax, cl");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_RSHIFT);
 }
 
 
@@ -2452,21 +2259,7 @@ generate assembler code of expression of kind EXPR_EQ
 */
 static void generate_expr_eq(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("sete al");
-    put_line_with_tab("movzb rax, al");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_EQ);
 }
 
 
@@ -2475,21 +2268,7 @@ generate assembler code of expression of kind EXPR_NEQ
 */
 static void generate_expr_neq(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("setne al");
-    put_line_with_tab("movzb rax, al");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_NEQ);
 }
 
 
@@ -2498,21 +2277,7 @@ generate assembler code of expression of kind EXPR_L
 */
 static void generate_expr_l(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
-    put_line_with_tab("movzb rax, al");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_L);
 }
 
 
@@ -2521,21 +2286,7 @@ generate assembler code of expression of kind EXPR_LEQ
 */
 static void generate_expr_leq(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("cmp rax, rdi");
-    put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
-    put_line_with_tab("movzb rax, al");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_LEQ);
 }
 
 
@@ -2544,19 +2295,7 @@ generate assembler code of expression of kind EXPR_BIT_AND
 */
 static void generate_expr_bit_and(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("and rax, rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_AND);
 }
 
 
@@ -2565,19 +2304,7 @@ generate assembler code of expression of kind EXPR_BIT_XOR
 */
 static void generate_expr_bit_xor(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("xor rax, rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_XOR);
 }
 
 
@@ -2586,19 +2313,7 @@ generate assembler code of expression of kind EXPR_BIT_OR
 */
 static void generate_expr_bit_or(const Expression *expr)
 {
-    // compile LHS and RHS
-    generate_expression(expr->lhs);
-    generate_expression(expr->rhs);
-
-    // pop RHS to rdi and LHS to rax
-    generate_pop("rdi");
-    generate_pop("rax");
-
-    // execute operation
-    put_line_with_tab("or rax, rdi");
-
-    // push the result of operation
-    generate_push_reg_or_mem("rax");
+    generate_expr_binary(expr, BINOP_OR);
 }
 
 
@@ -2809,6 +2524,17 @@ static void generate_expr_comma(const Expression *expr)
 
 
 /*
+generate assembler code of an expression with a binary operator
+*/
+static void generate_expr_binary(const Expression *expr, BinaryOperationKind kind)
+{
+    generate_expression(expr->lhs);
+    generate_expression(expr->rhs);
+    generate_binary_operation(expr, kind);
+}
+
+
+/*
 generate assembler code of a compound assignment expression
 */
 static void generate_expr_compound_assignment(const Expression *expr, BinaryOperationKind kind)
@@ -2817,7 +2543,7 @@ static void generate_expr_compound_assignment(const Expression *expr, BinaryOper
     generate_push_reg_or_mem("[rsp]");
     generate_load(expr->lhs->type);
     generate_expression(expr->rhs);
-    generate_binary(expr, kind);
+    generate_binary_operation(expr, kind);
     generate_store(expr->type);
 }
 
