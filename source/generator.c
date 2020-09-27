@@ -2172,21 +2172,72 @@ generate assembler code of expression of kind EXPR_CAST
 */
 static void generate_expr_cast(const Expression *expr)
 {
+    TypeKind kind_from = expr->operand->type->kind;
+    TypeKind kind_to = expr->type->kind;
+
     generate_expression(expr->operand);
-    generate_pop("rax");
-    if(expr->type->size == 1)
+    if(is_floating(expr->operand->type))
     {
-        put_line_with_tab("movsxb rax, al");
+        generate_pop_xmm(0);
+        if(kind_from == TY_FLOAT)
+        {
+            if(kind_to == TY_DOUBLE)
+            {
+                put_line_with_tab("cvtss2sd xmm0, xmm0");
+            }
+            else
+            {
+                put_line_with_tab("cvtss2si rax, xmm0");
+            }
+        }
+        else
+        {
+            if(kind_to == TY_FLOAT)
+            {
+                put_line_with_tab("cvtsd2ss xmm0, xmm0");
+            }
+            else
+            {
+                put_line_with_tab("cvtsd2si rax, xmm0");
+            }
+        }
     }
-    else if(expr->type->size == 2)
+    else
     {
-        put_line_with_tab("movsxw rax, ax");
+        generate_pop("rax");
+        if(kind_to == TY_FLOAT)
+        {
+            put_line_with_tab("cvtsi2ss xmm0, rax");
+        }
+        else if(kind_to == TY_DOUBLE)
+        {
+            put_line_with_tab("cvtsi2sd xmm0, rax");
+        }
+        else
+        {
+            if(expr->type->size == 1)
+            {
+                put_line_with_tab("movsxb rax, al");
+            }
+            else if(expr->type->size == 2)
+            {
+                put_line_with_tab("movsxw rax, ax");
+            }
+            else if(expr->type->size == 4)
+            {
+                put_line_with_tab("movsxd rax, eax");
+            }
+        }
     }
-    else if(expr->type->size == 4)
+
+    if(is_floating(expr->type))
     {
-        put_line_with_tab("movsxd rax, eax");
+        generate_push_xmm(0);
     }
-    generate_push_reg_or_mem("rax");
+    else
+    {
+        generate_push_reg_or_mem("rax");
+    }
 }
 
 

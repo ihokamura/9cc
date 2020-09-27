@@ -115,6 +115,7 @@ struct Type
 Type *new_type(TypeKind kind, TypeQualifier qual);
 ListEntry(Type) *new_type_list(Type *element);
 Type *copy_type(const Type *type, TypeQualifier qual);
+Type *make_atomic_type(const Type *type);
 int get_conversion_rank(const Type *type);
 Type *discard_sign(const Type *type);
 long get_bitfield_width(const Type *type);

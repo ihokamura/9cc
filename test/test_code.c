@@ -483,6 +483,9 @@ int test_cast()
     l = 4294967295; i = (int)l; assert_int(4294967295, i);
     l = 4294967296; i = (int)l; assert_int(0, i);
 
+    float f = 1.0f; assert_double(1.0, (double)f); assert_int(1, (int)f); assert_float(f, (float)1);
+    double d = 2.0; assert_float(2.0f, (float)d); assert_int(2, (int)d); assert_double(d, (double)2);
+
     return 0;
 }
 

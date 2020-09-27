@@ -35,6 +35,9 @@ define_list_operations(Type)
 #define WIDTHOF_LONG     (8 * SIZEOF_LONG)
 #define WIDTHOF_ENUM     (WIDTHOF_INT)
 
+// function prototype
+static bool is_reserved_kind(TypeKind kind);
+
 // global variable
 static Type void_types[] = {
     {TY_VOID, SIZEOF_VOID, ALIGNOF_VOID, TQ_NONE,                              false},
@@ -176,6 +179,22 @@ static Type ldouble_types[] = {
     {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_RESTRICT | TQ_VOLATILE,            true},
     {TY_LDOUBLE, SIZEOF_LDOUBLE, ALIGNOF_LDOUBLE, TQ_CONST | TQ_RESTRICT | TQ_VOLATILE, true},
 };
+static Type *reserved_types[] = {
+    void_types,
+    bool_types,
+    char_types,
+    schar_types,
+    uchar_types,
+    short_types,
+    ushort_types,
+    int_types,
+    uint_types,
+    long_types,
+    ulong_types,
+    float_types,
+    double_types,
+    ldouble_types,
+};
 
 
 /*
@@ -185,65 +204,12 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
 {
     Type *type;
 
-    switch(kind)
+    if(is_reserved_kind(kind))
     {
-    case TY_VOID:
-        type = &void_types[qual];
-        break;
-
-    case TY_BOOL:
-        type = &bool_types[qual];
-        break;
-
-    case TY_CHAR:
-        type = &char_types[qual];
-        break;
-
-    case TY_SCHAR:
-        type = &schar_types[qual];
-        break;
-
-    case TY_UCHAR:
-        type = &uchar_types[qual];
-        break;
-
-    case TY_SHORT:
-        type = &short_types[qual];
-        break;
-
-    case TY_USHORT:
-        type = &ushort_types[qual];
-        break;
-
-    case TY_INT:
-        type = &int_types[qual];
-        break;
-
-    case TY_UINT:
-        type = &uint_types[qual];
-        break;
-
-    case TY_LONG:
-        type = &long_types[qual];
-        break;
-
-    case TY_ULONG:
-        type = &ulong_types[qual];
-        break;
-
-    case TY_FLOAT:
-        type = &float_types[qual];
-        break;
-
-    case TY_DOUBLE:
-        type = &double_types[qual];
-        break;
-
-    case TY_LDOUBLE:
-        type = &ldouble_types[qual];
-        break;
-
-    default:
+        type = &reserved_types[kind][qual];
+    }
+    else
+    {
         type = calloc(1, sizeof(Type));
         type->size = 0;
         type->align = 0;
@@ -256,7 +222,6 @@ Type *new_type(TypeKind kind, TypeQualifier qual)
         type->members = NULL;
         type->atomic = false;
         type->variadic = false;
-        break;
     }
 
     return type;
@@ -268,9 +233,31 @@ copy a type
 */
 Type *copy_type(const Type *type, TypeQualifier qual)
 {
+    Type *copy;
+
+    if(is_reserved_kind(type->kind))
+    {
+        copy = &reserved_types[type->kind][qual];
+    }
+    else
+    {
+        copy = calloc(1, sizeof(Type));
+        *copy = *type;
+        copy->qual = qual;
+    }
+
+    return copy;
+}
+
+
+/*
+make an atomic type
+*/
+Type *make_atomic_type(const Type *type)
+{
     Type *copy = calloc(1, sizeof(Type));
     *copy = *type;
-    copy->qual = qual;
+    copy->atomic = true;
 
     return copy;
 }
@@ -764,4 +751,13 @@ adjust alignment
 size_t adjust_alignment(size_t target, size_t alignment)
 {
     return (target + (alignment - 1)) & ~(alignment - 1);
+}
+
+
+/*
+check if a given kind of type is reserved
+*/
+static bool is_reserved_kind(TypeKind kind)
+{
+    return (TY_VOID <= kind) && (kind <= TY_LDOUBLE);
 }

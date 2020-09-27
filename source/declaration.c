@@ -742,8 +742,7 @@ static Type *atomic_type_specifier(void)
     }
     else
     {
-        type = copy_type(applied_type, applied_type->qual);
-        type->atomic = true;
+        type = make_atomic_type(applied_type);
     }
     expect_reserved(")");
 
