@@ -5,10 +5,13 @@ COMPILER=$1
 ASSEMBLY=$2
 BINARY=$3
 WORKSPACE=$(pwd)/test
+ORIGINAL=$WORKSPACE/test_code.c
+PREPROCESSED=$WORKSPACE/tmp.c
 
 
 # compile test code
-$COMPILER $WORKSPACE/test_code.c > $WORKSPACE/$ASSEMBLY
+gcc -E $ORIGINAL | grep -v '#' > $PREPROCESSED
+$COMPILER $PREPROCESSED > $WORKSPACE/$ASSEMBLY
 gcc -g -static -o $WORKSPACE/$BINARY $WORKSPACE/$ASSEMBLY $WORKSPACE/function_call.c
 
 if [ "$?" == 0 ]; then
@@ -26,3 +29,7 @@ else
     echo "failed to compile"
     exit 1
 fi
+
+
+# remove intermediate files
+rm $PREPROCESSED

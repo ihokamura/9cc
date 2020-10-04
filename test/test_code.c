@@ -2,6 +2,13 @@
 test code for 9cc compiler
 */
 
+// indicator of feature enabled or disabled
+#define ENABLED     (1)
+#define DISABLED    (0)
+
+// features
+#define INCLUDE_FLOATING_POINT_TYPE    (ENABLED) // include tests on floating-point types
+
 // type definition
 struct param_t1 {long m0; long m1; char m2;};
 struct param_t2 {int m0; char m1; long m2;};
@@ -178,6 +185,7 @@ int assert_pointer(const void *expected, const void *actual)
 }
 
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
 /*
 assertion for float type
 */
@@ -212,6 +220,7 @@ int assert_double(double expected, double actual)
         return 1;
     }
 }
+#endif
 
 
 /*
@@ -237,8 +246,10 @@ int test_additive()
 
     assert_int(21, 5+20-4);
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_float(21.0f, 5.0f+20.0f-4.0f);
     assert_double(21.0, 5.0+20.0-4.0);
+#endif
 
     return 0;
 }
@@ -257,8 +268,10 @@ int test_multiplicative()
     assert_int(0, 123 % 3);
     assert_int(1, ((123 + 1) % 5) % 3);
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_float(3.0f, 0.5f * (9.0f - 6.0f / 2.0f));
     assert_double(3.0, 0.5 * (9.0 - 6.0 / 2.0));
+#endif
 
     return 0;
 }
@@ -483,8 +496,10 @@ int test_cast()
     l = 4294967295; i = (int)l; assert_int(4294967295, i);
     l = 4294967296; i = (int)l; assert_int(0, i);
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     float f = 1.0f; assert_double(1.0, (double)f); assert_int(1, (int)f); assert_float(f, (float)1);
     double d = 2.0; assert_float(2.0f, (float)d); assert_int(2, (int)d); assert_double(d, (double)2);
+#endif
 
     return 0;
 }
@@ -504,6 +519,7 @@ int test_comparision()
     assert_int(0, 42 > 6 * 7);
     assert_int(1, 42 >= 6 * 7);
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     float f = 1.0f;
     assert_int(1, 1.0f == f); assert_int(0, 0.0f == f);
     assert_int(0, 1.0f != f); assert_int(1, 0.0f != f);
@@ -519,6 +535,7 @@ int test_comparision()
     assert_int(1, 2.0 <= d); assert_int(0, 3.0 <= d);
     assert_int(0, 2.0 > d); assert_int(1, 3.0 > d);
     assert_int(1, 2.0 >= d); assert_int(0, 0.0 >= d);
+#endif
 
     return 0;
 }
@@ -1530,6 +1547,7 @@ int test_integer_constant()
 }
 
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
 /*
 floating-constant
 */
@@ -1542,6 +1560,7 @@ int test_floating_constant()
 
     return 0;
 }
+#endif
 
 
 /*
@@ -1986,7 +2005,9 @@ int main()
     test_enum();
     test_string_literal();
     test_integer_constant();
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     test_floating_constant();
+#endif
     test_character_constant();
     test_initializer();
     test_scope();
