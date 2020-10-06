@@ -62,7 +62,8 @@ int put_title(char *title)
 /*
 assertion for bool type
 */
-int assert_bool(_Bool expected, _Bool actual)
+#define assert_bool(expected, actual)  assert_bool_wrap(__FILE__, __LINE__, expected, actual)
+int assert_bool_wrap(const char *file, int line, _Bool expected, _Bool actual)
 {
     if(expected == actual)
     {
@@ -70,7 +71,7 @@ int assert_bool(_Bool expected, _Bool actual)
     }
     else
     {
-        printf("%d expected, but got %d\n", expected, actual);
+        printf("%s(%d): %d expected, but got %d\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -80,7 +81,8 @@ int assert_bool(_Bool expected, _Bool actual)
 /*
 assertion for char type
 */
-int assert_char(char expected, char actual)
+#define assert_char(expected, actual)  assert_char_wrap(__FILE__, __LINE__, expected, actual)
+int assert_char_wrap(const char *file, int line, char expected, char actual)
 {
     if(expected == actual)
     {
@@ -88,7 +90,7 @@ int assert_char(char expected, char actual)
     }
     else
     {
-        printf("%d expected, but got %d\n", expected, actual);
+        printf("%s(%d): %d expected, but got %d\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -98,7 +100,8 @@ int assert_char(char expected, char actual)
 /*
 assertion for short type
 */
-int assert_short(short expected, short actual)
+#define assert_short(expected, actual)  assert_short_wrap(__FILE__, __LINE__, expected, actual)
+int assert_short_wrap(const char *file, int line, short expected, short actual)
 {
     if(expected == actual)
     {
@@ -106,7 +109,7 @@ int assert_short(short expected, short actual)
     }
     else
     {
-        printf("%d expected, but got %d\n", expected, actual);
+        printf("%s(%d): %d expected, but got %d\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -116,7 +119,8 @@ int assert_short(short expected, short actual)
 /*
 assertion for int type
 */
-int assert_int(int expected, int actual)
+#define assert_int(expected, actual)  assert_int_wrap(__FILE__, __LINE__, expected, actual)
+int assert_int_wrap(const char *file, int line, int expected, int actual)
 {
     if(expected == actual)
     {
@@ -124,7 +128,7 @@ int assert_int(int expected, int actual)
     }
     else
     {
-        printf("%d expected, but got %d\n", expected, actual);
+        printf("%s(%d): %d expected, but got %d\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -134,7 +138,8 @@ int assert_int(int expected, int actual)
 /*
 assertion for long type
 */
-int assert_long(long expected, long actual)
+#define assert_long(expected, actual)  assert_long_wrap(__FILE__, __LINE__, expected, actual)
+int assert_long_wrap(const char *file, int line, long expected, long actual)
 {
     if(expected == actual)
     {
@@ -142,7 +147,7 @@ int assert_long(long expected, long actual)
     }
     else
     {
-        printf("%ld expected, but got %ld\n", expected, actual);
+        printf("%s(%d): %ld expected, but got %ld\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -152,7 +157,8 @@ int assert_long(long expected, long actual)
 /*
 assertion for long long type
 */
-int assert_longlong(long long expected, long long actual)
+#define assert_longlong(expected, actual)  assert_longlong_wrap(__FILE__, __LINE__, expected, actual)
+int assert_longlong_wrap(const char *file, int line, long long expected, long long actual)
 {
     if(expected == actual)
     {
@@ -160,7 +166,7 @@ int assert_longlong(long long expected, long long actual)
     }
     else
     {
-        printf("%lld expected, but got %lld\n", expected, actual);
+        printf("%s(%d): %lld expected, but got %lld\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -170,7 +176,8 @@ int assert_longlong(long long expected, long long actual)
 /*
 assertion for pointer type
 */
-int assert_pointer(const void *expected, const void *actual)
+#define assert_pointer(expected, actual)  assert_pointer_wrap(__FILE__, __LINE__, expected, actual)
+int assert_pointer_wrap(const char *file, int line, const void *expected, const void *actual)
 {
     if(expected == actual)
     {
@@ -178,7 +185,8 @@ int assert_pointer(const void *expected, const void *actual)
     }
     else
     {
-        printf("%p expected, but got %p\n", expected, actual);
+        
+        printf("%s(%d): %p expected, but got %p\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -189,7 +197,8 @@ int assert_pointer(const void *expected, const void *actual)
 /*
 assertion for float type
 */
-int assert_float(float expected, float actual)
+#define assert_float(expected, actual)  assert_float_wrap(__FILE__, __LINE__, expected, actual)
+int assert_float_wrap(const char *file, int line, float expected, float actual)
 {
     if(expected == actual)
     {
@@ -197,7 +206,7 @@ int assert_float(float expected, float actual)
     }
     else
     {
-        printf("%f expected, but got %f\n", expected, actual);
+        printf("%s(%d): %f expected, but got %f\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
@@ -207,7 +216,8 @@ int assert_float(float expected, float actual)
 /*
 assertion for double type
 */
-int assert_double(double expected, double actual)
+#define assert_double(expected, actual)  assert_double_wrap(__FILE__, __LINE__, expected, actual)
+int assert_double_wrap(const char *file, int line, double expected, double actual)
 {
     if(expected == actual)
     {
@@ -215,7 +225,7 @@ int assert_double(double expected, double actual)
     }
     else
     {
-        printf("%f expected, but got %f\n", expected, actual);
+        printf("%s(%d): %f expected, but got %f\n", file, line, expected, actual);
         exit(1);
         return 1;
     }
