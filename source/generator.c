@@ -27,6 +27,8 @@
 #include <assert.h>
 #endif /* CHECK_STACK_SIZE */
 
+#define generate_statement(stmt) generate_stmt_functions[stmt->kind](stmt)
+#define generate_expression(expr) generate_expr_functions[expr->kind](expr)
 
 // type definition
 typedef enum BinaryOperationKind BinaryOperationKind;
@@ -68,7 +70,6 @@ static void generate_gvar_data(const Type *type, const Expression *expr);
 static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
 static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack);
-static void generate_statement(const Statement *stmt);
 static void generate_stmt_label(const Statement *stmt);
 static void generate_stmt_case(const Statement *stmt);
 static void generate_stmt_compound(const Statement *stmt);
@@ -102,7 +103,6 @@ static void generate_binop_leq(const Expression *expr);
 static void generate_binop_and(const Expression *expr);
 static void generate_binop_xor(const Expression *expr);
 static void generate_binop_or(const Expression *expr);
-static void generate_expression(const Expression *expr);
 static void generate_expr_const(const Expression *expr);
 static void generate_expr_var(const Expression *expr);
 static void generate_expr_generic(const Expression *expr);
@@ -154,6 +154,8 @@ static void generate_expr_or_eq(const Expression *expr);
 static void generate_expr_comma(const Expression *expr);
 static void generate_expr_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_expr_compound_assignment(const Expression *expr, BinaryOperationKind kind);
+static void generate_save_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm);
+static void generate_restore_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm);
 static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_xmm, List(Expression) *args_stack);
 static void put_line(const char *fmt, ...);
 static void put_line_with_tab(const char *fmt, ...);
@@ -180,6 +182,99 @@ static unsigned int gp_offset; // offset from reg_save_area to the place where t
     * `lab_number` is saved and incremented at the top of each sub-functions.
     * `brk_number` and `cnt_number` are saved at the top of each sub-functions and restored at the end of each sub-functions.
 */
+// list of functions to generate statement
+static const void (*generate_stmt_functions[])(const Statement *) = 
+{    
+    generate_stmt_label,
+    generate_stmt_case,
+    generate_stmt_compound,
+    generate_stmt_decl,
+    generate_stmt_expr,
+    generate_stmt_null,
+    generate_stmt_if,
+    generate_stmt_switch,
+    generate_stmt_while,
+    generate_stmt_do,
+    generate_stmt_for,
+    generate_stmt_goto,
+    generate_stmt_continue,
+    generate_stmt_break,
+    generate_stmt_return,
+};
+// list of functions to generate binary operation
+static const void (*generate_binop_functions[])(const Expression *) = 
+{
+    generate_binop_add,
+    generate_binop_ptr_add,
+    generate_binop_sub,
+    generate_binop_ptr_sub,
+    generate_binop_ptr_diff,
+    generate_binop_mul,
+    generate_binop_div,
+    generate_binop_mod,
+    generate_binop_lshift,
+    generate_binop_rshift,
+    generate_binop_eq,
+    generate_binop_neq,
+    generate_binop_l,
+    generate_binop_leq,
+    generate_binop_and,
+    generate_binop_xor,
+    generate_binop_or,
+};
+// list of functions to generate expression
+static const void (*generate_expr_functions[])(const Expression *) = 
+{
+    generate_expr_const,
+    generate_expr_var,
+    generate_expr_generic,
+    generate_expr_func,
+    generate_expr_member,
+    generate_expr_post_inc,
+    generate_expr_post_dec,
+    generate_expr_compound,
+    generate_expr_addr,
+    generate_expr_deref,
+    generate_expr_plus,
+    generate_expr_minus,
+    generate_expr_compl,
+    generate_expr_neg,
+    generate_expr_cast,
+    generate_expr_mul,
+    generate_expr_div,
+    generate_expr_mod,
+    generate_expr_add,
+    generate_expr_ptr_add,
+    generate_expr_sub,
+    generate_expr_ptr_sub,
+    generate_expr_ptr_diff,
+    generate_expr_lshift,
+    generate_expr_rshift,
+    generate_expr_eq,
+    generate_expr_neq,
+    generate_expr_l,
+    generate_expr_leq,
+    generate_expr_bit_and,
+    generate_expr_bit_xor,
+    generate_expr_bit_or,
+    generate_expr_log_and,
+    generate_expr_log_or,
+    generate_expr_cond,
+    generate_expr_assign,
+    generate_expr_add_eq,
+    generate_expr_ptr_add_eq,
+    generate_expr_sub_eq,
+    generate_expr_ptr_sub_eq,
+    generate_expr_mul_eq,
+    generate_expr_div_eq,
+    generate_expr_mod_eq,
+    generate_expr_lshift_eq,
+    generate_expr_rshift_eq,
+    generate_expr_and_eq,
+    generate_expr_xor_eq,
+    generate_expr_or_eq,
+    generate_expr_comma,
+};
 
 
 /*
@@ -918,80 +1013,6 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
 
 
 /*
-generate assembler code of a statement
-*/
-static void generate_statement(const Statement *stmt)
-{
-
-    switch(stmt->kind)
-    {
-    case STMT_LABEL:
-        generate_stmt_label(stmt);
-        return;
-
-    case STMT_CASE:
-        generate_stmt_case(stmt);
-        return;
-
-    case STMT_COMPOUND:
-        generate_stmt_compound(stmt);
-        return;
-
-    case STMT_DECL:
-        generate_stmt_decl(stmt);
-        return;
-
-    case STMT_EXPR:
-        generate_stmt_expr(stmt);
-        return;
-
-    case STMT_NULL:
-        generate_stmt_null(stmt);
-        return;
-
-    case STMT_IF:
-        generate_stmt_if(stmt);
-        return;
-
-    case STMT_SWITCH:
-        generate_stmt_switch(stmt);
-        return;
-
-    case STMT_WHILE:
-        generate_stmt_while(stmt);
-        return;
-
-    case STMT_DO:
-        generate_stmt_do(stmt);
-        return;
-
-    case STMT_FOR:
-        generate_stmt_for(stmt);
-        return;
-
-    case STMT_GOTO:
-        generate_stmt_goto(stmt);
-        return;
-
-    case STMT_CONTINUE:
-        generate_stmt_continue(stmt);
-        return;
-
-    case STMT_BREAK:
-        generate_stmt_break(stmt);
-        return;
-
-    case STMT_RETURN:
-        generate_stmt_return(stmt);
-        return;
-
-    default:
-        break;
-    }
-}
-
-
-/*
 generate assembler code of statement of kind STMT_LABEL
 */
 static void generate_stmt_label(const Statement *stmt)
@@ -1298,79 +1319,7 @@ static void generate_binary_operation(const Expression *expr, BinaryOperationKin
     }
 
     // execute operation
-    switch(kind)
-    {
-    case BINOP_ADD:
-        generate_binop_add(expr);
-        break;
-
-    case BINOP_PTR_ADD:
-        generate_binop_ptr_add(expr);
-        break;
-
-    case BINOP_SUB:
-        generate_binop_sub(expr);
-        break;
-
-    case BINOP_PTR_SUB:
-        generate_binop_ptr_sub(expr);
-        break;
-
-    case BINOP_PTR_DIFF:
-        generate_binop_ptr_diff(expr);
-        break;
-
-    case BINOP_MUL:
-        generate_binop_mul(expr);
-        break;
-
-    case BINOP_DIV:
-        generate_binop_div(expr);
-        break;
-
-    case BINOP_MOD:
-        generate_binop_mod(expr);
-        break;
-
-    case BINOP_LSHIFT:
-        generate_binop_lshift(expr);
-        break;
-
-    case BINOP_RSHIFT:
-        generate_binop_rshift(expr);
-        break;
-
-    case BINOP_EQ:
-        generate_binop_eq(expr);
-        break;
-
-    case BINOP_NEQ:
-        generate_binop_neq(expr);
-        break;
-
-    case BINOP_L:
-        generate_binop_l(expr);
-        break;
-
-    case BINOP_LEQ:
-        generate_binop_leq(expr);
-        break;
-
-    case BINOP_AND:
-        generate_binop_and(expr);
-        break;
-
-    case BINOP_XOR:
-        generate_binop_xor(expr);
-        break;
-
-    case BINOP_OR:
-        generate_binop_or(expr);
-        break;
-
-    default:
-        break;
-    }
+    generate_binop_functions[kind](expr);
 
     // push the result of operation
     if(is_floating(expr->type))
@@ -1648,218 +1597,6 @@ static void generate_binop_or(const Expression *expr)
 
 
 /*
-generate assembler code of an expression, which emulates stack machine
-*/
-static void generate_expression(const Expression *expr)
-{
-    // Because this function is recursively called, 
-    // * `lab_number` is saved and incremented at the top of each case-statement.
-    // * `brk_number` and `cnt_number` are saved at the top of each case-statement and restored at the end of each case-statement.
-    switch(expr->kind)
-    {
-    case EXPR_CONST:
-        generate_expr_const(expr);
-        return;
-
-    case EXPR_VAR:
-        generate_expr_var(expr);
-        return;
-
-    case EXPR_GENERIC:
-        generate_expr_generic(expr);
-        return;
-
-    case EXPR_COMPOUND:
-        generate_expr_compound(expr);
-        return;
-
-    case EXPR_ADDR:
-        generate_expr_addr(expr);
-        return;
-
-    case EXPR_DEREF:
-        generate_expr_deref(expr);
-        return;
-
-    case EXPR_MEMBER:
-        generate_expr_member(expr);
-        return;
-
-    case EXPR_PLUS:
-        generate_expr_plus(expr);
-        return;
-
-    case EXPR_MINUS:
-        generate_expr_minus(expr);
-        return;
-
-    case EXPR_COMPL:
-        generate_expr_compl(expr);
-        return;
-
-    case EXPR_NEG:
-        generate_expr_neg(expr);
-        return;
-
-    case EXPR_POST_INC:
-        generate_expr_post_inc(expr);
-        return;
-
-    case EXPR_POST_DEC:
-        generate_expr_post_dec(expr);
-        return;
-
-    case EXPR_CAST:
-        generate_expr_cast(expr);
-        return;
-
-    case EXPR_LOG_AND:
-        generate_expr_log_and(expr);
-        return;
-
-    case EXPR_LOG_OR:
-        generate_expr_log_or(expr);
-        return;
-
-    case EXPR_COND:
-        generate_expr_cond(expr);
-        return;
-
-    case EXPR_ASSIGN:
-        generate_expr_assign(expr);
-        return;
-
-    case EXPR_ADD_EQ:
-        generate_expr_add_eq(expr);
-        return;
-
-    case EXPR_PTR_ADD_EQ:
-        generate_expr_ptr_add_eq(expr);
-        return;
-
-    case EXPR_SUB_EQ:
-        generate_expr_sub_eq(expr);
-        return;
-
-    case EXPR_PTR_SUB_EQ:
-        generate_expr_ptr_sub_eq(expr);
-        return;
-
-    case EXPR_MUL_EQ:
-        generate_expr_mul_eq(expr);
-        return;
-
-    case EXPR_DIV_EQ:
-        generate_expr_div_eq(expr);
-        return;
-
-    case EXPR_MOD_EQ:
-        generate_expr_mod_eq(expr);
-        return;
-
-    case EXPR_LSHIFT_EQ:
-        generate_expr_lshift_eq(expr);
-        return;
-
-    case EXPR_RSHIFT_EQ:
-        generate_expr_rshift_eq(expr);
-        return;
-
-    case EXPR_AND_EQ:
-        generate_expr_and_eq(expr);
-        return;
-
-    case EXPR_XOR_EQ:
-        generate_expr_xor_eq(expr);
-        return;
-
-    case EXPR_OR_EQ:
-        generate_expr_or_eq(expr);
-        return;
-
-    case EXPR_COMMA:
-        generate_expr_comma(expr);
-        return;
-
-    case EXPR_FUNC:
-        generate_expr_func(expr);
-        return;
-
-    case EXPR_ADD:
-        generate_expr_add(expr);
-        return;
-
-    case EXPR_SUB:
-        generate_expr_sub(expr);
-        return;
-
-    case EXPR_MUL:
-        generate_expr_mul(expr);
-        return;
-
-    case EXPR_DIV:
-        generate_expr_div(expr);
-        return;
-
-    case EXPR_PTR_ADD:
-        generate_expr_ptr_add(expr);
-        return;
-
-    case EXPR_PTR_SUB:
-        generate_expr_ptr_sub(expr);
-        return;
-
-    case EXPR_PTR_DIFF:
-        generate_expr_ptr_diff(expr);
-        return;
-
-    case EXPR_MOD:
-        generate_expr_mod(expr);
-        return;
-
-    case EXPR_LSHIFT:
-        generate_expr_lshift(expr);
-        return;
-
-    case EXPR_RSHIFT:
-        generate_expr_rshift(expr);
-        return;
-
-    case EXPR_EQ:
-        generate_expr_eq(expr);
-        return;
-
-    case EXPR_NEQ:
-        generate_expr_neq(expr);
-        return;
-
-    case EXPR_L:
-        generate_expr_l(expr);
-        return;
-
-    case EXPR_LEQ:
-        generate_expr_leq(expr);
-        return;
-
-    case EXPR_BIT_AND:
-        generate_expr_bit_and(expr);
-        return;
-
-    case EXPR_BIT_XOR:
-        generate_expr_bit_xor(expr);
-        return;
-
-    case EXPR_BIT_OR:
-        generate_expr_bit_or(expr);
-        return;
-
-    default:
-        break;
-    }
-}
-
-
-/*
 generate assembler code of expression of kind EXPR_CONST
 */
 static void generate_expr_const(const Expression *expr)
@@ -1981,8 +1718,10 @@ static void generate_expr_func(const Expression *expr)
     else
     {
         // call function through pointer
+        generate_save_arg_registers(args_reg, args_xmm);
         generate_expression(expr->operand);
         generate_pop("r11");
+        generate_restore_arg_registers(args_reg, args_xmm);
 #if(CHECK_STACK_SIZE == ENABLED)
         assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
         check_stack_pointer();
@@ -2622,6 +2361,40 @@ static void generate_expr_compound_assignment(const Expression *expr, BinaryOper
     generate_expression(expr->rhs);
     generate_binary_operation(expr, kind);
     generate_store(expr->type);
+}
+
+
+/*
+generate assembler code to save function arguments passed by registers
+*/
+static void generate_save_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm)
+{
+    for(size_t i = 0; i < get_length(Expression)(args_reg); i++)
+    {
+        generate_push_reg_or_mem(arg_registers64[i]);
+    }
+
+    for(size_t i = 0; i < get_length(Expression)(args_xmm); i++)
+    {
+        generate_push_xmm(i);
+    }
+}
+
+
+/*
+generate assembler code to restore function arguments passed by registers
+*/
+static void generate_restore_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm)
+{
+    for(size_t i = get_length(Expression)(args_reg); i > 0; i--)
+    {
+        generate_pop(arg_registers64[i - 1]);
+    }
+
+    for(size_t i = get_length(Expression)(args_xmm); i > 0; i--)
+    {
+        generate_push_xmm(i - 1);
+    }
 }
 
 
