@@ -90,6 +90,8 @@ static List(Member) *struct_declaration(void);
 static Type *specifier_qualifier_list(void);
 static List(Member) *struct_declarator_list(Type *type);
 static Member *struct_declarator(Type *type);
+static List(Member) *set_struct_or_union_members(TypeKind kind, const List(Member) *decl_list, size_t *size, size_t *alignment);
+static List(Member) *flatten_struct_or_union_members(const List(Member) *decl_list, size_t base);
 static Type *enum_specifier(void);
 static List(Member) *enumerator_list(void);
 static Member *enumerator(int val);
@@ -760,17 +762,14 @@ struct-or-union-specifier ::= ("struct" | "union") identifier? "{" struct-declar
 static Type *struct_or_union_specifier(void)
 {
     // parse "struct" or "union"
-    TypeSpecifier spec_kind;
     TypeKind type_kind;
     Type *type = NULL;
     if(consume_reserved("struct"))
     {
-        spec_kind = TS_STRUCT;
         type_kind = TY_STRUCT;
     }
     else if(consume_reserved("union"))
     {
-        spec_kind = TS_UNION;
         type_kind = TY_UNION;
     }
     else
@@ -834,50 +833,12 @@ static Type *struct_or_union_specifier(void)
     if(parse_content)
     {
         // parse structure content or union content
-        type->members = struct_declaration_list();
-
-        if(spec_kind == TS_STRUCT)
-        {
-            // set offset of members and determine size and alignment of the structure type
-            size_t offset = 0;
-            size_t alignment = 0;
-            for_each_entry(Member, cursor, type->members)
-            {
-                Member *member = get_element(Member)(cursor);
-                member->offset = adjust_alignment(offset, member->type->align);
-                offset = member->offset + member->type->size;
-                if(alignment < member->type->align)
-                {
-                    alignment = member->type->align;
-                }
-            }
-            type->size = adjust_alignment(offset, alignment);
-            type->align = alignment;
-        }
-        else if(spec_kind == TS_UNION)
-        {
-            // determine size and alignment of the union type
-            size_t size = 0;
-            size_t alignment = 0;
-            for_each_entry(Member, cursor, type->members)
-            {
-                Member *member = get_element(Member)(cursor);
-                member->offset = 0; // offset is always 0
-                if(size < member->type->size)
-                {
-                    size = member->type->size;
-                }
-                if(alignment < member->type->align)
-                {
-                    alignment = member->type->align;
-                }
-            }
-            type->size = adjust_alignment(size, alignment);
-            type->align = alignment;
-        }
-
+        List(Member) *decl_list = struct_declaration_list();
         expect_reserved("}");
         type->complete = true;
+
+        // set members of structure or union
+        type->members = set_struct_or_union_members(type_kind, decl_list, &type->size, &type->align);
     }
 
     return type;
@@ -921,7 +882,8 @@ static List(Member) *struct_declaration(void)
         // anonymous structure or union
         if(is_struct_or_union(type))
         {
-            members = type->members;
+            members = new_list(Member)();
+            add_list_entry_tail(Member)(members, new_member("", type));
         }
         else
         {
@@ -1026,6 +988,72 @@ static Member *struct_declarator(Type *type)
     }
 
     return member;
+}
+
+
+/*
+set members of structure or union
+*/
+static List(Member) *set_struct_or_union_members(TypeKind kind, const List(Member) *decl_list, size_t *size, size_t *alignment)
+{
+    if(kind == TY_STRUCT)
+    {
+        // set offset of members and determine size and alignment of the structure type
+        size_t offset = 0;
+        size_t align = 0;
+        for_each_entry(Member, cursor, decl_list)
+        {
+            Member *member = get_element(Member)(cursor);
+            member->offset = adjust_alignment(offset, member->type->align);
+            offset = member->offset + member->type->size;
+            align = max(align, member->type->align);
+        }
+        *size = adjust_alignment(offset, align);
+        *alignment = align;
+    }
+    else if(kind == TY_UNION)
+    {
+        // determine size and alignment of the union type
+        size_t max_size = 0;
+        size_t align = 0;
+        for_each_entry(Member, cursor, decl_list)
+        {
+            Member *member = get_element(Member)(cursor);
+            member->offset = 0; // offset is fixed
+            max_size = max(max_size, member->type->size);
+            align = max(align, member->type->align);
+        }
+        *size = adjust_alignment(max_size, align);
+        *alignment = align;
+    }
+
+    return flatten_struct_or_union_members(decl_list, 0);
+}
+
+
+/*
+flatten members of structure or union
+*/
+static List(Member) *flatten_struct_or_union_members(const List(Member) *decl_list, size_t base)
+{
+    List(Member) *members = new_list(Member)();
+
+    for_each_entry(Member, cursor, decl_list)
+    {
+        Member *member = get_element(Member)(cursor);
+        if(is_struct_or_union(member->type) && (strcmp(member->name, "") == 0))
+        {
+            // anonymous structure or union
+            concatenate_list(Member)(members, flatten_struct_or_union_members(member->type->members, member->offset));
+        }
+        else
+        {
+            member->offset += base;
+            add_list_entry_tail(Member)(members, member);
+        }
+    }
+
+    return members;
 }
 
 
@@ -1796,7 +1824,7 @@ List(InitializerMap) *make_initializer_map(Type *type, const Initializer *init)
         }
         qsort(inits_vector, len, sizeof(InitializerMap), compare_offset);
 
-        // make list of data segments filling holes by zero
+        // make list of maps from offset to initializer filling holes by zero
         InitializerMap *current = &inits_vector[0];
         InitializerMap *next = &inits_vector[1];
         init_maps = new_list(InitializerMap)();

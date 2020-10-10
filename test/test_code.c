@@ -1490,8 +1490,13 @@ int test_union()
     un4.m1.mm1 = 1; un4.m1.mm2 = 2; un4_copy = un4; assert_long(1, un4_copy.m1.mm1); assert_long(2, un4_copy.m1.mm2);
     int i; for(i = 0; i < 3; i++) un4.m2[i] = 10 * i; un4_copy = un4; for(i = 0; i < 3; i++) assert_int(10 * i, un4_copy.m2[i]); assert_int(12, sizeof(un4.m2));
 
-    union {int m1; struct {int mm1; union {int mmm1; int mmm2;};};} un5;
+    union un5_type {char m1; struct {short mm1; union {int mmm1; int mmm2;};};};
+    union un5_type un5 = (union un5_type){.mmm1 = 1}; assert_int(8, sizeof(union un5_type)); assert_int(1, *(int *)((char *)&un5 + 4)); assert_long(4, (char *)&un5.mmm1 - (char *)&un5); assert_long(4, (char *)&un5.mmm2 - (char *)&un5);
     un5.m1 = 1; assert_int(1, un5.m1); un5.mm1 = 11; assert_int(11, un5.mm1); un5.mmm1 = 111; assert_int(111, un5.mmm1); un5.mmm2 = 222; assert_int(222, un5.mmm2);
+
+    struct st6_type {char m1; union {short mm1; struct {int mmm1; int mmm2;};};};
+    struct st6_type un6 = (struct st6_type){.mmm1 = 1}; assert_int(12, sizeof(struct st6_type)); assert_int(1, *(int *)((char *)&un6 + 4)); assert_long(4, (char *)&un6.mmm1 - (char *)&un6); assert_long(8, (char *)&un6.mmm2 - (char *)&un6);
+    un6.m1 = 1; assert_int(1, un6.m1); un6.mm1 = 11; assert_int(11, un6.mm1); un6.mmm1 = 111; assert_int(111, un6.mmm1); un6.mmm2 = 222; assert_int(222, un6.mmm2);
 
     return 0;
 }
