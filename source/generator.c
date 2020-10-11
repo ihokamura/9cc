@@ -1741,15 +1741,22 @@ static void generate_expr_func(const Expression *expr)
 #endif /* CHECK_STACK_SIZE */
 
     // push return value
-    if(expr->type->size == 16)
+    if(is_floating(expr->type))
     {
-        generate_push_reg_or_mem("rdx");
+        generate_push_xmm(0);
     }
-    if(is_bool(expr->type))
+    else
     {
-        put_line_with_tab("movzb rax, al");
+        if(expr->type->size == 16)
+        {
+            generate_push_reg_or_mem("rdx");
+        }
+        if(is_bool(expr->type))
+        {
+            put_line_with_tab("movzb rax, al");
+        }
+        generate_push_reg_or_mem("rax");
     }
-    generate_push_reg_or_mem("rax");
 }
 
 

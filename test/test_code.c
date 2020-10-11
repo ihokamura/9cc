@@ -2,22 +2,9 @@
 test code for 9cc compiler
 */
 
-// indicator of feature enabled or disabled
-#define ENABLED     (1)
-#define DISABLED    (0)
-
-// features
-#define INCLUDE_FLOATING_POINT_TYPE    (ENABLED) // include tests on floating-point types
+#include "test_code.h"
 
 // type definition
-struct param_t1 {long m0; long m1; char m2;};
-struct param_t2 {int m0; char m1; long m2;};
-struct param_t3 {int m0; char m1; long m2;};
-struct param_t4 {char m0; char m1; char m2;};
-struct param_t5 {char m0; char m1; int m2;};
-struct param_t6 {long m0; long m1;};
-struct param_t7 {long m0; long m1; char m2;};
-struct param_t8 {long m0; long m1; long m2;};
 typedef struct
 {
   int gp_offset;
@@ -29,25 +16,6 @@ typedef struct
 // function declaration
 extern int printf(char *format, ...);
 extern void exit(int code);
-
-extern int func_call_return0();
-extern int func_call_return1();
-extern int func_call_return2();
-extern int func_call_add(int x, int y);
-extern int func_call_arg6(int a0, int a1, int a2, int a3, int a4, int a5);
-extern int func_call_arg7(int a0, int a1, int a2, int a3, int a4, int a5, int a6);
-extern int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7);
-extern long func_call_struct1(struct param_t1 s);
-extern long func_call_struct2(struct param_t2 s);
-extern long func_call_struct3(int a0, int a1, int a2, int a3, int a4, struct param_t3 s, int a5, int a6);
-extern long func_call_struct4(struct param_t4 s);
-struct param_t5 func_call_struct5(char a0, char a1, int a2);
-struct param_t6 func_call_struct6(long a0, long a1);
-struct param_t7 func_call_struct7(long a0, long a1, char a2);
-struct param_t8 func_call_struct8(long a0, long a1, long a2, int a3, int a4, int a5, int a6);
-int func_call_arg_array(int a[10]);
-extern void alloc4(int **p, int a0, int a1, int a2, int a3);
-extern int func_call_variadic(int count, ...);
 
 
 /*
@@ -230,7 +198,7 @@ int assert_double_wrap(const char *file, int line, double expected, double actua
         return 1;
     }
 }
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
 
 /*
@@ -259,7 +227,7 @@ int test_additive()
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_float(21.0f, 5.0f+20.0f-4.0f);
     assert_double(21.0, 5.0+20.0-4.0);
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -281,7 +249,7 @@ int test_multiplicative()
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_float(3.0f, 0.5f * (9.0f - 6.0f / 2.0f));
     assert_double(3.0, 0.5 * (9.0 - 6.0 / 2.0));
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -509,7 +477,7 @@ int test_cast()
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     float f = 1.0f; assert_double(1.0, (double)f); assert_int(1, (int)f); assert_float(f, (float)1);
     double d = 2.0; assert_float(2.0f, (float)d); assert_int(2, (int)d); assert_double(d, (double)2);
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -545,7 +513,7 @@ int test_comparision()
     assert_int(1, 2.0 <= d); assert_int(0, 3.0 <= d);
     assert_int(0, 2.0 > d); assert_int(1, 3.0 > d);
     assert_int(1, 2.0 >= d); assert_int(0, 0.0 >= d);
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -850,6 +818,11 @@ int test_function_call()
     int (*pf2)(int, int);
     pf2 = func_call_add; assert_int(3, pf2(1, 2));
     pf2 = &func_call_add; assert_int(3, pf2(1, 2));
+
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+    assert_float(1.0, func_call_return_float(1.0f));
+    assert_double(2.0, func_call_return_double(2.0));
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 }
 
 
@@ -993,6 +966,16 @@ static inline void _Noreturn func_def_inline_noreturn(int status)
 {
     exit(status);
 }
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+float func_def_return_float(double f)
+{
+    return f;
+}
+double func_def_return_double(double d)
+{
+    return d;
+}
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 int test_function_definition()
 {
     put_title("function definition");
@@ -1018,6 +1001,10 @@ int test_function_definition()
     assert_int(21, func_def_fibonacci(8));
     assert_int(10, func_def_variadic(5, 0, 1, 2, 3, 4)); assert_int(15, func_def_variadic(6, 0, 1, 2, 3, 4, 5)); assert_int(21, func_def_variadic(7, 0, 1, 2, 3, 4, 5, 6));
     assert_int(1, func_def_inline(1));
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+    assert_float(1.0f, func_def_return_float(1.0f));
+    assert_double(2.0, func_def_return_double(2.0));
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -1575,7 +1562,7 @@ int test_floating_constant()
 
     return 0;
 }
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
 
 /*
@@ -2022,7 +2009,7 @@ int main()
     test_integer_constant();
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     test_floating_constant();
-#endif
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
     test_character_constant();
     test_initializer();
     test_scope();
