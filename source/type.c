@@ -353,7 +353,7 @@ long get_bitfield_width(const Type *type)
 
 
 /*
-check if a given type is a void type
+get parameter class of a given type
 */
 ParameterClassKind get_parameter_class(const Type *type)
 {
@@ -361,16 +361,13 @@ ParameterClassKind get_parameter_class(const Type *type)
     {
         return PC_INTEGER;
     }
-    else if(is_struct_or_union(type))
+    else if((type->kind == TY_FLOAT) || (type->kind == TY_DOUBLE))
     {
-        if(type->size > 2 * 8)
-        {
-            return PC_MEMORY;
-        }
-        else
-        {
-            return PC_INTEGER;
-        }
+        return PC_SSE;
+    }
+    else if(type->size > 2 * 8)
+    {
+        return PC_MEMORY;
     }
     else
     {

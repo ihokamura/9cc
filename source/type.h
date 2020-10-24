@@ -80,6 +80,7 @@ typedef enum ParameterClassKind ParameterClassKind;
 enum ParameterClassKind
 {
     PC_INTEGER,  // INTEGER
+    PC_SSE,      // SSE
     PC_NO_CLASS, // NO_CLASS
     PC_MEMORY,   // MEMORY
 };

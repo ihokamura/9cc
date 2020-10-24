@@ -166,11 +166,12 @@ static void check_stack_pointer(void);
 
 // global variable
 static const int STACK_POINTER_ALIGNMENT = 16; // alignment of stack pointer
-static const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for function arguments
-static const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for function arguments
-static const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for function arguments
-static const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for function arguments
-static const size_t ARG_REGISTERS_SIZE = 6; // number of registers for function arguments
+static const char *arg_registers8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"}; // name of 8-bit registers for integer arguments
+static const char *arg_registers16[] = {"di", "si", "dx", "cx", "r8w", "r9w"}; // name of 16-bit registers for integer arguments
+static const char *arg_registers32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"}; // name of 32-bit registers for integer arguments
+static const char *arg_registers64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"}; // name of 64-bit registers for integer arguments
+static const size_t ARG_REGISTERS_SIZE = 6; // number of registers for integer arguments
+static const size_t ARG_FLOATING_POINT_REGISTERS_SIZE = 8; // number of registers for floating-point arguments
 static int lab_number; // sequential number for labels (see [Notes] below)
 static int brk_number; // sequential number for break statements (see [Notes] below)
 static int cnt_number; // sequential number for continue statements (see [Notes] below)
@@ -792,34 +793,16 @@ static void generate_func(const Function *func)
     // arguments
     // separate arguments which are passed by registers from those passed by the stack
     size_t argc_reg = (pass_address ? 1 : 0);
+    size_t argc_reg_xmm = 0;
     List(Variable) *args_reg = new_list(Variable)();
     List(Variable) *args_xmm = new_list(Variable)();
     List(Variable) *args_stack = new_list(Variable)();
     for_each_entry(Variable, cursor, func->args)
     {
         Variable *arg = get_element(Variable)(cursor);
+        ParameterClassKind param_class = get_parameter_class(arg->type);
 
-        if(is_floating(arg->type))
-        {
-            add_list_entry_tail(Variable)(args_xmm, arg);
-            continue;
-        }
-
-        // pass up to ARG_REGISTERS_SIZE arguments by registers
-        if(argc_reg >= ARG_REGISTERS_SIZE)
-        {
-            add_list_entry_tail(Variable)(args_stack, arg);
-            continue;
-        }
-
-        // pass arguments classified as MEMORY by the stack
-        if(get_parameter_class(arg->type) == PC_MEMORY)
-        {
-            add_list_entry_tail(Variable)(args_stack, arg);
-            continue;
-        }
-
-        if(is_struct_or_union(arg->type))
+        if((param_class != PC_MEMORY) && (is_struct_or_union(arg->type)))
         {
             // check if there is enough registers to pass the whole of structure or union
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
@@ -827,16 +810,28 @@ static void generate_func(const Function *func)
             {
                 add_list_entry_tail(Variable)(args_reg, arg);
                 argc_reg += argc_struct;
+                continue;
             }
-            else
-            {
-                add_list_entry_tail(Variable)(args_stack, arg);
-            }
+        }
+
+        if((param_class == PC_INTEGER) && (argc_reg < ARG_REGISTERS_SIZE))
+        {
+            // pass up to ARG_REGISTERS_SIZE arguments by registers
+            add_list_entry_tail(Variable)(args_reg, arg);
+            argc_reg++;
             continue;
         }
 
-        add_list_entry_tail(Variable)(args_reg, arg);
-        argc_reg++;
+        if((param_class == PC_SSE) && (argc_reg_xmm < ARG_FLOATING_POINT_REGISTERS_SIZE))
+        {
+            // pass up to ARG_FLOATING_POINT_REGISTERS_SIZE floating-point arguments by registers
+            add_list_entry_tail(Variable)(args_xmm, arg);
+            argc_reg_xmm++;
+            continue;
+        }
+
+        // pass arguments classified by the stack
+        add_list_entry_tail(Variable)(args_stack, arg);
     }
 
     argc_reg = (pass_address ? 1 : 0);
@@ -2413,35 +2408,14 @@ static size_t classify_args(const List(Expression) *args, bool pass_address, Lis
 {
     size_t arg_stack_size = 0;
     size_t argc_reg = (pass_address ? 1 : 0);
+    size_t argc_reg_xmm = 0;
 
     for_each_entry(Expression, cursor, args)
     {
         Expression *arg = get_element(Expression)(cursor);
-
-        if(is_floating(arg->type))
-        {
-            add_list_entry_tail(Expression)(args_xmm, arg);
-            continue;
-        }
-
-        // pass up to ARG_REGISTERS_SIZE arguments by registers
-        if(argc_reg >= ARG_REGISTERS_SIZE)
-        {
-            add_list_entry_tail(Expression)(args_stack, arg);
-            arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
-            continue;
-        }
-
-        // pass arguments classified as MEMORY by the stack
         ParameterClassKind param_class = get_parameter_class(arg->type);
-        if(param_class == PC_MEMORY)
-        {
-            add_list_entry_tail(Expression)(args_stack, arg);
-            arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
-            continue;
-        }
 
-        if(is_struct_or_union(arg->type))
+        if((param_class != PC_MEMORY) && (is_struct_or_union(arg->type)))
         {
             // check if there is enough registers to pass the whole of structure or union
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
@@ -2449,17 +2423,29 @@ static size_t classify_args(const List(Expression) *args, bool pass_address, Lis
             {
                 add_list_entry_tail(Expression)(args_reg, arg);
                 argc_reg += argc_struct;
+                continue;
             }
-            else
-            {
-                add_list_entry_tail(Expression)(args_stack, arg);
-                arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
-            }
+        }
+
+        if((param_class == PC_INTEGER) && (argc_reg < ARG_REGISTERS_SIZE))
+        {
+            // pass up to ARG_REGISTERS_SIZE arguments by registers
+            add_list_entry_tail(Expression)(args_reg, arg);
+            argc_reg++;
             continue;
         }
 
-        add_list_entry_tail(Expression)(args_reg, arg);
-        argc_reg++;
+        if((param_class == PC_SSE) && (argc_reg_xmm < ARG_FLOATING_POINT_REGISTERS_SIZE))
+        {
+            // pass up to ARG_FLOATING_POINT_REGISTERS_SIZE floating-point arguments by registers
+            add_list_entry_tail(Expression)(args_xmm, arg);
+            argc_reg_xmm++;
+            continue;
+        }
+
+        // pass arguments classified by the stack
+        add_list_entry_tail(Expression)(args_stack, arg);
+        arg_stack_size += adjust_alignment(arg->type->size, STACK_ALIGNMENT);
     }
 
     return arg_stack_size;
