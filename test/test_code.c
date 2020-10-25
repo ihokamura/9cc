@@ -30,8 +30,7 @@ int put_title(char *title)
 /*
 assertion for bool type
 */
-#define assert_bool(expected, actual)  assert_bool_wrap(__FILE__, __LINE__, expected, actual)
-int assert_bool_wrap(const char *file, int line, _Bool expected, _Bool actual)
+int assert_bool_func(const char *file, int line, _Bool expected, _Bool actual)
 {
     if(expected == actual)
     {
@@ -49,8 +48,7 @@ int assert_bool_wrap(const char *file, int line, _Bool expected, _Bool actual)
 /*
 assertion for char type
 */
-#define assert_char(expected, actual)  assert_char_wrap(__FILE__, __LINE__, expected, actual)
-int assert_char_wrap(const char *file, int line, char expected, char actual)
+int assert_char_func(const char *file, int line, char expected, char actual)
 {
     if(expected == actual)
     {
@@ -68,8 +66,7 @@ int assert_char_wrap(const char *file, int line, char expected, char actual)
 /*
 assertion for short type
 */
-#define assert_short(expected, actual)  assert_short_wrap(__FILE__, __LINE__, expected, actual)
-int assert_short_wrap(const char *file, int line, short expected, short actual)
+int assert_short_func(const char *file, int line, short expected, short actual)
 {
     if(expected == actual)
     {
@@ -87,8 +84,7 @@ int assert_short_wrap(const char *file, int line, short expected, short actual)
 /*
 assertion for int type
 */
-#define assert_int(expected, actual)  assert_int_wrap(__FILE__, __LINE__, expected, actual)
-int assert_int_wrap(const char *file, int line, int expected, int actual)
+int assert_int_func(const char *file, int line, int expected, int actual)
 {
     if(expected == actual)
     {
@@ -106,8 +102,7 @@ int assert_int_wrap(const char *file, int line, int expected, int actual)
 /*
 assertion for long type
 */
-#define assert_long(expected, actual)  assert_long_wrap(__FILE__, __LINE__, expected, actual)
-int assert_long_wrap(const char *file, int line, long expected, long actual)
+int assert_long_func(const char *file, int line, long expected, long actual)
 {
     if(expected == actual)
     {
@@ -125,8 +120,7 @@ int assert_long_wrap(const char *file, int line, long expected, long actual)
 /*
 assertion for long long type
 */
-#define assert_longlong(expected, actual)  assert_longlong_wrap(__FILE__, __LINE__, expected, actual)
-int assert_longlong_wrap(const char *file, int line, long long expected, long long actual)
+int assert_longlong_func(const char *file, int line, long long expected, long long actual)
 {
     if(expected == actual)
     {
@@ -144,8 +138,7 @@ int assert_longlong_wrap(const char *file, int line, long long expected, long lo
 /*
 assertion for pointer type
 */
-#define assert_pointer(expected, actual)  assert_pointer_wrap(__FILE__, __LINE__, expected, actual)
-int assert_pointer_wrap(const char *file, int line, const void *expected, const void *actual)
+int assert_pointer_func(const char *file, int line, const void *expected, const void *actual)
 {
     if(expected == actual)
     {
@@ -165,8 +158,7 @@ int assert_pointer_wrap(const char *file, int line, const void *expected, const 
 /*
 assertion for float type
 */
-#define assert_float(expected, actual)  assert_float_wrap(__FILE__, __LINE__, expected, actual)
-int assert_float_wrap(const char *file, int line, float expected, float actual)
+int assert_float_func(const char *file, int line, float expected, float actual)
 {
     if(expected == actual)
     {
@@ -184,8 +176,7 @@ int assert_float_wrap(const char *file, int line, float expected, float actual)
 /*
 assertion for double type
 */
-#define assert_double(expected, actual)  assert_double_wrap(__FILE__, __LINE__, expected, actual)
-int assert_double_wrap(const char *file, int line, double expected, double actual)
+int assert_double_func(const char *file, int line, double expected, double actual)
 {
     if(expected == actual)
     {
@@ -822,6 +813,8 @@ int test_function_call()
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_float(1.0, func_call_return_float(1.0f));
     assert_double(2.0, func_call_return_double(2.0));
+    func_call_arg8_double(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
+    func_call_arg9_double(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 }
 

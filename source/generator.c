@@ -69,7 +69,9 @@ static void generate_gvar(const Variable *gvar);
 static void generate_gvar_data(const Type *type, const Expression *expr);
 static void generate_gvar_inits(const List(InitializerMap) *inits);
 static void generate_func(const Function *func);
-static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack);
+static void generate_args_stack(List(Expression) *args_stack);
+static void generate_args_reg(bool pass_address, const List(Expression) *args_reg);
+static void generate_args_reg_xmm(const List(Expression) *args_xmm);
 static void generate_stmt_label(const Statement *stmt);
 static void generate_stmt_case(const Statement *stmt);
 static void generate_stmt_compound(const Statement *stmt);
@@ -154,8 +156,6 @@ static void generate_expr_or_eq(const Expression *expr);
 static void generate_expr_comma(const Expression *expr);
 static void generate_expr_binary(const Expression *expr, BinaryOperationKind kind);
 static void generate_expr_compound_assignment(const Expression *expr, BinaryOperationKind kind);
-static void generate_save_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm);
-static void generate_restore_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm);
 static size_t classify_args(const List(Expression) *args, bool pass_address, List(Expression) *args_reg, List(Expression) *args_xmm, List(Expression) *args_stack);
 static void put_line(const char *fmt, ...);
 static void put_line_with_tab(const char *fmt, ...);
@@ -940,9 +940,28 @@ static void generate_func(const Function *func)
 
 
 /*
-generate assembler code of function arguments
+generate assembler code of function arguments passed by the stack
 */
-static void generate_args(bool pass_address, const List(Expression) *args_reg, const List(Expression) *args_xmm, const List(Expression) *args_stack)
+static void generate_args_stack(List(Expression) *args_stack)
+{
+    // evaluate arguments and push them to the stack in reverse order
+    for_each_entry_reversed(Expression, cursor, args_stack)
+    {
+        Expression *arg = get_element(Expression)(cursor);
+
+        generate_expression(arg);
+        if(get_parameter_class(arg->type) == PC_MEMORY)
+        {
+            generate_push_struct(arg->type);
+        }
+    }
+}
+
+
+/*
+generate assembler code of function arguments passed by registers
+*/
+static void generate_args_reg(bool pass_address, const List(Expression) *args_reg)
 {
     // count number of registers used for passing arguments
     size_t argc_reg = (pass_address ? 1 : 0);
@@ -977,7 +996,14 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
             generate_pop(arg_registers64[argc_reg]);
         }
     }
+}
 
+
+/*
+generate assembler code of function arguments passed by xmm registers
+*/
+static void generate_args_reg_xmm(const List(Expression) *args_xmm)
+{
     // count number of xmm registers used for passing arguments
     size_t argc_xmm = get_length(Expression)(args_xmm);
 
@@ -991,18 +1017,6 @@ static void generate_args(bool pass_address, const List(Expression) *args_reg, c
     {
         argc_xmm--;
         generate_pop_xmm(argc_xmm);
-    }
-
-    // evaluate arguments and push them to the stack in reverse order
-    for_each_entry_reversed(Expression, cursor, args_stack)
-    {
-        Expression *arg = get_element(Expression)(cursor);
-
-        generate_expression(arg);
-        if(get_parameter_class(arg->type) == PC_MEMORY)
-        {
-            generate_push_struct(arg->type);
-        }
     }
 }
 
@@ -1696,34 +1710,29 @@ static void generate_expr_func(const Expression *expr)
         put_line_with_tab("sub rsp, %d", stack_adjustment);
     }
 
-    // generate arguments
-    generate_args(pass_address, args_reg, args_xmm, args_stack);
-    stack_adjustment += args_stack_size; // increment the variable stack_adjustment here because the variable stack_size can be changed in the above function call
 
-    if((body != NULL) && (body->var != NULL))
+    // generate arguments
+    bool is_pointer = ((body == NULL) || (body->var == NULL));
+    generate_args_stack(args_stack);
+    if(is_pointer)
     {
-        // call function by name
-#if(CHECK_STACK_SIZE == ENABLED)
-        assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
-        check_stack_pointer();
-#endif /* CHECK_STACK_SIZE */
-        put_line_with_tab("mov rax, 0");
-        put_line_with_tab("call %s", body->var->name);
+        generate_expression(expr->operand); // push function address
     }
-    else
+    generate_args_reg(pass_address, args_reg);
+    generate_args_reg_xmm(args_xmm);
+    if(is_pointer)
     {
-        // call function through pointer
-        generate_save_arg_registers(args_reg, args_xmm);
-        generate_expression(expr->operand);
-        generate_pop("r11");
-        generate_restore_arg_registers(args_reg, args_xmm);
-#if(CHECK_STACK_SIZE == ENABLED)
-        assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
-        check_stack_pointer();
-#endif /* CHECK_STACK_SIZE */
-        put_line_with_tab("mov rax, 0");
-        put_line_with_tab("call r11");
+        generate_pop("r11"); // pop function address
     }
+    stack_adjustment += args_stack_size; // increment the variable stack_adjustment here because the variable stack_size can be changed in the above function calls
+#if(CHECK_STACK_SIZE == ENABLED)
+    assert(stack_size % STACK_POINTER_ALIGNMENT == 0);
+    check_stack_pointer();
+#endif /* CHECK_STACK_SIZE */
+
+    // call function through pointer or by name
+    put_line_with_tab("mov rax, 0");
+    put_line_with_tab("call %s", is_pointer ? "r11" : body->var->name);
 
     // restore the stack
     if(stack_adjustment > 0)
@@ -2363,40 +2372,6 @@ static void generate_expr_compound_assignment(const Expression *expr, BinaryOper
     generate_expression(expr->rhs);
     generate_binary_operation(expr, kind);
     generate_store(expr->type);
-}
-
-
-/*
-generate assembler code to save function arguments passed by registers
-*/
-static void generate_save_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm)
-{
-    for(size_t i = 0; i < get_length(Expression)(args_reg); i++)
-    {
-        generate_push_reg_or_mem(arg_registers64[i]);
-    }
-
-    for(size_t i = 0; i < get_length(Expression)(args_xmm); i++)
-    {
-        generate_push_xmm(i);
-    }
-}
-
-
-/*
-generate assembler code to restore function arguments passed by registers
-*/
-static void generate_restore_arg_registers(const List(Expression) *args_reg, const List(Expression) *args_xmm)
-{
-    for(size_t i = get_length(Expression)(args_reg); i > 0; i--)
-    {
-        generate_pop(arg_registers64[i - 1]);
-    }
-
-    for(size_t i = get_length(Expression)(args_xmm); i > 0; i--)
-    {
-        generate_push_xmm(i - 1);
-    }
 }
 
 

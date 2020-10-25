@@ -57,6 +57,37 @@ int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a
 }
 
 
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+// function with 8 arguments
+void func_call_arg8_double(double a0, double a1, double a2, double a3, double a4, double a5, double a6, double a7)
+{
+    assert_double(0.0, a0);
+    assert_double(1.0, a1);
+    assert_double(2.0, a2);
+    assert_double(3.0, a3);
+    assert_double(4.0, a4);
+    assert_double(5.0, a5);
+    assert_double(6.0, a6);
+    assert_double(7.0, a7);
+}
+
+
+// function with 9 arguments
+void func_call_arg9_double(double a0, double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8)
+{
+    assert_double(0.0, a0);
+    assert_double(1.0, a1);
+    assert_double(2.0, a2);
+    assert_double(3.0, a3);
+    assert_double(4.0, a4);
+    assert_double(5.0, a5);
+    assert_double(6.0, a6);
+    assert_double(7.0, a7);
+    assert_double(8.0, a8);
+}
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
+
+
 // function with structure (classified as MEMORY)
 long func_call_struct1(struct param_t1 s)
 {
