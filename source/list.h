@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __LIST_H__
-#define __LIST_H__
+#ifndef LIST_H
+#define LIST_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -181,4 +174,4 @@ List(type) *concatenate_list(type)(List(type) *self, List(type) *other)\
     return self;\
 }\
 
-#endif /* !__LIST_H__ */
+#endif /* !LIST_H */

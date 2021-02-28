@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __TYPE_H__
-#define __TYPE_H__
+#ifndef TYPE_H
+#define TYPE_H
 
 #include "9cc.h"
 
@@ -147,4 +140,4 @@ Member *new_member(const char *name, Type *type);
 Member *find_member(const Token *token, const Type *type);
 size_t adjust_alignment(size_t target, size_t alignment);
 
-#endif /* !__TYPE_H__ */
+#endif /* !TYPE_H */

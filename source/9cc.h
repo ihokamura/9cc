@@ -1,10 +1,3 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
 #ifndef __9CC_H__
 #define __9CC_H__
 

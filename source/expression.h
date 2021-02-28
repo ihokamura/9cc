@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __EXPRESSION_H__
-#define __EXPRESSION_H__
+#ifndef EXPRESSION_H
+#define EXPRESSION_H
 
 #include "9cc.h"
 #include "tokenizer.h"
@@ -101,4 +94,4 @@ Expression *expression(void);
 long const_expression(void);
 long evaluate(const Expression *expr, const Expression **base);
 
-#endif /* !__EXPRESSION_H__ */
+#endif /* !EXPRESSION_H */

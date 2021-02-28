@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __TOKENIZER_H__
-#define __TOKENIZER_H__
+#ifndef TOKENIZER_H
+#define TOKENIZER_H
 
 #include <stddef.h>
 
@@ -83,4 +76,4 @@ char *read_file(const char *path);
 void report_warning(const char *loc, const char *fmt, ...);
 void report_error(const char *loc, const char *fmt, ...);
 
-#endif /* !__TOKENIZER_H__ */
+#endif /* !TOKENIZER_H */

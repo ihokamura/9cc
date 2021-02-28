@@ -15,6 +15,6 @@ self: 9cc
 	bash ./util/self.sh
 
 clean:
-	rm -f 9cc ./source/*.o ./source/*~ ./test/*.s ./test/test_bin_* self/*
+	rm -f 9cc ./source/*.o ./source/*~ ./test/tmp.c ./test/*.s ./test/test_bin_* ./test/9cc_* self/*
 
 .PHONY: test self clean

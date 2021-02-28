@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __STATEMENT_H__
-#define __STATEMENT_H__
+#ifndef STATEMENT_H
+#define STATEMENT_H
 
 #include "9cc.h"
 
@@ -55,4 +48,4 @@ struct Statement
 Statement *new_statement(StatementKind kind);
 List(Statement) *compound_statement(void);
 
-#endif /* !__STATEMENT_H__ */
+#endif /* !STATEMENT_H */

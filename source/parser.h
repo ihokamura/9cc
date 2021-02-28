@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __PARSER_H__
-#define __PARSER_H__
+#ifndef PARSER_H
+#define PARSER_H
 
 #include "9cc.h"
 #include "declaration.h"
@@ -98,4 +91,4 @@ int get_current_scope_depth(void);
 Identifier *find_identifier(const Token *token);
 Tag *find_tag(const Token *token);
 
-#endif /* !__PARSER_H__ */
+#endif /* !PARSER_H */

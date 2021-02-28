@@ -1,15 +1,3 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-/*
-# Contents of this file
-* type handler
-*/
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>

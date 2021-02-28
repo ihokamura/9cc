@@ -1,15 +1,3 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-/*
-# Contents of this file
-* parser for declaration
-*/
-
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>

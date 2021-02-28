@@ -1,9 +1,5 @@
-/*
-common header file for test code
-*/
-
-#ifndef __TEST_CODE_H__
-#define __TEST_CODE_H__
+#ifndef TEST_CODE_H
+#define TEST_CODE_H
 
 // indicator of feature enabled or disabled
 #define ENABLED     (1)
@@ -68,4 +64,4 @@ void func_call_arg8_double(double a0, double a1, double a2, double a3, double a4
 void func_call_arg9_double(double a0, double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 
-#endif /* !__TEST_CODE_H__ */
+#endif /* !TEST_CODE_H */

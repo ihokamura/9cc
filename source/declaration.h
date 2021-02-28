@@ -1,12 +1,5 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-#ifndef __DECLARATION_H__
-#define __DECLARATION_H__
+#ifndef DECLARATION_H
+#define DECLARATION_H
 
 #include "9cc.h"
 
@@ -70,4 +63,4 @@ bool peek_type_name(void);
 
 extern const char *STATIC_VARIABLE_PUNCTUATOR;
 
-#endif /* !__DECLARATION_H__ */
+#endif /* !DECLARATION_H */

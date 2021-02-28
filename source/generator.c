@@ -1,15 +1,3 @@
-/*
-# 9cc compiler
-
-## Reference
-[1] https://www.sigbus.info/compilerbook
-*/
-
-/*
-# Contents of this file
-* assembler code generator
-*/
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>

@@ -1,7 +1,3 @@
-/*
-test code for 9cc compiler
-*/
-
 #include "test_code.h"
 
 // type definition
