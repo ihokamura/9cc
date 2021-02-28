@@ -70,7 +70,7 @@ expression ::= assign ("," assign)*
 const-expression ::= conditional
 ```
 
-# Declarations
+### Declarations
 ```
 declaration ::= declaration-specifiers init-declarator-list? ";"
               | static_assert-declaration
@@ -149,7 +149,7 @@ designator ::= "[" const-expression "]" | "." identifier
 static_assert-declaration ::= "_Static_assert" "(" const-expression "," string-literal ")"
 ```
 
-# Statements
+### Statements
 ```
 statement ::= identifier ":" statement
             | "case" const-expression ":" statement
@@ -169,7 +169,7 @@ statement ::= identifier ":" statement
 compound-statement ::= "{" (declaration | statement)* "}"
 ```
 
-# External definitions
+### External definitions
 ```
 program ::= (declaration | function-def)*
 function-def ::= declaration-specifiers declarator compound-statement

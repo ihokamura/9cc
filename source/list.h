@@ -8,6 +8,9 @@
 #ifndef __LIST_H__
 #define __LIST_H__
 
+#include <stdbool.h>
+#include <stddef.h>
+
 // macro
 #define List(type) type##List // type-name of list
 #define ListEntry(type) type##ListEntry // type-name of entry of list
