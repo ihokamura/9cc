@@ -321,7 +321,7 @@ generate assembler code to push a xmm register to the stack
 static void generate_push_xmm(int number)
 {
     put_line_with_tab("sub rsp, 8");
-    put_line_with_tab("movsd [rsp], xmm%d", number);
+    put_line_with_tab("movsd qword ptr [rsp], xmm%d", number);
     stack_size += STACK_ALIGNMENT;
 }
 
@@ -334,7 +334,7 @@ static void generate_push_struct(const Type *type)
     generate_pop("rax");
     for(size_t offset = adjust_alignment(type->size, STACK_ALIGNMENT); offset > 0; offset -= STACK_ALIGNMENT)
     {
-        put_line_with_tab("push [rax+%lu]", offset - STACK_ALIGNMENT);
+        put_line_with_tab("push qword ptr [rax+%lu]", offset - STACK_ALIGNMENT);
         stack_size += STACK_ALIGNMENT;
     }
 }
@@ -369,7 +369,7 @@ generate assembler code to pop from the stack to a xmm register
 */
 static void generate_pop_xmm(int number)
 {
-    put_line_with_tab("movsd xmm%d, [rsp]", number);
+    put_line_with_tab("movsd xmm%d, qword ptr [rsp]", number);
     put_line_with_tab("add rsp, 8");
     stack_size -= STACK_ALIGNMENT;
 #if(CHECK_STACK_SIZE == ENABLED)
@@ -389,11 +389,11 @@ static void generate_load(const Type *type)
     {
         if(type->size == 4)
         {
-            put_line_with_tab("movss xmm0, [rax]");
+            put_line_with_tab("movss xmm0, dword ptr [rax]");
         }
         else
         {
-            put_line_with_tab("movsd xmm0, [rax]");
+            put_line_with_tab("movsd xmm0, qword ptr [rax]");
         }
         generate_push_xmm(0);
     }
@@ -401,24 +401,24 @@ static void generate_load(const Type *type)
     {
         if(type->size == 1)
         {
-            put_line_with_tab("movsxb rax, byte ptr [rax]");
+            put_line_with_tab("movsx rax, byte ptr [rax]");
         }
         else if(type->size == 2)
         {
-            put_line_with_tab("movsxw rax, word ptr [rax]");
+            put_line_with_tab("movsx rax, word ptr [rax]");
         }
         else if(type->size <= 4)
         {
-            put_line_with_tab("movsxd rax, dword ptr [rax]");
+            put_line_with_tab("movsx rax, dword ptr [rax]");
         }
         else if(type->size <= 8)
         {
-            put_line_with_tab("mov rax, [rax]");
+            put_line_with_tab("mov rax, qword ptr [rax]");
         }
         else if(type->size <= 16)
         {
-            put_line_with_tab("mov r11, [rax+8]");
-            put_line_with_tab("mov rax, [rax]");
+            put_line_with_tab("mov r11, qword ptr [rax+8]");
+            put_line_with_tab("mov rax, qword ptr [rax]");
             generate_push_reg_or_mem("r11");
         }
         generate_push_reg_or_mem("rax");
@@ -439,11 +439,11 @@ static void generate_store(const Type *type)
         generate_pop("rax");
         if(size <= 4)
         {
-            put_line_with_tab("movss [rax], xmm0");
+            put_line_with_tab("movss dword ptr [rax], xmm0");
         }
         else
         {
-            put_line_with_tab("movsd [rax], xmm0");
+            put_line_with_tab("movsd qword ptr [rax], xmm0");
         }
         generate_push_xmm(0);
     }
@@ -467,7 +467,7 @@ static void generate_store(const Type *type)
             }
             else
             {
-                put_line_with_tab("mov [rax], rdi");
+                put_line_with_tab("mov qword ptr [rax], rdi");
             }
         }
         else if(size <= 16)
@@ -475,8 +475,8 @@ static void generate_store(const Type *type)
             generate_pop("rdi");
             generate_pop("r11");
             generate_pop("rax");
-            put_line_with_tab("mov [rax], rdi");
-            put_line_with_tab("mov [rax+8], r11");
+            put_line_with_tab("mov qword ptr [rax], rdi");
+            put_line_with_tab("mov qword ptr [rax+8], r11");
         }
         else
         {
@@ -488,22 +488,22 @@ static void generate_store(const Type *type)
             size_t offset = 0;
             for(; offset + 8 <= size; offset += 8)
             {
-                put_line_with_tab("mov r11, [rdi+%lu]", offset);
-                put_line_with_tab("mov [rax+%lu], r11", offset);
+                put_line_with_tab("mov r11, qword ptr [rdi+%lu]", offset);
+                put_line_with_tab("mov qword ptr [rax+%lu], r11", offset);
             }
             for(; offset + 4 <= size; offset += 4)
             {
-                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov r11d, dword ptr [rdi+%lu]", offset);
                 put_line_with_tab("mov dword ptr [rax+%lu], r11d", offset);
             }
             for(; offset + 2 <= size; offset += 2)
             {
-                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov r11w, word ptr [rdi+%lu]", offset);
                 put_line_with_tab("mov word ptr [rax+%lu], r11w", offset);
             }
             for(; offset + 1 <= size; offset += 1)
             {
-                put_line_with_tab("mov r11, [rdi+%lu]", offset);
+                put_line_with_tab("mov r11b, byte ptr [rdi+%lu]", offset);
                 put_line_with_tab("mov byte ptr [rax+%lu], r11b", offset);
             }
         }
@@ -528,7 +528,7 @@ static void generate_lvalue(const Expression *expr)
         }
         else
         {
-            put_line_with_tab("lea rax, %s[rip]", expr->var->name);
+            put_line_with_tab("lea rax, qword ptr [rip+%s]", expr->var->name);
             generate_push_reg_or_mem("rax");
         }
         break;
@@ -620,7 +620,7 @@ static void generate_lvar_init(const Variable *lvar)
                     if(map->label != NULL)
                     {
                         // generate pointer to label
-                        put_line_with_tab("lea rax, %s[rip]", map->label);
+                        put_line_with_tab("lea rax, qword ptr [rip+%s]", map->label);
                         generate_push_reg_or_mem("rax");
                     }
                     else
@@ -774,7 +774,7 @@ static void generate_func(const Function *func)
     if(pass_address)
     {
         // save the hidden argument
-        put_line_with_tab("mov [rbp-%lu], rdi", stack_size);
+        put_line_with_tab("mov qword ptr [rbp-%lu], rdi", stack_size);
     }
 
     // arguments
@@ -834,7 +834,7 @@ static void generate_func(const Function *func)
             size_t argc_struct = adjust_alignment(arg->type->size, STACK_ALIGNMENT) / STACK_ALIGNMENT;
             for(size_t i = 0; i < argc_struct; i++)
             {
-                put_line_with_tab("mov [rax+%lu], %s", i * STACK_ALIGNMENT, arg_registers64[argc_reg + i]);
+                put_line_with_tab("mov qword ptr [rax+%lu], %s", i * STACK_ALIGNMENT, arg_registers64[argc_reg + i]);
             }
             argc_reg += argc_struct;
         }
@@ -854,7 +854,7 @@ static void generate_func(const Function *func)
             }
             else
             {
-                put_line_with_tab("mov [rax], %s", arg_registers64[argc_reg]);
+                put_line_with_tab("mov qword ptr [rax], %s", arg_registers64[argc_reg]);
             }
             argc_reg++;
         }
@@ -874,7 +874,7 @@ static void generate_func(const Function *func)
         }
         else
         {
-            put_line_with_tab("movsd [rax], xmm%d", argc_xmm);
+            put_line_with_tab("movsd qword ptr [rax], xmm%d", argc_xmm);
         }
         argc_xmm++;
     }
@@ -904,7 +904,7 @@ static void generate_func(const Function *func)
         gp_offset = argc_reg * STACK_ALIGNMENT;
         for(size_t i = 0; i < ARG_REGISTERS_SIZE; i++)
         {
-            put_line_with_tab("mov [rbp-%lu], %s", (ARG_REGISTERS_SIZE - i) * STACK_ALIGNMENT, arg_registers64[i]);
+            put_line_with_tab("mov qword ptr [rbp-%lu], %s", (ARG_REGISTERS_SIZE - i) * STACK_ALIGNMENT, arg_registers64[i]);
         }
     }
 
@@ -919,7 +919,7 @@ static void generate_func(const Function *func)
     if(pass_address)
     {
         // return the address passed by the hidden argument
-        put_line_with_tab("mov rax, [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
+        put_line_with_tab("mov rax, qword ptr [rbp-%lu]", func->stack_size + STACK_ALIGNMENT);
     }
     put_line_with_tab("leave");
     put_line_with_tab("ret");
@@ -1356,7 +1356,7 @@ generate assembler code of binary operation of kind BINOP_PTR_ADD
 */
 static void generate_binop_ptr_add(const Expression *expr)
 {
-    put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+    put_line_with_tab("imul rdi, rdi, %lu", expr->type->base->size);
     generate_binop_add(expr);
 }
 
@@ -1388,7 +1388,7 @@ generate assembler code of binary operation of kind BINOP_PTR_SUB
 */
 static void generate_binop_ptr_sub(const Expression *expr)
 {
-    put_line_with_tab("imul rdi, %lu", expr->type->base->size);
+    put_line_with_tab("imul rdi, rdi, %lu", expr->type->base->size);
     generate_binop_sub(expr);
 }
 
@@ -1498,7 +1498,7 @@ static void generate_binop_eq(const Expression *expr)
     {
         put_line_with_tab("cmp rax, rdi");
         put_line_with_tab("sete al");
-        put_line_with_tab("movzb rax, al");
+        put_line_with_tab("movzx rax, al");
     }
 }
 
@@ -1520,7 +1520,7 @@ static void generate_binop_neq(const Expression *expr)
     {
         put_line_with_tab("cmp rax, rdi");
         put_line_with_tab("setne al");
-        put_line_with_tab("movzb rax, al");
+        put_line_with_tab("movzx rax, al");
     }
 }
 
@@ -1540,7 +1540,7 @@ static void generate_binop_l(const Expression *expr)
     {
         put_line_with_tab("cmp rax, rdi");
         put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setb" : "setl");
-        put_line_with_tab("movzb rax, al");
+        put_line_with_tab("movzx rax, al");
     }
 }
 
@@ -1560,7 +1560,7 @@ static void generate_binop_leq(const Expression *expr)
     {
         put_line_with_tab("cmp rax, rdi");
         put_line_with_tab("%s al", (expr->lhs->type->kind == TY_ULONG) || (expr->rhs->type->kind == TY_ULONG) ? "setbe" : "setle");
-        put_line_with_tab("movzb rax, al");
+        put_line_with_tab("movzx rax, al");
     }
 }
 
@@ -1599,7 +1599,7 @@ static void generate_expr_const(const Expression *expr)
 {
     if(is_floating(expr->value->type))
     {
-        put_line_with_tab("movsd xmm0, %s[rip]", expr->value->float_label);
+        put_line_with_tab("movsd xmm0, qword ptr [rip+%s]", expr->value->float_label);
         generate_push_xmm(0);
     }
     else
@@ -1658,9 +1658,9 @@ static void generate_expr_func(const Expression *expr)
         generate_push_reg_or_mem("r11");
         put_line_with_tab("mov dword ptr [rax], %d", gp_offset); // gp_offset
         put_line_with_tab("mov dword ptr [rax+4], %lu", ARG_REGISTERS_SIZE); // fp_offset
-        put_line_with_tab("lea r11, [rbp+%lu]", 2 * STACK_ALIGNMENT);
+        put_line_with_tab("lea r11, qword ptr [rbp+%lu]", 2 * STACK_ALIGNMENT);
         put_line_with_tab("mov qword ptr [rax+8], r11"); // overflow_arg_area
-        put_line_with_tab("lea r11, [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
+        put_line_with_tab("lea r11, qword ptr [rbp-%lu]", REGISTER_SAVE_AREA_SIZE);
         put_line_with_tab("mov qword ptr [rax+16], r11"); // reg_save_area
         generate_pop("r11");
         return;
@@ -1677,7 +1677,7 @@ static void generate_expr_func(const Expression *expr)
         // provide space for the return value and pass the address of the space as the hidden 1st argument
         space = adjust_alignment(expr->type->size, STACK_ALIGNMENT) + STACK_ALIGNMENT;
         stack_adjustment += space;
-        put_line_with_tab("lea rdi, [rsp-%lu]", space);
+        put_line_with_tab("lea rdi, qword ptr [rsp-%lu]", space);
     }
 
     // classify arguments
@@ -1744,7 +1744,7 @@ static void generate_expr_func(const Expression *expr)
         }
         if(is_bool(expr->type))
         {
-            put_line_with_tab("movzb rax, al");
+            put_line_with_tab("movzx rax, al");
         }
         generate_push_reg_or_mem("rax");
     }
@@ -1770,7 +1770,7 @@ generate assembler code of expression of kind EXPR_POST_INC
 static void generate_expr_post_inc(const Expression *expr)
 {
     generate_lvalue(expr->operand);
-    generate_push_reg_or_mem("[rsp]");
+    generate_push_reg_or_mem("qword ptr [rsp]");
     generate_load(expr->operand->type);
     generate_pop("rax");
     put_line_with_tab("mov rdx, rax");
@@ -1799,7 +1799,7 @@ generate assembler code of expression of kind EXPR_POST_DEC
 static void generate_expr_post_dec(const Expression *expr)
 {
     generate_lvalue(expr->operand);
-    generate_push_reg_or_mem("[rsp]");
+    generate_push_reg_or_mem("qword ptr [rsp]");
     generate_load(expr->operand->type);
     generate_pop("rax");
     put_line_with_tab("mov rdx, rax");
@@ -1899,7 +1899,7 @@ static void generate_expr_neg(const Expression *expr)
     generate_pop("rax");
     put_line_with_tab("cmp rax, 0");
     put_line_with_tab("sete al");
-    put_line_with_tab("movzb rax, al");
+    put_line_with_tab("movzx rax, al");
     generate_push_reg_or_mem("rax");
 }
 
@@ -1954,15 +1954,15 @@ static void generate_expr_cast(const Expression *expr)
         {
             if(expr->type->size == 1)
             {
-                put_line_with_tab("movsxb rax, al");
+                put_line_with_tab("movsx rax, al");
             }
             else if(expr->type->size == 2)
             {
-                put_line_with_tab("movsxw rax, ax");
+                put_line_with_tab("movsx rax, ax");
             }
             else if(expr->type->size == 4)
             {
-                put_line_with_tab("movsxd rax, eax");
+                put_line_with_tab("movsx rax, eax");
             }
         }
     }
@@ -2354,7 +2354,7 @@ generate assembler code of a compound assignment expression
 static void generate_expr_compound_assignment(const Expression *expr, BinaryOperationKind kind)
 {
     generate_lvalue(expr->lhs);
-    generate_push_reg_or_mem("[rsp]");
+    generate_push_reg_or_mem("qword ptr [rsp]");
     generate_load(expr->lhs->type);
     generate_expression(expr->rhs);
     generate_binary_operation(expr, kind);
@@ -2449,7 +2449,7 @@ static void check_stack_pointer(void)
     put_line_with_tab("and r10, 0x0F");
     put_line_with_tab("cmp r10, 0");
     put_line_with_tab("je .Lcall%d", lab);
-    put_line_with_tab("mov r10, [0]"); // trigger segmentation fault
+    put_line_with_tab("mov r10, qword ptr [0]"); // trigger segmentation fault
     put_line(".Lcall%d:", lab);
 }
 #endif /* CHECK_STACK_SIZE */
