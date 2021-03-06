@@ -11,6 +11,14 @@
 // features
 #define WARN_IMPLICIT_DECLARATION_OF_FUNCTION    (ENABLED) // warn implicit declaration of function
 
+// utilities
+#define vfprintf_wrap(fp, format) \
+{\
+    va_list ap;\
+    va_start(ap, format);\
+    vfprintf(fp, format, ap);\
+}
+
 // forward declaration of structure types
 typedef struct Constant Constant;
 typedef struct Declaration Declaration;

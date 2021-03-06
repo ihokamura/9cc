@@ -537,9 +537,7 @@ void report_warning(const char *loc, const char *fmt, ...)
     report_position(pos);
 
     // print the message
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vfprintf_wrap(stderr, fmt);
     fputc('\n', stderr);
 }
 
@@ -555,9 +553,7 @@ void report_error(const char *loc, const char *fmt, ...)
     report_position(pos);
 
     // print the message
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    vfprintf_wrap(stderr, fmt);
     fputc('\n', stderr);
 
     // stop compiling

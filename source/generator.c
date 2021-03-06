@@ -7,7 +7,6 @@
 #include "generator.h"
 #include "parser.h"
 #include "statement.h"
-#include "tokenizer.h"
 #include "type.h"
 
 #define CHECK_STACK_SIZE (ENABLED) // check stack size
@@ -2420,10 +2419,7 @@ output a line of assembler code
 */
 static void put_line(const char *fmt, ...)
 {
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stdout, fmt, ap);
+    vfprintf_wrap(stdout, fmt);
     fputc('\n', stdout);
 }
 
@@ -2433,11 +2429,8 @@ output a line of assembler code with a tab
 */
 static void put_line_with_tab(const char *fmt, ...)
 {
-    va_list ap;
-
-    va_start(ap, fmt);
     fputc('\t', stdout);
-    vfprintf(stdout, fmt, ap);
+    vfprintf_wrap(stdout, fmt);
     fputc('\n', stdout);
 }
 
