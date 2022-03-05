@@ -5,7 +5,7 @@ ASSEMBLY=$2
 BINARY=$3
 
 C_PREPROCESSED=$TEST_DIRECTORY/test_code_pp.c
-C_STUB=$TEST_DIRECTORY/function_call.c
+C_STUB="$TEST_DIRECTORY/function_call.c $TEST_DIRECTORY/lib_assert.c"
 C_TARGET=$TEST_DIRECTORY/test_code.c
 
 # build test code

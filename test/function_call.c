@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "test_code.h"
+#include "lib_assert.h"
 
 // return 0
 int func_call_return0()
