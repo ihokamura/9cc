@@ -3,42 +3,30 @@
 COMPILER_OLD=$1
 COMPILER_NEW=$2
 
-SOURCE=source
-WORKSPACE=self
-STD_HEADER=util/std_header.h
+STD_HEADER=$UTILITY_DIRECTORY/std_header.h
 
-# preprocess header file
-for file in $SOURCE/*.h
-do
-    sed -e 's/^#include <.*>$//g' $file > $WORKSPACE/$(basename $file)
-done
-
-compile()
+remove_include()
 {
-    COMPILER=$1
-    OUTPUT=$2
+    input=$1
+    output=$2
 
-    for file in $SOURCE/*.c
-    do
-        expand $file $COMPILER
-    done
-
-    gcc -Wall -g -static -o $OUTPUT $WORKSPACE/*.s
+    grep -v '#include <.*>' $input > $output
 }
 
-expand()
+assemble()
 {
-    CFILE=$1
-    COMPILER=$2
-    OPTION=$3
-    TMP1=$WORKSPACE/tmp1.c
-    TMP2=$WORKSPACE/tmp2.c
+    compiler=$1
+    c_file=$2
+    compiler_option=$3
 
-    C_SRC=$WORKSPACE/$(basename $CFILE)
-    ASSEMBLY=${C_SRC%.c}.s
-    grep -v '^#include <.*>$' $CFILE > $TMP1
+    compiler_input=$SELF_BUILD_DIRECTORY/$(basename $c_file)
+    s_file=${compiler_input%.c}.s
+    tmp1=$SELF_BUILD_DIRECTORY/tmp1.c
+    tmp2=$SELF_BUILD_DIRECTORY/tmp2.c
 
-    gcc -E $TMP1 | \
+    remove_include $c_file $tmp1
+
+    gcc -E $tmp1 | \
     grep -v '#' | \
     sed -e '
         s/\bbool\b/_Bool/g;
@@ -55,16 +43,27 @@ expand()
         s/\bERANGE\b/34/g;
         s/\berrno\b/*__errno_location()/g;
         s/\bva_start\b/__builtin_va_start/g;
-    ' > $TMP2
+    ' > $tmp2
 
-    cat $STD_HEADER $TMP2 > $C_SRC
+    cat $STD_HEADER $tmp2 > $compiler_input
 
-    if [ $COMPILER = 'gcc' ]; then
+    if [ $compiler = 'gcc' ]; then
         # for debug
-        gcc -Wall -g -S -masm=intel -o $ASSEMBLY $C_SRC
+        gcc $compiler_input $CFLAGS_BASE -S -masm=intel -o $s_file
     else
-        $COMPILER $OPTION $C_SRC > $ASSEMBLY
+        $compiler $compiler_input $compiler_option > $s_file
     fi
 }
 
-compile $COMPILER_OLD $COMPILER_NEW
+
+for file in $SOURCE_DIRECTORY/*.h
+do
+    remove_include $file $SELF_BUILD_DIRECTORY/$(basename $file)
+done
+
+for file in $SOURCE_DIRECTORY/*.c
+do
+    assemble $COMPILER_OLD $file
+done
+
+gcc $SELF_BUILD_DIRECTORY/*.s $CFLAGS_BASE -static -o $COMPILER_NEW
