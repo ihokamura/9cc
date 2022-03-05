@@ -1,20 +1,37 @@
-CFLAGS=-std=c11 -g -Wall
-SRCS=$(wildcard ./source/*.c)
-HDRS=$(wildcard ./source/*.h)
-OBJS=$(SRCS:.c=.o)
+CC=gcc
+CFLAGS=-g -std=c11 -Wall
 
-9cc: $(OBJS)
-	$(CC) -o 9cc $(OBJS) $(LDFLAGS)
+OBJ_DIRECTORY=build
+SELF_DIRECTORY=self
+SRC_DIRECTORY=source
 
-$(OBJS): $(HDRS)
+OBJ=$(OBJ_DIRECTORY)/9cc
+SRCS=$(wildcard $(SRC_DIRECTORY)/*.c)
 
-test: 9cc
-	bash ./util/test.sh ./9cc test_code.s test_bin_9cc
+SELF_BUILD_SCRIPT=util/self.sh
+TEST_SCRIPT=util/test.sh
 
-self: 9cc
-	bash ./util/self.sh
+
+$(OBJ): $(OBJ_DIRECTORY) $(SRCS)
+	$(CC) $(SRCS) $(CFLAGS) -o $(OBJ)
+
+$(OBJ_DIRECTORY):
+	mkdir $(OBJ_DIRECTORY)
+
+$(SELF_DIRECTORY):
+	mkdir $(SELF_DIRECTORY)
 
 clean:
-	rm -f 9cc ./source/*.o ./source/*~ ./test/tmp.c ./test/*.s ./test/test_bin_* ./test/9cc_* self/*
+	rm -fr \
+		$(OBJ_DIRECTORY) \
+		$(SRC_DIRECTORY)/*.o \
+		test/tmp.c test/*.s test/test_bin_* test/9cc_* \
+		$(SELF_DIRECTORY)
 
-.PHONY: test self clean
+test: $(OBJ)
+	$(TEST_SCRIPT) $(OBJ) test_code.s test_bin_9cc
+
+test_self_build: $(OBJ) $(SELF_DIRECTORY)
+	$(SELF_BUILD_SCRIPT)
+
+.PHONY: clean test test_self_build
