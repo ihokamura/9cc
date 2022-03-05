@@ -18,14 +18,10 @@ compile()
     COMPILER=$1
     OUTPUT=$2
 
-    expand declaration.c $COMPILER
-    expand expression.c $COMPILER
-    expand generator.c $COMPILER
-    expand main.c $COMPILER
-    expand parser.c $COMPILER
-    expand statement.c $COMPILER
-    expand tokenizer.c $COMPILER
-    expand type.c $COMPILER
+    for file in $SOURCE/*.c
+    do
+        expand $file $COMPILER
+    done
 
     gcc -Wall -g -static -o $OUTPUT $WORKSPACE/*.s
 }
@@ -35,12 +31,14 @@ expand()
     CFILE=$1
     COMPILER=$2
     OPTION=$3
-    TMP1=tmp1.c
-    TMP2=tmp2.c
+    TMP1=$WORKSPACE/tmp1.c
+    TMP2=$WORKSPACE/tmp2.c
 
-    grep -v '^#include <.*>$' $SOURCE/$CFILE > $WORKSPACE/$TMP1
+    C_SRC=$WORKSPACE/$(basename $CFILE)
+    ASSEMBLY=${C_SRC%.c}.s
+    grep -v '^#include <.*>$' $CFILE > $TMP1
 
-    gcc -E $WORKSPACE/$TMP1 | \
+    gcc -E $TMP1 | \
     grep -v '#' | \
     sed -e '
         s/\bbool\b/_Bool/g;
@@ -57,15 +55,15 @@ expand()
         s/\bERANGE\b/34/g;
         s/\berrno\b/*__errno_location()/g;
         s/\bva_start\b/__builtin_va_start/g;
-    ' > $WORKSPACE/$TMP2
+    ' > $TMP2
 
-    cat $STD_HEADER $WORKSPACE/$TMP2 > $WORKSPACE/$CFILE
+    cat $STD_HEADER $TMP2 > $C_SRC
 
     if [ $COMPILER = 'gcc' ]; then
         # for debug
-        gcc -Wall -g -S -masm=intel -o $WORKSPACE/${1%.c}.s $WORKSPACE/$CFILE
+        gcc -Wall -g -S -masm=intel -o $ASSEMBLY $C_SRC
     else
-        $COMPILER $OPTION $WORKSPACE/$CFILE > $WORKSPACE/${1%.c}.s
+        $COMPILER $OPTION $C_SRC > $ASSEMBLY
     fi
 }
 
