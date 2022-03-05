@@ -410,7 +410,7 @@ static GenericAssociation *generic_association(void)
     GenericAssociation *gen_assoc = calloc(1, sizeof(GenericAssociation));
     gen_assoc->type = consume_reserved("default") ? NULL : type_name();
     expect_reserved(":");
-    gen_assoc->assign = assign();
+    gen_assoc->assign = apply_implicit_conversion(assign());
 
     return gen_assoc;
 }
