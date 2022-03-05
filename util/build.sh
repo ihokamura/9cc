@@ -1,35 +1,21 @@
 #!/bin/bash
 
-# variables
 COMPILER=$1
 ASSEMBLY=$2
 BINARY=$3
-WORKSPACE=$(pwd)/test
-ORIGINAL=$WORKSPACE/test_code.c
-PREPROCESSED=$WORKSPACE/tmp.c
 
+C_PREPROCESSED=test/test_code_pp.c
+C_STUB=test/function_call.c
+C_TARGET=test/test_code.c
 
-# compile test code
-gcc -E $ORIGINAL | grep -v '#' > $PREPROCESSED
-$COMPILER $PREPROCESSED > $WORKSPACE/$ASSEMBLY
-gcc -g -static -o $WORKSPACE/$BINARY $WORKSPACE/$ASSEMBLY $WORKSPACE/function_call.c
+CFLAGS="-g -static -Wall"
 
-if [ "$?" == 0 ]; then
-    # execute test
-    $WORKSPACE/$BINARY
-    if [ "$?" == 0 ]; then
-        echo "passed tests"
-        exit 0
-    else
-        echo "failed tests"
-        exit 1
-    fi
-else
-    # report error
+# build test code
+gcc -E $C_TARGET | grep -v '#' > $C_PREPROCESSED
+$COMPILER $C_PREPROCESSED > $ASSEMBLY
+gcc $ASSEMBLY $C_STUB $CFLAGS -o $BINARY
+
+if [ "$?" != 0 ]; then
     echo "failed to compile"
     exit 1
 fi
-
-
-# remove intermediate files
-rm $PREPROCESSED
