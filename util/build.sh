@@ -14,6 +14,7 @@ CFLAGS="-g -static -Wall"
 gcc -E $C_TARGET | grep -v '#' > $C_PREPROCESSED
 $COMPILER $C_PREPROCESSED > $ASSEMBLY
 gcc $ASSEMBLY $C_STUB $CFLAGS -o $BINARY
+rm $C_PREPROCESSED
 
 if [ "$?" != 0 ]; then
     echo "failed to compile"
