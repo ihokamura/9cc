@@ -194,6 +194,8 @@ int test_conditional()
     r = b ? 123 : 456; assert_int(456, r);
     r = a-- ? b++ : b--; assert_int(0, r); assert_int(0, a); assert_int(1, b);
     r = a++ ? ++b : --b; assert_int(0, r); assert_int(1, a); assert_int(0, b);
+
+    return 0;
 }
 
 
@@ -432,6 +434,8 @@ int test_goto_statement()
     condition = 1; r = func_def_goto(condition); assert_int(1, r);
     condition = 2; r = func_def_goto(condition); assert_int(2, r);
     condition = 0; r = func_def_goto(condition); assert_int(0, r);
+
+    return 0;
 }
 
 
@@ -551,6 +555,8 @@ int test_switch_statement()
     condition1 = 2; condition2 = 7; r = func_def_switch3(condition1, condition2); assert_int(-1, r);
     condition1 = 3; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(3, r);
     condition1 = 5; condition2 = 5; r = func_def_switch3(condition1, condition2); assert_int(0, r);
+
+    return 0;
 }
 
 
@@ -648,6 +654,8 @@ int test_function_call()
     func_call_arg8_double(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
     func_call_arg9_double(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
+
+    return 0;
 }
 
 
