@@ -3,6 +3,20 @@
 
 #include "configuration.h"
 
+#ifdef QCC_COMPILER
+// definition from standard header
+typedef struct
+{
+  int gp_offset;
+  int fp_offset;
+  void *overflow_arg_area;
+  void *reg_save_area;
+} va_list[1];
+
+extern int printf(char *format, ...);
+extern void exit(int code);
+#endif /* QCC_COMPILER */
+
 // type definition
 struct param_t1 {long m0; long m1; char m2;};
 struct param_t2 {int m0; char m1; long m2;};

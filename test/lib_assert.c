@@ -1,8 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "lib_assert.h"
-
-// function declaration
-extern int printf(char *format, ...);
-extern void exit(int code);
 
 
 /*

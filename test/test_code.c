@@ -1,18 +1,10 @@
+#ifndef QCC_COMPILER
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#endif /* !QCC_COMPILER */
 #include "lib_assert.h"
 #include "test_code.h"
-
-// type definition
-typedef struct
-{
-  int gp_offset;
-  int fp_offset;
-  void *overflow_arg_area;
-  void *reg_save_area;
-} va_list[1];
-
-// function declaration
-extern int printf(char *format, ...);
-extern void exit(int code);
 
 
 /*
@@ -393,7 +385,7 @@ int test_comma()
 {
     put_title("comma");
 
-    int a = 0; int b = 123; int r;
+    int a = 0; volatile int b = 123; int r;
 
     r = a, b; assert_int(0, r);
     r = (a++, b++); assert_int(123, r); assert_int(1, a); assert_int(124, b);
@@ -1718,7 +1710,7 @@ int test_type_qualifier(void)
     const int a = 1; assert_int(1, a);
     volatile int b = 2; assert_int(2, b);
     const volatile int c = 3; assert_int(3, c);
-    const int const unsigned volatile d = 4; assert_int(4, d);
+    const int volatile unsigned d = 4; assert_int(4, d);
     const_int *e = &a; assert_int(1, *e);
     const int * const f = &a; assert_int(1, *f);
     const int * const * restrict volatile g = &f; assert_int(1, **g);
