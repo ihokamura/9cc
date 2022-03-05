@@ -409,7 +409,7 @@ static void generate_load(const Type *type)
         }
         else if(type->size <= 4)
         {
-            put_line_with_tab("movsx rax, dword ptr [rax]");
+            put_line_with_tab("movsxd rax, dword ptr [rax]");
         }
         else if(type->size <= 8)
         {
