@@ -10,23 +10,36 @@
 /*
 print title of a test case
 */
-int put_title(char *title)
+int put_title(const char *title)
 {
-    return printf("--- %s ---\n", title);
+    return printf("# %s\n", title);
 }
 
 
-/*
-number
-*/
-int test_number()
+// 6.4.4 Constants
+void test_constants()
 {
-    put_title("number");
+    put_title("Constants");
 
-    assert_equal_int(0, 0);
-    assert_equal_int(42, 42);
+    // 6.4.4.1 Integer constants
+    int sint_max = 2147483647; assert_equal_int(2147483647, sint_max);
+    long sint_max_p1 = 2147483648; assert_equal_long(2147483648, sint_max_p1);
+    int sint_min = -2147483648; assert_equal_int(-2147483648, sint_min);
+    long sint_min_m1 = -2147483649; assert_equal_long(-2147483649, sint_min_m1);
 
-    return 0;
+    int oct_int = 012; assert_equal_int(10, oct_int); assert_equal_int(-83, -0123);
+    int hex_int = 0x12; assert_equal_int(18, hex_int); assert_equal_int(-6699, -0X1A2b);
+    unsigned int uint_suffix = 12U; assert_equal_int(12u, uint_suffix);
+    long long_suffix = 12L; assert_equal_long(12l, long_suffix);
+    unsigned long ulong_suffix = 12UL; assert_equal_long(12lu, ulong_suffix);
+    long long longlong_suffix = 12LL; assert_equal_long_long(12ll, longlong_suffix);
+    unsigned long ulonglong_suffix = 12ULL; assert_equal_long_long(12llu, ulonglong_suffix);
+
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+    // 6.4.4.2 Floating constants
+    float f = 1.0f; assert_equal_float(1.0f, f);
+    double d = 2.0; assert_equal_double(2.0, d);
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
 }
 
 
@@ -35,8 +48,6 @@ additive operator
 */
 int test_additive()
 {
-    put_title("additive operator");
-
     assert_equal_int(21, 5+20-4);
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
@@ -53,8 +64,6 @@ multiplicative operator
 */
 int test_multiplicative()
 {
-    put_title("multiplicative operator");
-
     assert_equal_int(47, 5 + 6 * 7);
     assert_equal_int(15, 5 * (9 - 6));
     assert_equal_int(4, (3 + 5) / 2);
@@ -75,8 +84,6 @@ shift operator
 */
 int test_shift()
 {
-    put_title("shift operator");
-
     assert_equal_int(4, 1 << 2);
     assert_equal_int(40, 5 << 3);
     assert_equal_int(2, 16 >> 3);
@@ -91,8 +98,6 @@ bitwise AND operator
 */
 int test_bitwise_and()
 {
-    put_title("bitwise AND operator");
-
     assert_equal_int(0, 1 & 16);
     assert_equal_int(1, 1 & 15);
     assert_equal_int(0, 3 & 12);
@@ -107,8 +112,6 @@ bitwise exclusive OR operator
 */
 int test_bitwise_xor()
 {
-    put_title("bitwise XOR operator");
-
     assert_equal_int(17, 1 ^ 16);
     assert_equal_int(14, 1 ^ 15);
     assert_equal_int(15, 3 ^ 12);
@@ -123,8 +126,6 @@ bitwise inclusive OR operator
 */
 int test_bitwise_or()
 {
-    put_title("bitwise OR operator");
-
     assert_equal_int(17, 1 | 16);
     assert_equal_int(15, 1 | 15);
     assert_equal_int(15, 3 | 12);
@@ -139,8 +140,6 @@ logical AND operator
 */
 int test_logical_and()
 {
-    put_title("logical AND operator");
-
     assert_equal_int(0, 0 && 0);
     assert_equal_int(0, 0 && 1);
     assert_equal_int(0, 1 && 0);
@@ -159,8 +158,6 @@ logical OR operator
 */
 int test_logical_or()
 {
-    put_title("logical OR operator");
-
     assert_equal_int(0, 0 || 0);
     assert_equal_int(1, 0 || 1);
     assert_equal_int(1, 1 || 0);
@@ -179,8 +176,6 @@ conditional operator
 */
 int test_conditional()
 {
-    put_title("conditional operator");
-
     int a = 1; int b = 0; int r;
     r = a ? 123 : 456; assert_equal_int(123, r);
     r = b ? 123 : 456; assert_equal_int(456, r);
@@ -208,8 +203,6 @@ long func_def_square_long(long x)
 }
 int test_generic_selection()
 {
-    put_title("generic-selection");
-
     short s = _Generic(s, short: func_def_square_short(1), int: func_def_square_int(2)); assert_equal_short(1, s);
     int i = _Generic(i, short: func_def_square_short(1), int: func_def_square_int(2), default: func_def_square_long(3)); assert_equal_short(4, i);
     long l1 = _Generic(l1, short: func_def_square_short(1), int: func_def_square_int(2), default: func_def_square_long(3)); assert_equal_short(9, l1);
@@ -224,8 +217,6 @@ compound-literal
 */
 int test_compound_literal()
 {
-    put_title("compound-literal");
-
     int i = (int){1}; assert_equal_int(1, i);
 
     int *p = (int []){2, 4, 6}; assert_equal_int(2, p[0]); assert_equal_int(4, p[1]); assert_equal_int(6, p[2]);
@@ -248,8 +239,6 @@ unary operator
 */
 int test_unary()
 {
-    put_title("unary operator");
-
     assert_equal_int(10, -10 + 20);
     assert_equal_int(1, +1 * -2 - (-3));
 
@@ -275,8 +264,6 @@ cast operator
 */
 int test_cast()
 {
-    put_title("cast operator");
-
     long l;
 
     char c;
@@ -305,8 +292,6 @@ comparision operator
 */
 int test_comparision()
 {
-    put_title("comparision operator");
-
     assert_equal_int(1, 42 == 6 * 7);
     assert_equal_int(0, 42 != 6 * 7);
     assert_equal_int(0, 42 < 6 * 7);
@@ -341,8 +326,6 @@ local variable
 */
 int test_local_variable()
 {
-    put_title("local variable");
-
     int a; int b; a = 1; b = 2; assert_equal_int(3, a + b);
     int x; int y; int q; x = 42; y = x / 2; q = (x - y) / 7; assert_equal_int(3, q);
     int alpha; int beta; int gamma; alpha = 2; beta = 5 * alpha; gamma = beta - 3 * alpha; assert_equal_int(4, gamma);
@@ -356,8 +339,6 @@ assignment
 */
 int test_assignment()
 {
-    put_title("assignment");
-
     int a; assert_equal_int(123, a = 123);
     int b; b = 123; assert_equal_int(369, b += 246);
     int c; c = 123; assert_equal_int(246, c -= -123);
@@ -383,8 +364,6 @@ comma operator
 */
 int test_comma()
 {
-    put_title("comma");
-
     int a = 0; volatile int b = 123; int r;
 
     r = a, b; assert_equal_int(0, r);
@@ -420,8 +399,6 @@ label2:
 }
 int test_goto_statement()
 {
-    put_title("goto statement");
-
     int condition; int r;
     condition = 1; r = func_def_goto(condition); assert_equal_int(1, r);
     condition = 2; r = func_def_goto(condition); assert_equal_int(2, r);
@@ -436,8 +413,6 @@ if statement
 */
 int test_if_statement()
 {
-    put_title("if statement");
-
     int tmp; int condition;
     tmp = 3; condition = 1; if(condition == 1) tmp = tmp * 2; assert_equal_int(6, tmp);
     tmp = 3; condition = 1; if(condition != 0) tmp = tmp * 2; else tmp = tmp * 3; assert_equal_int(6, tmp);
@@ -531,8 +506,6 @@ int func_def_switch3(int condition1, int condition2)
 }
 int test_switch_statement()
 {
-    put_title("switch statement");
-
     int condition; int condition1; int condition2; int r;
     condition = 1; r = func_def_switch1(condition); assert_equal_int(1, r);
     condition = 3; r = func_def_switch1(condition); assert_equal_int(3, r);
@@ -557,8 +530,6 @@ while statement
 */
 int test_while_statement()
 {
-    put_title("while statement");
-
     int sum; int i;
     sum = i = 0; while(i < 10){sum = sum + i; i = i + 1;} assert_equal_int(45, sum);
     sum = i = 0; while(1){if(i >= 10){assert_equal_int(45, sum); return sum;} sum = sum + i; i = i + 1;}
@@ -574,8 +545,6 @@ do statement
 */
 int test_do_statement()
 {
-    put_title("do statement");
-
     int sum; int i;
     sum = i = 0; do{sum = sum + i; i = i + 1;} while(i < 10); assert_equal_int(45, sum);
     sum = i = 0; do{if(i >= 10){assert_equal_int(45, sum); return sum;} else {sum = sum + i; i = i + 1;}} while(1);
@@ -591,8 +560,6 @@ for statement
 */
 int test_for_statement()
 {
-    put_title("for statement");
-
     int sum; int i; int j;
     sum = 0; for(i = 0; i < 10; i = i + 1){sum = sum + i;} assert_equal_int(45, sum);
     sum = 0; i = 0; for(; i < 10; i = i + 1){sum = sum + i;} assert_equal_int(45, sum);
@@ -612,8 +579,6 @@ function call
 */
 int test_function_call()
 {
-    put_title("function call");
-
     assert_equal_int(0, func_call_return0());
     assert_equal_int(3, func_call_return1() + func_call_return2());
     assert_equal_int(3, func_call_add(1, 2));
@@ -803,8 +768,6 @@ double func_def_return_double(double d)
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 int test_function_definition()
 {
-    put_title("function definition");
-
     assert_equal_int(0, func_def_return0());
     assert_equal_int(3, func_def_return1() + func_def_return2());
     assert_equal_int(3, func_def_add(1, 2));
@@ -860,8 +823,6 @@ int **func_def_returnp2(int **x)
 }
 int test_address_dereference()
 {
-    put_title("address operator and dereference operator");
-
     int x; int *y; int **z;
     x = 1; y = &x; assert_equal_int(3, *y + 2);
     x = 1; y = &x; *y = 3; assert_equal_int(3 , x);
@@ -883,8 +844,6 @@ sizeof operator
 */
 int test_sizeof()
 {
-    put_title("sizeof operator");
-
     assert_equal_int(4, sizeof(1));
     assert_equal_int(8, sizeof sizeof(1));
 
@@ -961,8 +920,6 @@ _Alignof operator
 */
 int test_alignof()
 {
-    put_title("_Alignof operator");
-
     assert_equal_int(1, _Alignof(char));
     assert_equal_int(1, _Alignof(char [5]));
     assert_equal_int(8, _Alignof(char *));
@@ -1017,8 +974,6 @@ pointer operation
 */
 int test_pointer_operation()
 {
-    put_title("pointer operation");
-
     int *p; int *q; alloc4(&p, 1, 2, 4, 8);
     q = p + 2; assert_equal_int(4, *q);
     q = 2 + p; assert_equal_int(4, *q);
@@ -1035,8 +990,6 @@ array
 */
 int test_array()
 {
-    put_title("array");
-
     int a1[1]; int a2[2]; int a3[1 + 2]; int a4[2 << 1]; int a32[3][2]; int *p; int i; int j;
     *a1 = 2; assert_equal_int(2, *a1);
     *(a2 + 1) = 2; assert_equal_int(2, 2 * *(a2 + 1) - 2);
@@ -1074,8 +1027,6 @@ int func_def_set_gvar_int1()
 }
 int test_global_variable()
 {
-    put_title("global variable");
-
     int i;
     gvar_int1 = 1; assert_equal_int(1, gvar_int1);
     gvar_int2 = 2; assert_equal_int(3, func_def_set_gvar_int1() + gvar_int2);
@@ -1099,8 +1050,6 @@ void func_def_arg_v(void)
 }
 int test_void()
 {
-    put_title("void type");
-
     gvar_int = 123;
     func_def_arg_v();
     assert_equal_int(246, gvar_int);
@@ -1118,8 +1067,6 @@ _Bool func_def_equal(int a, int b)
 }
 int test_bool()
 {
-    put_title("bool type");
-
     _Bool bf = 0; assert_equal_bool(0, bf);
     _Bool bt = 1; assert_equal_bool(1, bt);
     assert_equal_bool(1, func_def_equal(1, 1)); assert_equal_bool(0, func_def_equal(1, 2));
@@ -1133,8 +1080,6 @@ char type
 */
 int test_char()
 {
-    put_title("char type");
-
     char c = -1; assert_equal_char(-1, c);
     signed char sc = -2; assert_equal_char(-2, sc);
 
@@ -1147,8 +1092,6 @@ short type
 */
 int test_short()
 {
-    put_title("short type");
-
     short s = -1; assert_equal_short(-1, s);
     signed short ss = -2; assert_equal_short(-2, ss);
     short int si = -3; assert_equal_short(-3, si);
@@ -1163,8 +1106,6 @@ int type
 */
 int test_int()
 {
-    put_title("int type");
-
     int i = -1; assert_equal_int(-1, i);
     signed s = -2; assert_equal_int(-2, s);
     signed int si = -3; assert_equal_int(-3, si);
@@ -1178,8 +1119,6 @@ long type
 */
 int test_long()
 {
-    put_title("long type");
-
     long l = -1; assert_equal_long(-1, l);
     signed long sl = -2; assert_equal_long(-2, sl);
     long int li = -3; assert_equal_long(-3, li);
@@ -1194,8 +1133,6 @@ long long type
 */
 int test_longlong()
 {
-    put_title("long long type");
-
     long long ll = -1; assert_equal_long_long(-1, ll);
     signed long long sll = -2; assert_equal_long_long(-2, sll);
     long long int lli = -3; assert_equal_long_long(-3, lli);
@@ -1210,8 +1147,6 @@ atomic type
 */
 int test_atomic()
 {
-    put_title("atomic type");
-
     int i = 1; assert_equal_int(1, i);
     _Atomic(int) ai = 11; assert_equal_int(11, ai);
     _Atomic(int) *pai1 = &ai; assert_equal_int(11, *pai1);
@@ -1227,8 +1162,6 @@ struct type
 */
 int test_struct()
 {
-    put_title("struct type");
-
     struct st1_tag {int m1; int m2;} st1, *pst1;
     st1.m1 = 1; assert_equal_int(1, st1.m1);
     st1.m2 = 2; assert_equal_int(2, st1.m2);
@@ -1277,8 +1210,6 @@ union type
 */
 int test_union()
 {
-    put_title("union type");
-
     union {int m1; int m2;} un1, *pun1;
     un1.m1 = 1; assert_equal_int(1, un1.m1);
     un1.m2 = 2; assert_equal_int(2, un1.m2);
@@ -1319,8 +1250,6 @@ enumeration type
 */
 int test_enum()
 {
-    put_title("enumeration type");
-
     enum {EN1, EN2} en1;
     en1 = EN2 * 2;
     assert_equal_int(0, EN1); assert_equal_int(1, EN2); assert_equal_int(2, en1);
@@ -1337,8 +1266,6 @@ string-literal
 */
 int test_string_literal()
 {
-    put_title("string-literal");
-
     char *s;
     s = "foo";
     assert_equal_char('f', s[0]);
@@ -1351,52 +1278,10 @@ int test_string_literal()
 
 
 /*
-integer-constant
-*/
-int test_integer_constant()
-{
-    put_title("integer-constant");
-
-    int sint_max = 2147483647; assert_equal_int(2147483647, sint_max);
-    long sint_max_p1 = 2147483648; assert_equal_long(2147483648, sint_max_p1);
-    int sint_min = -2147483648; assert_equal_int(-2147483648, sint_min);
-    long sint_min_m1 = -2147483649; assert_equal_long(-2147483649, sint_min_m1);
-
-    int oct_int = 012; assert_equal_int(10, oct_int); assert_equal_int(-83, -0123);
-    int hex_int = 0x12; assert_equal_int(18, hex_int); assert_equal_int(-6699, -0X1A2b);
-    unsigned int uint_suffix = 12U; assert_equal_int(12u, uint_suffix);
-    long long_suffix = 12L; assert_equal_long(12l, long_suffix);
-    unsigned long ulong_suffix = 12UL; assert_equal_long(12lu, ulong_suffix);
-    long long longlong_suffix = 12LL; assert_equal_long_long(12ll, longlong_suffix);
-    unsigned long ulonglong_suffix = 12ULL; assert_equal_long_long(12llu, ulonglong_suffix);
-
-    return 0;
-}
-
-
-#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
-/*
-floating-constant
-*/
-int test_floating_constant()
-{
-    put_title("floating-constant");
-
-    float f = 1.0f; assert_equal_float(1.0f, f);
-    double d = 2.0; assert_equal_double(2.0, d);
-
-    return 0;
-}
-#endif /* INCLUDE_FLOATING_POINT_TYPE */
-
-
-/*
 character constant
 */
 int test_character_constant()
 {
-    put_title("character constant");
-
     assert_equal_char(111, 'o');
     assert_equal_char(48, '0');
     assert_equal_char(34, '\"'); assert_equal_char(34, '"');
@@ -1451,16 +1336,14 @@ gvar_init_st_type gvar_init_st = {111, {222, 333, &gvar_init_int}};
 int *gvar_init_p1 = &gvar_init_int + 3;
 int *gvar_init_p2 = &gvar_init_a1[3] - 3;
 int *gvar_init_p3 = 1 + 2 + gvar_init_a1 - 2 - 1;
-int (*gvar_init_p4)(char *) = put_title;
-int (*gvar_init_p5)(char *) = put_title + 3;
+int (*gvar_init_p4)(const char *) = put_title;
+int (*gvar_init_p5)(const char *) = put_title + 3;
 char *gvar_init_p6 = &gvar_init_st.m1;
 int *gvar_init_p7 = &gvar_init_st.m2.mm1;
 short *gvar_init_p8 = &*&gvar_init_st.m2.mm2;
 gvar_init_st_type gvar_init_compound = (gvar_init_st_type){.m2.mm1 = 2, .m2.mm2 = 3, .m2.mm3 = &gvar_init_int, .m1 = 1};
 int test_initializer()
 {
-    put_title("initializer");
-
     char c = 1; assert_equal_char(1, c);
     short s = 2; assert_equal_short(2, s);
     int i = 3; assert_equal_int(3, i);
@@ -1554,8 +1437,6 @@ int test_scope_var = 1;
 struct test_scope_tag {int s1;};
 int test_scope(void)
 {
-    put_title("scope");
-
     assert_equal_int(1, test_scope_var);
 
     int test_scope_var = 2;
@@ -1644,8 +1525,6 @@ static int static_int;
 _Thread_local int thread_local_extern_int;
 int test_storage_class(void)
 {
-    put_title("storage_class");
-
     int_type t = 0; assert_equal_int(0, t);
     static int s = 2; assert_equal_int(2, s);
     auto int a = 3; assert_equal_int(3, a);
@@ -1703,8 +1582,6 @@ type qualifier
 */
 int test_type_qualifier(void)
 {
-    put_title("type qualifier");
-
     typedef const int const_int;
 
     const int a = 1; assert_equal_int(1, a);
@@ -1730,8 +1607,6 @@ _Alignas(1) const _Alignas(8) _Alignas(4) char gvar_aligned_char8 = 8;
 char _Alignas(16) gvar_aligned_char16 = 16;
 int test_alignas(void)
 {
-    put_title("alignment specifier");
-
     assert_equal_char(0, gvar_aligned_char0);
     assert_equal_char(1, gvar_aligned_char1);
     assert_equal_char(2, gvar_aligned_char2);
@@ -1753,8 +1628,6 @@ static assertion
 */
 int test_static_assertion(void)
 {
-    put_title("static assertion");
-
     _Static_assert(0 + 1, "failed at test_static_assertion()");
 
     return 0;
@@ -1766,8 +1639,6 @@ conversion
 */
 int test_conversion(void)
 {
-    put_title("conversion");
-
     char c = 123; assert_equal_int(4, sizeof(c == 0)); assert_equal_int(1, c == 123);
     short s = 123; assert_equal_int(4, sizeof(s == 0)); assert_equal_int(1, s == 123);
     int i = 123; assert_equal_int(4, sizeof(i == 0)); assert_equal_int(1, i == 123);
@@ -1787,7 +1658,7 @@ main function of test code
 */
 int main()
 {
-    test_number();
+    test_constants();
     test_additive();
     test_multiplicative();
     test_shift();
@@ -1831,10 +1702,6 @@ int main()
     test_union();
     test_enum();
     test_string_literal();
-    test_integer_constant();
-#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
-    test_floating_constant();
-#endif /* INCLUDE_FLOATING_POINT_TYPE */
     test_character_constant();
     test_initializer();
     test_scope();
