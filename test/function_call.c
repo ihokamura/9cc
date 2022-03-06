@@ -58,29 +58,29 @@ int func_call_arg8(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a
 // function with 8 arguments
 void func_call_arg8_double(double a0, double a1, double a2, double a3, double a4, double a5, double a6, double a7)
 {
-    assert_double(0.0, a0);
-    assert_double(1.0, a1);
-    assert_double(2.0, a2);
-    assert_double(3.0, a3);
-    assert_double(4.0, a4);
-    assert_double(5.0, a5);
-    assert_double(6.0, a6);
-    assert_double(7.0, a7);
+    assert_equal_double(0.0, a0);
+    assert_equal_double(1.0, a1);
+    assert_equal_double(2.0, a2);
+    assert_equal_double(3.0, a3);
+    assert_equal_double(4.0, a4);
+    assert_equal_double(5.0, a5);
+    assert_equal_double(6.0, a6);
+    assert_equal_double(7.0, a7);
 }
 
 
 // function with 9 arguments
 void func_call_arg9_double(double a0, double a1, double a2, double a3, double a4, double a5, double a6, double a7, double a8)
 {
-    assert_double(0.0, a0);
-    assert_double(1.0, a1);
-    assert_double(2.0, a2);
-    assert_double(3.0, a3);
-    assert_double(4.0, a4);
-    assert_double(5.0, a5);
-    assert_double(6.0, a6);
-    assert_double(7.0, a7);
-    assert_double(8.0, a8);
+    assert_equal_double(0.0, a0);
+    assert_equal_double(1.0, a1);
+    assert_equal_double(2.0, a2);
+    assert_equal_double(3.0, a3);
+    assert_equal_double(4.0, a4);
+    assert_equal_double(5.0, a5);
+    assert_equal_double(6.0, a6);
+    assert_equal_double(7.0, a7);
+    assert_equal_double(8.0, a8);
 }
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 

@@ -6,7 +6,7 @@
 /*
 assertion for bool type
 */
-int assert_bool_func(const char *file, int line, _Bool expected, _Bool actual)
+int assert_equal_bool_func(const char *file, int line, _Bool expected, _Bool actual)
 {
     if(expected == actual)
     {
@@ -24,7 +24,7 @@ int assert_bool_func(const char *file, int line, _Bool expected, _Bool actual)
 /*
 assertion for char type
 */
-int assert_char_func(const char *file, int line, char expected, char actual)
+int assert_equal_char_func(const char *file, int line, char expected, char actual)
 {
     if(expected == actual)
     {
@@ -42,7 +42,7 @@ int assert_char_func(const char *file, int line, char expected, char actual)
 /*
 assertion for short type
 */
-int assert_short_func(const char *file, int line, short expected, short actual)
+int assert_equal_short_func(const char *file, int line, short expected, short actual)
 {
     if(expected == actual)
     {
@@ -60,7 +60,7 @@ int assert_short_func(const char *file, int line, short expected, short actual)
 /*
 assertion for int type
 */
-int assert_int_func(const char *file, int line, int expected, int actual)
+int assert_equal_int_func(const char *file, int line, int expected, int actual)
 {
     if(expected == actual)
     {
@@ -78,7 +78,7 @@ int assert_int_func(const char *file, int line, int expected, int actual)
 /*
 assertion for long type
 */
-int assert_long_func(const char *file, int line, long expected, long actual)
+int assert_equal_long_func(const char *file, int line, long expected, long actual)
 {
     if(expected == actual)
     {
@@ -96,7 +96,7 @@ int assert_long_func(const char *file, int line, long expected, long actual)
 /*
 assertion for long long type
 */
-int assert_longlong_func(const char *file, int line, long long expected, long long actual)
+int assert_equal_long_long_func(const char *file, int line, long long expected, long long actual)
 {
     if(expected == actual)
     {
@@ -114,7 +114,7 @@ int assert_longlong_func(const char *file, int line, long long expected, long lo
 /*
 assertion for pointer type
 */
-int assert_pointer_func(const char *file, int line, const void *expected, const void *actual)
+int assert_equal_pointer_func(const char *file, int line, const void *expected, const void *actual)
 {
     if(expected == actual)
     {
@@ -134,7 +134,7 @@ int assert_pointer_func(const char *file, int line, const void *expected, const 
 /*
 assertion for float type
 */
-int assert_float_func(const char *file, int line, float expected, float actual)
+int assert_equal_float_func(const char *file, int line, float expected, float actual)
 {
     if(expected == actual)
     {
@@ -152,7 +152,7 @@ int assert_float_func(const char *file, int line, float expected, float actual)
 /*
 assertion for double type
 */
-int assert_double_func(const char *file, int line, double expected, double actual)
+int assert_equal_double_func(const char *file, int line, double expected, double actual)
 {
     if(expected == actual)
     {
