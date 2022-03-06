@@ -8,7 +8,7 @@
     if((expected) != (actual)) \
     { \
         const char *format = _Generic((actual), \
-            unsigned: "%s(%d): %u expected, but got %u\n", \
+            unsigned int: "%s(%d): %u expected, but got %u\n", \
             long: "%s(%d): %ld expected, but got %ld\n", \
             unsigned long: "%s(%d): %lu expected, but got %lu\n", \
             long long: "%s(%d): %lld expected, but got %lld\n", \
@@ -33,63 +33,63 @@
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 
 
-/*
-assertion for bool type
-*/
+// assertion for bool type
 void assert_equal_bool_func(const char *file, int line, _Bool expected, _Bool actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for char type
-*/
+// assertion for char type
 void assert_equal_char_func(const char *file, int line, char expected, char actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for short type
-*/
+// assertion for short type
 void assert_equal_short_func(const char *file, int line, short expected, short actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for int type
-*/
+// assertion for int type
 void assert_equal_int_func(const char *file, int line, int expected, int actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for long type
-*/
+// assertion for unsigned int type
+void assert_equal_unsigned_int_func(const char *file, int line, unsigned int expected, unsigned int actual)
+{
+    assert_equal_integer(file, line, expected, actual);
+}
+
+
+// assertion for long type
 void assert_equal_long_func(const char *file, int line, long expected, long actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for long long type
-*/
+// assertion for unsigned long type
+void assert_equal_unsigned_long_func(const char *file, int line, unsigned long expected, unsigned long actual)
+{
+    assert_equal_integer(file, line, expected, actual);
+}
+
+
+// assertion for long long type
 void assert_equal_long_long_func(const char *file, int line, long long expected, long long actual)
 {
     assert_equal_integer(file, line, expected, actual);
 }
 
 
-/*
-assertion for pointer type
-*/
+// assertion for pointer type
 void assert_equal_pointer_func(const char *file, int line, const void *expected, const void *actual)
 {
     assert_equal_integer(file, line, expected, actual);
@@ -97,18 +97,14 @@ void assert_equal_pointer_func(const char *file, int line, const void *expected,
 
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
-/*
-assertion for float type
-*/
+// assertion for float type
 void assert_equal_float_func(const char *file, int line, float expected, float actual)
 {
     assert_equal_floating_point(file, line, expected, actual);
 }
 
 
-/*
-assertion for double type
-*/
+// assertion for double type
 void assert_equal_double_func(const char *file, int line, double expected, double actual)
 {
     assert_equal_floating_point(file, line, expected, actual);
