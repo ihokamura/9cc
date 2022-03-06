@@ -7,7 +7,7 @@
 {\
     if((expected) != (actual)) \
     { \
-        const char *format = _Generic((expected), \
+        const char *format = _Generic((actual), \
             unsigned: "%s(%d): %u expected, but got %u\n", \
             long: "%s(%d): %ld expected, but got %ld\n", \
             unsigned long: "%s(%d): %lu expected, but got %lu\n", \
@@ -114,3 +114,101 @@ void assert_equal_double_func(const char *file, int line, double expected, doubl
     assert_equal_floating_point(file, line, expected, actual);
 }
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
+
+
+// assertion for decimal constant with all digits
+void assert_constant_decimal_all_digit_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 1234567890, actual);
+}
+
+
+// assertion for octal constant with all digits
+void assert_constant_octal_all_digit_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 012345670, actual);
+}
+
+
+// assertion for hexadecimal constant with all digits
+void assert_constant_hexadecimal_all_digit_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 0x1234567890ABCDEF, actual);
+}
+
+
+// assertion for maximum of int type minus 1
+void assert_constant_int_max_minus1_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 2147483646, actual);
+}
+
+
+// assertion for maximum of int type
+void assert_constant_int_max_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 2147483647, actual);
+}
+
+
+// assertion for maximum of int type plus 1
+void assert_constant_int_max_plus1_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 2147483648L, actual);
+}
+
+
+// assertion for maximum of unsigned int type minus 1
+void assert_constant_unsigned_int_max_minus1_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 4294967294U, actual);
+}
+
+
+// assertion for maximum of unsigned int type
+void assert_constant_unsigned_int_max_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 4294967295U, actual);
+}
+
+
+// assertion for maximum of unsigned int type plus 1
+void assert_constant_unsigned_int_max_plus1_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 4294967296U, actual);
+}
+
+
+// assertion for maximum of long type minus 1
+void assert_constant_long_max_minus1_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 9223372036854775806L, actual);
+}
+
+
+// assertion for maximum of long type
+void assert_constant_long_max_func(const char *file, int line, long actual)
+{
+    assert_equal_integer(file, line, 9223372036854775807L, actual);
+}
+
+
+// assertion for maximum of long type plus 1
+void assert_constant_long_max_plus1_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 9223372036854775808UL, actual);
+}
+
+
+// assertion for maximum of unsigned long type minus 1
+void assert_constant_unsigned_long_max_minus1_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 18446744073709551614UL, actual);
+}
+
+
+// assertion for maximum of unsigned long type
+void assert_constant_unsigned_long_max_func(const char *file, int line, unsigned long actual)
+{
+    assert_equal_integer(file, line, 18446744073709551615UL, actual);
+}
