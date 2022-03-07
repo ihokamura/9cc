@@ -141,41 +141,42 @@ void test_constants()
 
 
 // 6.5.6 Additive operators
-int test_additive_operators()
+void test_additive_operators()
 {
     put_title("Additive operators");
 
-    assert_equal_int(4, sizeof(126 + 0)); assert_equal_int(126, 126 + 0);
-    assert_equal_int(4, sizeof(126 + 1)); assert_equal_int(127, 126 + 1);
-    assert_equal_int(4, sizeof(126 + 2)); assert_equal_int(128, 126 + 2);
-    assert_equal_int(4, sizeof(254 + 0)); assert_equal_int(254, 254 + 0);
-    assert_equal_int(4, sizeof(254 + 1)); assert_equal_int(255, 254 + 1);
-    assert_equal_int(4, sizeof(254 + 2)); assert_equal_int(256, 254 + 2);
-    assert_equal_int(4, sizeof(32766 + 0)); assert_equal_int(32766, 32766 + 0);
-    assert_equal_int(4, sizeof(32766 + 1)); assert_equal_int(32767, 32766 + 1);
-    assert_equal_int(4, sizeof(32766 + 2)); assert_equal_int(32768, 32766 + 2);
-    assert_equal_int(4, sizeof(65534 + 0)); assert_equal_int(65534, 65534 + 0);
-    assert_equal_int(4, sizeof(65534 + 1)); assert_equal_int(65535, 65534 + 1);
-    assert_equal_int(4, sizeof(65534 + 2)); assert_equal_int(65536, 65534 + 2);
+    assert_equal_int(4, sizeof((signed char)126 + (signed char)0)); assert_equal_int(126, (signed char)126 + (signed char)0);
+    assert_equal_int(4, sizeof((signed char)126 + (signed char)1)); assert_equal_int(127, (signed char)126 + (signed char)1);
+    assert_equal_int(4, sizeof((signed char)126 + (signed char)2)); assert_equal_int(128, (signed char)126 + (signed char)2);
+    assert_equal_int(4, sizeof((unsigned char)254 + (unsigned char)0)); assert_equal_int(254, (unsigned char)254 + (unsigned char)0);
+    assert_equal_int(4, sizeof((unsigned char)254 + (unsigned char)1)); assert_equal_int(255, (unsigned char)254 + (unsigned char)1);
+    assert_equal_int(4, sizeof((unsigned char)254 + (unsigned char)2)); assert_equal_int(256, (unsigned char)254 + (unsigned char)2);
+    assert_equal_int(4, sizeof((short)32766 + (short)0)); assert_equal_int(32766, (short)32766 + (short)0);
+    assert_equal_int(4, sizeof((short)32766 + (short)1)); assert_equal_int(32767, (short)32766 + (short)1);
+    assert_equal_int(4, sizeof((short)32766 + (short)2)); assert_equal_int(32768, (short)32766 + (short)2);
+    assert_equal_int(4, sizeof((unsigned short)65534 + (unsigned short)0)); assert_equal_int(65534, (unsigned short)65534 + (unsigned short)0);
+    assert_equal_int(4, sizeof((unsigned short)65534 + (unsigned short)1)); assert_equal_int(65535, (unsigned short)65534 + (unsigned short)1);
+    assert_equal_int(4, sizeof((unsigned short)65534 + (unsigned short)2)); assert_equal_int(65536, (unsigned short)65534 + (unsigned short)2);
     assert_equal_int(4, sizeof(2147483646 + 0)); assert_equal_int(2147483646, 2147483646 + 0);
     assert_equal_int(4, sizeof(2147483646 + 1)); assert_equal_int(2147483647, 2147483646 + 1);
     assert_equal_int(4, sizeof(2147483647 + 2)); // assert_equal_int(-2147483648, 2147483646 + 2); // This is implementation-defined or raises an implementation-defined signal.
+    assert_equal_int(8, sizeof(2147483647L + 2L)); assert_equal_long(2147483648L, 2147483646L + 2L);
     assert_equal_int(4, sizeof(4294967294U + 0U)); assert_equal_unsigned_int(4294967294U, 4294967294U + 0U);
     assert_equal_int(4, sizeof(4294967294U + 1U)); assert_equal_unsigned_int(4294967295U, 4294967294U + 1U);
     assert_equal_int(4, sizeof(4294967294U + 2U)); assert_equal_unsigned_int(0U, 4294967294U + 2U);
+    assert_equal_int(8, sizeof((long)4294967294U + (long)2U)); assert_equal_long(4294967296L, (long)4294967294U + (long)2U);
     assert_equal_int(8, sizeof(9223372036854775806L + 0L)); assert_equal_long(9223372036854775806L, 9223372036854775806L + 0L);
     assert_equal_int(8, sizeof(9223372036854775806L + 1L)); assert_equal_long(9223372036854775807L, 9223372036854775806L + 1L);
     assert_equal_int(8, sizeof(9223372036854775806L + 2L)); // assert_equal_long(-9223372036854775808L, 9223372036854775806L + 2L); // This is implementation-defined or raises an implementation-defined signal.
+    assert_equal_int(8, sizeof(9223372036854775806UL + 2UL)); assert_equal_unsigned_long(9223372036854775808UL, 9223372036854775806UL + 2UL);
     assert_equal_int(8, sizeof(18446744073709551614UL + 0UL)); assert_equal_unsigned_long(18446744073709551614UL, 18446744073709551614UL + 0UL);
     assert_equal_int(8, sizeof(18446744073709551614UL + 1UL)); assert_equal_unsigned_long(18446744073709551615UL, 18446744073709551614UL + 1UL);
-    assert_equal_int(8, sizeof(18446744073709551614UL + 2UL)); assert_equal_unsigned_long(0U, 18446744073709551614UL + 2UL);
+    assert_equal_int(8, sizeof(18446744073709551614UL + 2UL)); assert_equal_unsigned_long(0UL, 18446744073709551614UL + 2UL);
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_equal_float(21.0f, 5.0f+20.0f-4.0f);
     assert_equal_double(21.0, 5.0+20.0-4.0);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
-
-    return 0;
 }
 
 

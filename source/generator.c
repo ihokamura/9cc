@@ -9,7 +9,7 @@
 #include "statement.h"
 #include "type.h"
 
-#define CHECK_STACK_SIZE (ENABLED) // check stack size
+#define CHECK_STACK_SIZE    (ENABLED) // check stack size
 #if(CHECK_STACK_SIZE == ENABLED)
 #include <assert.h>
 #endif /* CHECK_STACK_SIZE */
@@ -1954,15 +1954,29 @@ static void generate_expr_cast(const Expression *expr)
         {
             if(expr->type->size == 1)
             {
-                put_line_with_tab("movsx rax, al");
+                if(is_signed(expr->type))
+                {
+                    put_line_with_tab("movsx rax, al");
+                }
+                else
+                {
+                    put_line_with_tab("movzx rax, al");
+                }
             }
             else if(expr->type->size == 2)
             {
-                put_line_with_tab("movsx rax, ax");
+                if(is_signed(expr->type))
+                {
+                    put_line_with_tab("movsx rax, ax");
+                }
+                else
+                {
+                    put_line_with_tab("movzx rax, ax");
+                }
             }
             else if(expr->type->size == 4)
             {
-                put_line_with_tab("movsx rax, eax");
+                put_line_with_tab("movsxd rax, eax");
             }
         }
     }
