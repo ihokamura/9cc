@@ -16,6 +16,7 @@ int put_title(const char *title)
 }
 
 
+#if ENABLE_TEST_CASE(TEST_CONSTANTS)
 // 6.4.4 Constants
 void test_constants()
 {
@@ -138,8 +139,10 @@ void test_constants()
     double d = 2.0; assert_equal_double(2.0, d);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 }
+#endif /* ENABLE_TEST_CASE(TEST_CONSTANTS) */
 
 
+#if ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS)
 // 6.5.6 Additive operators
 void test_additive_operators()
 {
@@ -178,8 +181,10 @@ void test_additive_operators()
     assert_equal_double(21.0, 5.0+20.0-4.0);
 #endif /* INCLUDE_FLOATING_POINT_TYPE */
 }
+#endif /* ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS) */
 
 
+#if ENABLE_TEST_CASE(TEST_OTHERS)
 /*
 multiplicative operator
 */
@@ -1772,6 +1777,7 @@ int test_conversion(void)
 
     return 0;
 }
+#endif /* ENABLE_TEST_CASE(TEST_OTHERS) */
 
 
 /*
@@ -1779,8 +1785,13 @@ main function of test code
 */
 int main()
 {
+#if ENABLE_TEST_CASE(TEST_CONSTANTS)
     test_constants();
+#endif /* ENABLE_TEST_CASE(TEST_CONSTANTS) */
+#if ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS)
     test_additive_operators();
+#endif /* ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS) */
+#if ENABLE_TEST_CASE(TEST_OTHERS)
     test_multiplicative();
     test_shift();
     test_bitwise_and();
@@ -1831,6 +1842,7 @@ int main()
     test_alignas();
     test_static_assertion();
     test_conversion();
+#endif /* ENABLE_TEST_CASE(TEST_OTHERS) */
 
     return 0;
 }

@@ -17,6 +17,10 @@ extern int printf(char *format, ...);
 extern void exit(int code);
 #endif /* QCC_COMPILER */
 
+// macro to select test case
+#define ENABLE_TEST_CASE(TEST_CASE_NAME)    (TEST_CASE_NAME || (TEST_ALL == ENABLED))
+
+
 // type definition
 struct param_t1 {long m0; long m1; char m2;};
 struct param_t2 {int m0; char m1; long m2;};
