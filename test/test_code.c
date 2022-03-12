@@ -148,70 +148,84 @@ void test_additive_operators()
 {
     put_title("Additive operators");
 
-    assert_equal_size_t(4, sizeof((signed char)126 + (signed char)0)); assert_equal_int(126, (signed char)126 + (signed char)0);
-    assert_equal_size_t(4, sizeof((signed char)126 + (signed char)1)); assert_equal_int(127, (signed char)126 + (signed char)1);
-    assert_equal_size_t(4, sizeof((signed char)126 + (signed char)2)); assert_equal_int(128, (signed char)126 + (signed char)2);
-    assert_equal_size_t(4, sizeof((unsigned char)254 + (unsigned char)0)); assert_equal_int(254, (unsigned char)254 + (unsigned char)0);
-    assert_equal_size_t(4, sizeof((unsigned char)254 + (unsigned char)1)); assert_equal_int(255, (unsigned char)254 + (unsigned char)1);
-    assert_equal_size_t(4, sizeof((unsigned char)254 + (unsigned char)2)); assert_equal_int(256, (unsigned char)254 + (unsigned char)2);
-    assert_equal_size_t(4, sizeof((short)32766 + (short)0)); assert_equal_int(32766, (short)32766 + (short)0);
-    assert_equal_size_t(4, sizeof((short)32766 + (short)1)); assert_equal_int(32767, (short)32766 + (short)1);
-    assert_equal_size_t(4, sizeof((short)32766 + (short)2)); assert_equal_int(32768, (short)32766 + (short)2);
-    assert_equal_size_t(4, sizeof((unsigned short)65534 + (unsigned short)0)); assert_equal_int(65534, (unsigned short)65534 + (unsigned short)0);
-    assert_equal_size_t(4, sizeof((unsigned short)65534 + (unsigned short)1)); assert_equal_int(65535, (unsigned short)65534 + (unsigned short)1);
-    assert_equal_size_t(4, sizeof((unsigned short)65534 + (unsigned short)2)); assert_equal_int(65536, (unsigned short)65534 + (unsigned short)2);
-    assert_equal_size_t(4, sizeof(2147483646 + 0)); assert_equal_int(2147483646, 2147483646 + 0);
-    assert_equal_size_t(4, sizeof(2147483646 + 1)); assert_equal_int(2147483647, 2147483646 + 1);
-    assert_equal_size_t(4, sizeof(2147483647 + 2)); // assert_equal_int(-2147483648, 2147483646 + 2); // This is implementation-defined or raises an implementation-defined signal.
-    assert_equal_size_t(8, sizeof(2147483647L + 2L)); assert_equal_long(2147483648L, 2147483646L + 2L);
-    assert_equal_size_t(4, sizeof(4294967294U + 0U)); assert_equal_unsigned_int(4294967294U, 4294967294U + 0U);
-    assert_equal_size_t(4, sizeof(4294967294U + 1U)); assert_equal_unsigned_int(4294967295U, 4294967294U + 1U);
-    assert_equal_size_t(4, sizeof(4294967294U + 2U)); assert_equal_unsigned_int(0U, 4294967294U + 2U);
-    assert_equal_size_t(8, sizeof((long)4294967294U + (long)2U)); assert_equal_long(4294967296L, (long)4294967294U + (long)2U);
-    assert_equal_size_t(8, sizeof(9223372036854775806L + 0L)); assert_equal_long(9223372036854775806L, 9223372036854775806L + 0L);
-    assert_equal_size_t(8, sizeof(9223372036854775806L + 1L)); assert_equal_long(9223372036854775807L, 9223372036854775806L + 1L);
-    assert_equal_size_t(8, sizeof(9223372036854775806L + 2L)); // assert_equal_long(-9223372036854775808L, 9223372036854775806L + 2L); // This is implementation-defined or raises an implementation-defined signal.
-    assert_equal_size_t(8, sizeof(9223372036854775806UL + 2UL)); assert_equal_unsigned_long(9223372036854775808UL, 9223372036854775806UL + 2UL);
-    assert_equal_size_t(8, sizeof(18446744073709551614UL + 0UL)); assert_equal_unsigned_long(18446744073709551614UL, 18446744073709551614UL + 0UL);
-    assert_equal_size_t(8, sizeof(18446744073709551614UL + 1UL)); assert_equal_unsigned_long(18446744073709551615UL, 18446744073709551614UL + 1UL);
-    assert_equal_size_t(8, sizeof(18446744073709551614UL + 2UL)); assert_equal_unsigned_long(0UL, 18446744073709551614UL + 2UL);
+#define test_arithmetic_addition(lhs, rhs, sum, size, assert_function)    do { \
+    assert_equal_size_t(size, sizeof(lhs + rhs)); \
+    assert_function(sum, lhs + rhs); \
+    } while(0)
 
-    assert_equal_size_t(4, sizeof((signed char)1 - (signed char)0)); assert_equal_int(1, (signed char)1 - (signed char)0);
-    assert_equal_size_t(4, sizeof((signed char)1 - (signed char)1)); assert_equal_int(0, (signed char)1 - (signed char)1);
-    assert_equal_size_t(4, sizeof((signed char)1 - (signed char)2)); assert_equal_int(-1, (signed char)1 - (signed char)2);
-    assert_equal_size_t(4, sizeof((signed char)(-127) - (signed char)0)); assert_equal_int(-127, (signed char)(-127) - (signed char)0);
-    assert_equal_size_t(4, sizeof((signed char)(-127) - (signed char)1)); assert_equal_int(-128, (signed char)(-127) - (signed char)1);
-    assert_equal_size_t(4, sizeof((signed char)(-127) - (signed char)2)); assert_equal_int(-129, (signed char)(-127) - (signed char)2);
-    assert_equal_size_t(4, sizeof((unsigned char)1 - (unsigned char)0)); assert_equal_int(1, (unsigned char)1 - (unsigned char)0);
-    assert_equal_size_t(4, sizeof((unsigned char)1 - (unsigned char)1)); assert_equal_int(0, (unsigned char)1 - (unsigned char)1);
-    assert_equal_size_t(4, sizeof((unsigned char)1 - (unsigned char)2)); assert_equal_int(-1, (unsigned char)1 - (unsigned char)2);
-    assert_equal_size_t(4, sizeof((short)1 - (short)0)); assert_equal_int(1, (short)1 - (short)0);
-    assert_equal_size_t(4, sizeof((short)1 - (short)1)); assert_equal_int(0, (short)1 - (short)1);
-    assert_equal_size_t(4, sizeof((short)1 - (short)2)); assert_equal_int(-1, (short)1 - (short)2);
-    assert_equal_size_t(4, sizeof((short)(-32767) - (short)0)); assert_equal_int(-32767, (short)(-32767) - (short)0);
-    assert_equal_size_t(4, sizeof((short)(-32767) - (short)1)); assert_equal_int(-32768, (short)(-32767) - (short)1);
-    assert_equal_size_t(4, sizeof((short)(-32767) - (short)2)); assert_equal_int(-32769, (short)(-32767) - (short)2);
-    assert_equal_size_t(4, sizeof((unsigned short)1 - (unsigned short)0)); assert_equal_int(1, (unsigned short)1 - (unsigned short)0);
-    assert_equal_size_t(4, sizeof((unsigned short)1 - (unsigned short)1)); assert_equal_int(0, (unsigned short)1 - (unsigned short)1);
-    assert_equal_size_t(4, sizeof((unsigned short)1 - (unsigned short)2)); assert_equal_int(-1, (unsigned short)1 - (unsigned short)2);
-    assert_equal_size_t(4, sizeof(1 - 0)); assert_equal_int(1, 1 - 0);
-    assert_equal_size_t(4, sizeof(1 - 1)); assert_equal_int(0, 1 - 1);
-    assert_equal_size_t(4, sizeof(1 - 2)); assert_equal_int(-1, 1 - 2);
-    assert_equal_size_t(4, sizeof(-2147483647 - 0)); assert_equal_int(-2147483647, -2147483647 - 0);
-    assert_equal_size_t(4, sizeof(-2147483647 - 1)); assert_equal_int(-2147483648, -2147483647 - 1);
-    assert_equal_size_t(4, sizeof(-2147483647 - 2)); // assert_equal_int(-2147483649, -2147483647 - 2);  // This is implementation-defined or raises an implementation-defined signal.
-    assert_equal_size_t(4, sizeof(1U - 0U)); assert_equal_unsigned_int(1U, 1U - 0U);
-    assert_equal_size_t(4, sizeof(1U - 1U)); assert_equal_unsigned_int(0U, 1U - 1U);
-    assert_equal_size_t(4, sizeof(1U - 2U)); assert_equal_unsigned_int(4294967295U, 1U - 2U);
-    assert_equal_size_t(8, sizeof(1L - 0L)); assert_equal_int(1L, 1L - 0L);
-    assert_equal_size_t(8, sizeof(1L - 1L)); assert_equal_int(0L, 1L - 1L);
-    assert_equal_size_t(8, sizeof(1L - 2L)); assert_equal_int(-1L, 1L - 2L);
-    assert_equal_size_t(8, sizeof(-9223372036854775807L - 0L)); assert_equal_long(-9223372036854775807L, -9223372036854775807L - 0L);
-    assert_equal_size_t(8, sizeof(-9223372036854775807L - 1L)); // assert_equal_long(-9223372036854775808L, -9223372036854775807L - 1L); // The first operand cannot be represented as constant.
-    assert_equal_size_t(8, sizeof(-9223372036854775807L - 2L)); // assert_equal_long(-9223372036854775809L, -9223372036854775807L - 2L); // The first operand cannot be represented as constant.
-    assert_equal_size_t(8, sizeof(1UL - 0UL)); assert_equal_unsigned_long(1UL, 1UL - 0UL);
-    assert_equal_size_t(8, sizeof(1UL - 1UL)); assert_equal_unsigned_long(0UL, 1UL - 1UL);
-    assert_equal_size_t(8, sizeof(1UL - 2UL)); assert_equal_unsigned_long(18446744073709551615UL, 1UL - 2UL);
+    test_arithmetic_addition((signed char)126, (signed char)0, 126, 4, assert_equal_int);
+    test_arithmetic_addition((signed char)126, (signed char)1, 127, 4, assert_equal_int);
+    test_arithmetic_addition((signed char)126, (signed char)2, 128, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned char)254, (unsigned char)0, 254, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned char)254, (unsigned char)1, 255, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned char)254, (unsigned char)2, 256, 4, assert_equal_int);
+    test_arithmetic_addition((short)32766, (short)0, 32766, 4, assert_equal_int);
+    test_arithmetic_addition((short)32766, (short)1, 32767, 4, assert_equal_int);
+    test_arithmetic_addition((short)32766, (short)2, 32768, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned short)65534, (unsigned short)0, 65534, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned short)65534, (unsigned short)1, 65535, 4, assert_equal_int);
+    test_arithmetic_addition((unsigned short)65534, (unsigned short)2, 65536, 4, assert_equal_int);
+    test_arithmetic_addition(2147483646, 0, 2147483646, 4, assert_equal_int);
+    test_arithmetic_addition(2147483646, 1, 2147483647, 4, assert_equal_int);
+    // test_arithmetic_addition(2147483647, 2, -2147483648, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_addition(2147483646L, 2L, 2147483648L, 8, assert_equal_long);
+    test_arithmetic_addition(4294967294U, 0U, 4294967294U, 4, assert_equal_unsigned_int);
+    test_arithmetic_addition(4294967294U, 1U, 4294967295U, 4, assert_equal_unsigned_int);
+    test_arithmetic_addition(4294967294U, 2U, 0U, 4, assert_equal_unsigned_int);
+    test_arithmetic_addition((long)4294967294U, (long)2U, 4294967296L, 8, assert_equal_long);
+    test_arithmetic_addition(9223372036854775806L, 0L, 9223372036854775806L, 8, assert_equal_long);
+    test_arithmetic_addition(9223372036854775806L, 1L, 9223372036854775807L, 8, assert_equal_long);
+    // test_arithmetic_addition(9223372036854775806L, 2L, -9223372036854775808L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_addition(9223372036854775806UL, 2UL, 9223372036854775808UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_addition(18446744073709551614UL, 0UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_addition(18446744073709551614UL, 1UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_addition(18446744073709551614UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
+
+#undef test_arithmetic_addition
+
+#define test_arithmetic_subtraction(lhs, rhs, sum, size, assert_function)    do { \
+    assert_equal_size_t(size, sizeof(lhs - rhs)); \
+    assert_function(sum, lhs - rhs); \
+    } while(0)
+
+    test_arithmetic_subtraction((signed char)1, (signed char)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((signed char)1, (signed char)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((signed char)1, (signed char)2, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction((signed char)(-127), (signed char)0, -127, 4, assert_equal_int);
+    test_arithmetic_subtraction((signed char)(-127), (signed char)1, -128, 4, assert_equal_int);
+    test_arithmetic_subtraction((signed char)(-127), (signed char)2, -129, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned char)1, (unsigned char)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned char)1, (unsigned char)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned char)1, (unsigned char)2, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)1, (short)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)1, (short)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)1, (short)2, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)(-32767), (short)0, -32767, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)(-32767), (short)1, -32768, 4, assert_equal_int);
+    test_arithmetic_subtraction((short)(-32767), (short)2, -32769, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned short)1, (unsigned short)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned short)1, (unsigned short)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((unsigned short)1, (unsigned short)2, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction(1, 0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction(1, 1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction(1, 2, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction(-2147483647, 0, -2147483647, 4, assert_equal_int);
+    test_arithmetic_subtraction(-2147483647, 1, -2147483648, 4, assert_equal_int);
+    // test_arithmetic_subtraction(-2147483647, 2, 2147483647, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_subtraction(1U, 0U, 1U, 4, assert_equal_unsigned_int);
+    test_arithmetic_subtraction(1U, 1U, 0U, 4, assert_equal_unsigned_int);
+    test_arithmetic_subtraction(1U, 2U, 4294967295U, 4, assert_equal_unsigned_int);
+    test_arithmetic_subtraction(1L, 0L, 1L, 8, assert_equal_long);
+    test_arithmetic_subtraction(1L, 1L, 0L, 8, assert_equal_long);
+    test_arithmetic_subtraction(1L, 2L, -1L, 8, assert_equal_long);
+    test_arithmetic_subtraction(-9223372036854775807L, 0L, -9223372036854775807L, 8, assert_equal_long);
+    // test_arithmetic_subtraction(-9223372036854775807L, 1L, -9223372036854775808L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    // test_arithmetic_subtraction(-9223372036854775807L, 2L, -9223372036854775809L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_subtraction(1UL, 0UL, 1UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_subtraction(1UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_subtraction(1UL, 2UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+
+#undef test_arithmetic_subtraction
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_equal_float(21.0f, 5.0f+20.0f-4.0f);
