@@ -176,6 +176,43 @@ void test_additive_operators()
     assert_equal_int(8, sizeof(18446744073709551614UL + 1UL)); assert_equal_unsigned_long(18446744073709551615UL, 18446744073709551614UL + 1UL);
     assert_equal_int(8, sizeof(18446744073709551614UL + 2UL)); assert_equal_unsigned_long(0UL, 18446744073709551614UL + 2UL);
 
+    assert_equal_int(4, sizeof((signed char)1 - (signed char)0)); assert_equal_int(1, (signed char)1 - (signed char)0);
+    assert_equal_int(4, sizeof((signed char)1 - (signed char)1)); assert_equal_int(0, (signed char)1 - (signed char)1);
+    assert_equal_int(4, sizeof((signed char)1 - (signed char)2)); assert_equal_int(-1, (signed char)1 - (signed char)2);
+    assert_equal_int(4, sizeof((signed char)(-127) - (signed char)0)); assert_equal_int(-127, (signed char)(-127) - (signed char)0);
+    assert_equal_int(4, sizeof((signed char)(-127) - (signed char)1)); assert_equal_int(-128, (signed char)(-127) - (signed char)1);
+    assert_equal_int(4, sizeof((signed char)(-127) - (signed char)2)); assert_equal_int(-129, (signed char)(-127) - (signed char)2);
+    assert_equal_int(4, sizeof((unsigned char)1 - (unsigned char)0)); assert_equal_int(1, (unsigned char)1 - (unsigned char)0);
+    assert_equal_int(4, sizeof((unsigned char)1 - (unsigned char)1)); assert_equal_int(0, (unsigned char)1 - (unsigned char)1);
+    assert_equal_int(4, sizeof((unsigned char)1 - (unsigned char)2)); assert_equal_int(-1, (unsigned char)1 - (unsigned char)2);
+    assert_equal_int(4, sizeof((short)1 - (short)0)); assert_equal_int(1, (short)1 - (short)0);
+    assert_equal_int(4, sizeof((short)1 - (short)1)); assert_equal_int(0, (short)1 - (short)1);
+    assert_equal_int(4, sizeof((short)1 - (short)2)); assert_equal_int(-1, (short)1 - (short)2);
+    assert_equal_int(4, sizeof((short)(-32767) - (short)0)); assert_equal_int(-32767, (short)(-32767) - (short)0);
+    assert_equal_int(4, sizeof((short)(-32767) - (short)1)); assert_equal_int(-32768, (short)(-32767) - (short)1);
+    assert_equal_int(4, sizeof((short)(-32767) - (short)2)); assert_equal_int(-32769, (short)(-32767) - (short)2);
+    assert_equal_int(4, sizeof((unsigned short)1 - (unsigned short)0)); assert_equal_int(1, (unsigned short)1 - (unsigned short)0);
+    assert_equal_int(4, sizeof((unsigned short)1 - (unsigned short)1)); assert_equal_int(0, (unsigned short)1 - (unsigned short)1);
+    assert_equal_int(4, sizeof((unsigned short)1 - (unsigned short)2)); assert_equal_int(-1, (unsigned short)1 - (unsigned short)2);
+    assert_equal_int(4, sizeof(1 - 0)); assert_equal_int(1, 1 - 0);
+    assert_equal_int(4, sizeof(1 - 1)); assert_equal_int(0, 1 - 1);
+    assert_equal_int(4, sizeof(1 - 2)); assert_equal_int(-1, 1 - 2);
+    assert_equal_int(4, sizeof(-2147483647 - 0)); assert_equal_int(-2147483647, -2147483647 - 0);
+    assert_equal_int(4, sizeof(-2147483647 - 1)); assert_equal_int(-2147483648, -2147483647 - 1);
+    assert_equal_int(4, sizeof(-2147483647 - 2)); // assert_equal_int(-2147483649, -2147483647 - 2);  // This is implementation-defined or raises an implementation-defined signal.
+    assert_equal_int(4, sizeof(1U - 0U)); assert_equal_unsigned_int(1U, 1U - 0U);
+    assert_equal_int(4, sizeof(1U - 1U)); assert_equal_unsigned_int(0U, 1U - 1U);
+    assert_equal_int(4, sizeof(1U - 2U)); assert_equal_unsigned_int(4294967295U, 1U - 2U);
+    assert_equal_int(8, sizeof(1L - 0L)); assert_equal_int(1L, 1L - 0L);
+    assert_equal_int(8, sizeof(1L - 1L)); assert_equal_int(0L, 1L - 1L);
+    assert_equal_int(8, sizeof(1L - 2L)); assert_equal_int(-1L, 1L - 2L);
+    assert_equal_int(8, sizeof(-9223372036854775807L - 0L)); assert_equal_long(-9223372036854775807L, -9223372036854775807L - 0L);
+    assert_equal_int(8, sizeof(-9223372036854775807L - 1L)); // assert_equal_long(-9223372036854775808L, -9223372036854775807L - 1L); // The first operand cannot be represented as constant.
+    assert_equal_int(8, sizeof(-9223372036854775807L - 2L)); // assert_equal_long(-9223372036854775809L, -9223372036854775807L - 2L); // The first operand cannot be represented as constant.
+    assert_equal_int(8, sizeof(1UL - 0UL)); assert_equal_unsigned_long(1UL, 1UL - 0UL);
+    assert_equal_int(8, sizeof(1UL - 1UL)); assert_equal_unsigned_long(0UL, 1UL - 1UL);
+    assert_equal_int(8, sizeof(1UL - 2UL)); assert_equal_unsigned_long(18446744073709551615UL, 1UL - 2UL);
+
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_equal_float(21.0f, 5.0f+20.0f-4.0f);
     assert_equal_double(21.0, 5.0+20.0-4.0);
