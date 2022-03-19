@@ -7,5 +7,9 @@
 
 // features
 #define INCLUDE_FLOATING_POINT_TYPE    (ENABLED) // include tests on floating-point types
+#ifdef TEST_ALL
+#undef TEST_ALL
+#define TEST_ALL    (ENABLED)
+#endif /* TEST_ALL */
 
 #endif /* !CONFIGURATION_H */
