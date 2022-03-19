@@ -401,25 +401,13 @@ static void generate_load(const Type *type)
     {
         if(type->size == 1)
         {
-            if(is_signed(type))
-            {
-                put_line_with_tab("movsx rax, byte ptr [rax]");
-            }
-            else
-            {
-                put_line_with_tab("movzx rax, byte ptr [rax]");
-            }
+            const char *instruction = is_signed(type) ? "movsx" : "movzx";
+            put_line_with_tab("%s rax, byte ptr [rax]", instruction);
         }
         else if(type->size == 2)
         {
-            if(is_signed(type))
-            {
-                put_line_with_tab("movsx rax, word ptr [rax]");
-            }
-            else
-            {
-                put_line_with_tab("movzx rax, word ptr [rax]");
-            }
+            const char *instruction = is_signed(type) ? "movsx" : "movzx";
+            put_line_with_tab("%s rax, word ptr [rax]", instruction);
         }
         else if(type->size <= 4)
         {
@@ -1968,25 +1956,13 @@ static void generate_expr_cast(const Expression *expr)
         {
             if(expr->type->size == 1)
             {
-                if(is_signed(expr->type))
-                {
-                    put_line_with_tab("movsx rax, al");
-                }
-                else
-                {
-                    put_line_with_tab("movzx rax, al");
-                }
+                const char *instruction = is_signed(expr->type) ? "movsx" : "movzx";
+                put_line_with_tab("%s rax, al", instruction);
             }
             else if(expr->type->size == 2)
             {
-                if(is_signed(expr->type))
-                {
-                    put_line_with_tab("movsx rax, ax");
-                }
-                else
-                {
-                    put_line_with_tab("movzx rax, ax");
-                }
+                const char *instruction = is_signed(expr->type) ? "movsx" : "movzx";
+                put_line_with_tab("%s rax, ax", instruction);
             }
             else if(expr->type->size == 4)
             {
