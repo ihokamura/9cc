@@ -285,6 +285,47 @@ void test_additive_operators()
     test_arithmetic_subtraction(1UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
     test_arithmetic_subtraction(1UL, 2UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
 
+    b1 = 0; b2 = 0; test_arithmetic_subtraction(b1, b2, 0, 4, assert_equal_int);
+    b1 = 0; b2 = 1; test_arithmetic_subtraction(b1, b2, -1, 4, assert_equal_int);
+    b1 = 1; b2 = 0; test_arithmetic_subtraction(b1, b2, 1, 4, assert_equal_int);
+    b1 = 1; b2 = 1; test_arithmetic_subtraction(b1, b2, 0, 4, assert_equal_int);
+    c1 = 1; c2 = 0; test_arithmetic_subtraction(c1, c2, 1, 4, assert_equal_int);
+    c1 = 1; c2 = 1; test_arithmetic_subtraction(c1, c2, 0, 4, assert_equal_int);
+    c1 = 1; c2 = 2; test_arithmetic_subtraction(c1, c2, -1, 4, assert_equal_int);
+    sc1 = 1; sc2 = 0; test_arithmetic_subtraction(sc1, sc2, 1, 4, assert_equal_int);
+    sc1 = 1; sc2 = 1; test_arithmetic_subtraction(sc1, sc2, 0, 4, assert_equal_int);
+    sc1 = 1; sc2 = 2; test_arithmetic_subtraction(sc1, sc2, -1, 4, assert_equal_int);
+    sc1 = -127; sc2 = 0; test_arithmetic_subtraction(sc1, sc2, -127, 4, assert_equal_int);
+    sc1 = -127; sc2 = 1; test_arithmetic_subtraction(sc1, sc2, -128, 4, assert_equal_int);
+    sc1 = -127; sc2 = 2; test_arithmetic_subtraction(sc1, sc2, -129, 4, assert_equal_int);
+    uc1 = 1; uc2 = 0; test_arithmetic_subtraction(uc1, uc2, 1, 4, assert_equal_int);
+    uc1 = 1; uc2 = 1; test_arithmetic_subtraction(uc1, uc2, 0, 4, assert_equal_int);
+    uc1 = 1; uc2 = 2; test_arithmetic_subtraction(uc1, uc2, -1, 4, assert_equal_int);
+    s1 = 1; s2 = 0; test_arithmetic_subtraction(s1, s2, 1, 4, assert_equal_int);
+    s1 = 1; s2 = 1; test_arithmetic_subtraction(s1, s2, 0, 4, assert_equal_int);
+    s1 = 1; s2 = 2; test_arithmetic_subtraction(s1, s2, -1, 4, assert_equal_int);
+    s1 = -32767; s2 = 0; test_arithmetic_subtraction(s1, s2, -32767, 4, assert_equal_int);
+    s1 = -32767; s2 = 1; test_arithmetic_subtraction(s1, s2, -32768, 4, assert_equal_int);
+    s1 = -32767; s2 = 2; test_arithmetic_subtraction(s1, s2, -32769, 4, assert_equal_int);
+    us1 = 1; us2 = 0; test_arithmetic_subtraction(us1, us2, 1, 4, assert_equal_int);
+    us1 = 1; us2 = 1; test_arithmetic_subtraction(us1, us2, 0, 4, assert_equal_int);
+    us1 = 1; us2 = 2; test_arithmetic_subtraction(us1, us2, -1, 4, assert_equal_int);
+    i1 = 1; i2 = 0; test_arithmetic_subtraction(i1, i2, 1, 4, assert_equal_int);
+    i1 = 1; i2 = 1; test_arithmetic_subtraction(i1, i2, 0, 4, assert_equal_int);
+    i1 = 1; i2 = 2; test_arithmetic_subtraction(i1, i2, -1, 4, assert_equal_int);
+    i1 = -2147483647; i2 = 0; test_arithmetic_subtraction(i1, i2, -2147483647, 4, assert_equal_int);
+    i1 = -2147483647; i2 = 1; test_arithmetic_subtraction(i1, i2, -2147483648, 4, assert_equal_int);
+    // i1 = -2147483647; i2 = 2; test_arithmetic_subtraction(i1, i2, 2147483647, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    l1 = 1L; l2 = 0L; test_arithmetic_subtraction(l1, l2, 1L, 8, assert_equal_long);
+    l1 = 1L; l2 = 1L; test_arithmetic_subtraction(l1, l2, 0L, 8, assert_equal_long);
+    l1 = 1L; l2 = 2L; test_arithmetic_subtraction(l1, l2, -1L, 8, assert_equal_long);
+    l1 = -9223372036854775807L; l2 = 0L; test_arithmetic_subtraction(l1, l2, -9223372036854775807L, 8, assert_equal_long);
+    // l1 = -9223372036854775807L; l2 = 1L; test_arithmetic_subtraction(l1, l2, -9223372036854775808L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    // l1 = -9223372036854775807L; l2 = 2L; test_arithmetic_subtraction(l1, l2, -9223372036854775809L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    ul1 = 1UL; ul2 = 0UL; test_arithmetic_subtraction(ul1, ul2, 1UL, 8, assert_equal_unsigned_long);
+    ul1 = 1UL; ul2 = 1UL; test_arithmetic_subtraction(ul1, ul2, 0UL, 8, assert_equal_unsigned_long);
+    ul1 = 1UL; ul2 = 2UL; test_arithmetic_subtraction(ul1, ul2, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+
 #undef test_arithmetic_subtraction
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
