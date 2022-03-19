@@ -401,11 +401,25 @@ static void generate_load(const Type *type)
     {
         if(type->size == 1)
         {
-            put_line_with_tab("movsx rax, byte ptr [rax]");
+            if(is_signed(type))
+            {
+                put_line_with_tab("movsx rax, byte ptr [rax]");
+            }
+            else
+            {
+                put_line_with_tab("movzx rax, byte ptr [rax]");
+            }
         }
         else if(type->size == 2)
         {
-            put_line_with_tab("movsx rax, word ptr [rax]");
+            if(is_signed(type))
+            {
+                put_line_with_tab("movsx rax, word ptr [rax]");
+            }
+            else
+            {
+                put_line_with_tab("movzx rax, word ptr [rax]");
+            }
         }
         else if(type->size <= 4)
         {

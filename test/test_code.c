@@ -148,6 +148,17 @@ void test_additive_operators()
 {
     put_title("Additive operators");
 
+    _Bool b1, b2;
+    char c1, c2;
+    signed char sc1, sc2;
+    unsigned char uc1, uc2;
+    short s1, s2;
+    unsigned short us1, us2;
+    int i1, i2;
+    unsigned int ui1, ui2;
+    long l1, l2;
+    unsigned long ul1, ul2;
+
 #define test_arithmetic_addition(lhs, rhs, sum, size, assert_function)    do { \
     assert_equal_size_t(size, sizeof(lhs + rhs)); \
     assert_function(sum, lhs + rhs); \
@@ -174,7 +185,7 @@ void test_additive_operators()
     test_arithmetic_addition((unsigned short)65534, (unsigned short)2, 65536, 4, assert_equal_int);
     test_arithmetic_addition(2147483646, 0, 2147483646, 4, assert_equal_int);
     test_arithmetic_addition(2147483646, 1, 2147483647, 4, assert_equal_int);
-    // test_arithmetic_addition(2147483647, 2, -2147483648, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    // test_arithmetic_addition(2147483646, 2, -2147483648, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
     test_arithmetic_addition(2147483646L, 2L, 2147483648L, 8, assert_equal_long);
     test_arithmetic_addition(4294967294U, 0U, 4294967294U, 4, assert_equal_unsigned_int);
     test_arithmetic_addition(4294967294U, 1U, 4294967295U, 4, assert_equal_unsigned_int);
@@ -187,6 +198,41 @@ void test_additive_operators()
     test_arithmetic_addition(18446744073709551614UL, 0UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
     test_arithmetic_addition(18446744073709551614UL, 1UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
     test_arithmetic_addition(18446744073709551614UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
+
+    b1 = 0; b2 = 0; test_arithmetic_addition(b1, b2, 0, 4, assert_equal_int);
+    b1 = 0; b2 = 1; test_arithmetic_addition(b1, b2, 1, 4, assert_equal_int);
+    b1 = 1; b2 = 0; test_arithmetic_addition(b1, b2, 1, 4, assert_equal_int);
+    b1 = 1; b2 = 1; test_arithmetic_addition(b1, b2, 2, 4, assert_equal_int);
+    c1 = 126; c2 = 0; test_arithmetic_addition(c1, c2, 126, 4, assert_equal_int);
+    c1 = 126; c2 = 1; test_arithmetic_addition(c1, c2, 127, 4, assert_equal_int);
+    c1 = 126; c2 = 2; test_arithmetic_addition(c1, c2, 128, 4, assert_equal_int);
+    sc1 = 126; sc2 = 0; test_arithmetic_addition(sc1, sc2, 126, 4, assert_equal_int);
+    sc1 = 126; sc2 = 1; test_arithmetic_addition(sc1, sc2, 127, 4, assert_equal_int);
+    sc1 = 126; sc2 = 2; test_arithmetic_addition(sc1, sc2, 128, 4, assert_equal_int);
+    uc1 = 254; uc2 = 0; test_arithmetic_addition(uc1, uc2, 254, 4, assert_equal_int);
+    uc1 = 254; uc2 = 1; test_arithmetic_addition(uc1, uc2, 255, 4, assert_equal_int);
+    uc1 = 254; uc2 = 2; test_arithmetic_addition(uc1, uc2, 256, 4, assert_equal_int);
+    s1 = 32766; s2 = 0; test_arithmetic_addition(s1, s2, 32766, 4, assert_equal_int);
+    s1 = 32766; s2 = 1; test_arithmetic_addition(s1, s2, 32767, 4, assert_equal_int);
+    s1 = 32766; s2 = 2; test_arithmetic_addition(s1, s2, 32768, 4, assert_equal_int);
+    us1 = 65534; us2 = 0; test_arithmetic_addition(us1, us2, 65534, 4, assert_equal_int);
+    us1 = 65534; us2 = 1; test_arithmetic_addition(us1, us2, 65535, 4, assert_equal_int);
+    us1 = 65534; us2 = 2; test_arithmetic_addition(us1, us2, 65536, 4, assert_equal_int);
+    i1 = 2147483646; i2 = 0; test_arithmetic_addition(i1, i2, 2147483646, 4, assert_equal_int);
+    i1 = 2147483646; i2 = 1; test_arithmetic_addition(i1, i2, 2147483647, 4, assert_equal_int);
+    // i1 = 2147483646; i2 = 2; test_arithmetic_addition(i1, i2, -2147483648, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    l1 = 2147483646L; l2 = 2L; test_arithmetic_addition(l1, l2, 2147483648L, 8, assert_equal_long);
+    ui1 = 4294967294U; ui2 = 0U; test_arithmetic_addition(ui1, ui2, 4294967294U, 4, assert_equal_unsigned_int);
+    ui1 = 4294967294U; ui2 = 1U; test_arithmetic_addition(ui1, ui2, 4294967295U, 4, assert_equal_unsigned_int);
+    ui1 = 4294967294U; ui2 = 2U; test_arithmetic_addition(ui1, ui2, 0U, 4, assert_equal_unsigned_int);
+    l1 = 4294967294U, l2 = 2U; test_arithmetic_addition(l1, l2, 4294967296L, 8, assert_equal_long);
+    l1 = 9223372036854775806L; l2 = 0L; test_arithmetic_addition(l1, l2, 9223372036854775806L, 8, assert_equal_long);
+    l1 = 9223372036854775806L; l2 = 1L; test_arithmetic_addition(l1, l2, 9223372036854775807L, 8, assert_equal_long);
+    // l1 = 9223372036854775806L; l2 = 2L; test_arithmetic_addition(l1, l2, -9223372036854775808L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    ul1 = 9223372036854775806UL; ul2 = 2UL; test_arithmetic_addition(ul1, ul2, 9223372036854775808UL, 8, assert_equal_unsigned_long);
+    ul1 = 18446744073709551614UL; ul2 = 0UL; test_arithmetic_addition(ul1, ul2, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    ul1 = 18446744073709551614UL; ul2 = 1UL; test_arithmetic_addition(ul1, ul2, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    ul1 = 18446744073709551614UL; ul2 = 2UL; test_arithmetic_addition(ul1, ul2, 0UL, 8, assert_equal_unsigned_long);
 
 #undef test_arithmetic_addition
 
