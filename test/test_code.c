@@ -153,6 +153,13 @@ void test_additive_operators()
     assert_function(sum, lhs + rhs); \
     } while(0)
 
+    test_arithmetic_addition((_Bool)0, (_Bool)0, 0, 4, assert_equal_int);
+    test_arithmetic_addition((_Bool)0, (_Bool)1, 1, 4, assert_equal_int);
+    test_arithmetic_addition((_Bool)1, (_Bool)0, 1, 4, assert_equal_int);
+    test_arithmetic_addition((_Bool)1, (_Bool)1, 2, 4, assert_equal_int);
+    test_arithmetic_addition((char)126, (char)0, 126, 4, assert_equal_int);
+    test_arithmetic_addition((char)126, (char)1, 127, 4, assert_equal_int);
+    test_arithmetic_addition((char)126, (char)2, 128, 4, assert_equal_int);
     test_arithmetic_addition((signed char)126, (signed char)0, 126, 4, assert_equal_int);
     test_arithmetic_addition((signed char)126, (signed char)1, 127, 4, assert_equal_int);
     test_arithmetic_addition((signed char)126, (signed char)2, 128, 4, assert_equal_int);
@@ -188,6 +195,13 @@ void test_additive_operators()
     assert_function(sum, lhs - rhs); \
     } while(0)
 
+    test_arithmetic_subtraction((_Bool)0, (_Bool)0, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((_Bool)0, (_Bool)1, -1, 4, assert_equal_int);
+    test_arithmetic_subtraction((_Bool)1, (_Bool)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((_Bool)1, (_Bool)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((char)1, (char)0, 1, 4, assert_equal_int);
+    test_arithmetic_subtraction((char)1, (char)1, 0, 4, assert_equal_int);
+    test_arithmetic_subtraction((char)1, (char)2, -1, 4, assert_equal_int);
     test_arithmetic_subtraction((signed char)1, (signed char)0, 1, 4, assert_equal_int);
     test_arithmetic_subtraction((signed char)1, (signed char)1, 0, 4, assert_equal_int);
     test_arithmetic_subtraction((signed char)1, (signed char)2, -1, 4, assert_equal_int);
