@@ -157,36 +157,51 @@ void test_multiplicative_operators()
     test_arithmetic_multiplication((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((_Bool)1, (_Bool)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((_Bool)1, (_Bool)1, 1, 4, assert_equal_int);
+    test_arithmetic_multiplication((_Bool)1, -(_Bool)1, -1, 4, assert_equal_int);
+    test_arithmetic_multiplication((char)127, -(char)1, -127, 4, assert_equal_int);
+    test_arithmetic_multiplication((char)127, (char)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((char)127, (char)1, 127, 4, assert_equal_int);
     test_arithmetic_multiplication((char)127, (char)2, 254, 4, assert_equal_int);
     test_arithmetic_multiplication((char)64, (char)2, 128, 4, assert_equal_int);
     test_arithmetic_multiplication((char)64, (char)3, 192, 4, assert_equal_int);
+    test_arithmetic_multiplication((signed char)127, -(signed char)1, -127, 4, assert_equal_int);
+    test_arithmetic_multiplication((signed char)127, (signed char)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((signed char)127, (signed char)1, 127, 4, assert_equal_int);
     test_arithmetic_multiplication((signed char)127, (signed char)2, 254, 4, assert_equal_int);
     test_arithmetic_multiplication((signed char)64, (signed char)2, 128, 4, assert_equal_int);
     test_arithmetic_multiplication((signed char)64, (signed char)3, 192, 4, assert_equal_int);
+    test_arithmetic_multiplication((unsigned char)255, (unsigned char)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned char)255, (unsigned char)1, 255, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned char)255, (unsigned char)2, 510, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned char)128, (unsigned char)2, 256, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned char)128, (unsigned char)3, 384, 4, assert_equal_int);
+    test_arithmetic_multiplication((short)32767, -(short)1, -32767, 4, assert_equal_int);
+    test_arithmetic_multiplication((short)32767, (short)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((short)32767, (short)1, 32767, 4, assert_equal_int);
     test_arithmetic_multiplication((short)32767, (short)2, 65534, 4, assert_equal_int);
     test_arithmetic_multiplication((short)16384, (short)2, 32768, 4, assert_equal_int);
     test_arithmetic_multiplication((short)16384, (short)3, 49152, 4, assert_equal_int);
+    test_arithmetic_multiplication((unsigned short)65535, (unsigned short)0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned short)65535, (unsigned short)1, 65535, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned short)65535, (unsigned short)2, 131070, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned short)32768, (unsigned short)2, 65536, 4, assert_equal_int);
     test_arithmetic_multiplication((unsigned short)32768, (unsigned short)3, 98304, 4, assert_equal_int);
+    test_arithmetic_multiplication(2147483647, -1, -2147483647, 4, assert_equal_int);
+    test_arithmetic_multiplication(2147483647, 0, 0, 4, assert_equal_int);
     test_arithmetic_multiplication(2147483647, 1, 2147483647, 4, assert_equal_int);
     // test_arithmetic_multiplication(2147483647, 2, 4294967294, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
     // test_arithmetic_multiplication(1073741824, 2, 2147483648, 4, assert_equal_int); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_multiplication(4294967295U, 0U, 0U, 4, assert_equal_unsigned_int);
     test_arithmetic_multiplication(4294967295U, 1U, 4294967295U, 4, assert_equal_unsigned_int);
     test_arithmetic_multiplication(4294967295U, 2U, 4294967294U, 4, assert_equal_unsigned_int);
     test_arithmetic_multiplication(2147483648U, 2U, 0U, 4, assert_equal_unsigned_int);
     test_arithmetic_multiplication(2147483648U, 3U, 2147483648U, 4, assert_equal_unsigned_int);
+    test_arithmetic_multiplication(9223372036854775807L, -1L, -9223372036854775807L, 8, assert_equal_long);
+    test_arithmetic_multiplication(9223372036854775807L, 0L, 0L, 8, assert_equal_long);
     test_arithmetic_multiplication(9223372036854775807L, 1L, 9223372036854775807L, 8, assert_equal_long);
     // test_arithmetic_multiplication(9223372036854775807L, 2L, 18446744073709551614L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
     // test_arithmetic_multiplication(4611686018427387904L, 2L, 9223372036854775808L, 8, assert_equal_long); // This is implementation-defined or raises an implementation-defined signal.
+    test_arithmetic_multiplication(18446744073709551615UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
     test_arithmetic_multiplication(18446744073709551615UL, 1UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
     test_arithmetic_multiplication(18446744073709551615UL, 2UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
     test_arithmetic_multiplication(9223372036854775808UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
@@ -201,10 +216,15 @@ void test_multiplicative_operators()
 
     test_arithmetic_division((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
     test_arithmetic_division((_Bool)1, (_Bool)1, 1, 4, assert_equal_int);
+    test_arithmetic_division((_Bool)1, -(_Bool)1, -1, 4, assert_equal_int);
+    test_arithmetic_division((char)127, -(char)2, -63, 4, assert_equal_int);
+    test_arithmetic_division((char)127, -(char)1, -127, 4, assert_equal_int);
     test_arithmetic_division((char)127, (char)1, 127, 4, assert_equal_int);
     test_arithmetic_division((char)127, (char)2, 63, 4, assert_equal_int);
     test_arithmetic_division((char)127, (char)127, 1, 4, assert_equal_int);
     test_arithmetic_division((char)126, (char)127, 0, 4, assert_equal_int);
+    test_arithmetic_division((signed char)127, -(signed char)2, -63, 4, assert_equal_int);
+    test_arithmetic_division((signed char)127, -(signed char)1, -127, 4, assert_equal_int);
     test_arithmetic_division((signed char)127, (signed char)1, 127, 4, assert_equal_int);
     test_arithmetic_division((signed char)127, (signed char)2, 63, 4, assert_equal_int);
     test_arithmetic_division((signed char)127, (signed char)127, 1, 4, assert_equal_int);
@@ -213,6 +233,8 @@ void test_multiplicative_operators()
     test_arithmetic_division((unsigned char)255, (unsigned char)2, 127, 4, assert_equal_int);
     test_arithmetic_division((unsigned char)255, (unsigned char)255, 1, 4, assert_equal_int);
     test_arithmetic_division((unsigned char)254, (unsigned char)255, 0, 4, assert_equal_int);
+    test_arithmetic_division((short)32767, -(short)2, -16383, 4, assert_equal_int);
+    test_arithmetic_division((short)32767, -(short)1, -32767, 4, assert_equal_int);
     test_arithmetic_division((short)32767, (short)1, 32767, 4, assert_equal_int);
     test_arithmetic_division((short)32767, (short)2, 16383, 4, assert_equal_int);
     test_arithmetic_division((short)32767, (short)32767, 1, 4, assert_equal_int);
@@ -221,6 +243,8 @@ void test_multiplicative_operators()
     test_arithmetic_division((unsigned short)65535, (unsigned short)2, 32767, 4, assert_equal_int);
     test_arithmetic_division((unsigned short)65535, (unsigned short)65535, 1, 4, assert_equal_int);
     test_arithmetic_division((unsigned short)65534, (unsigned short)65535, 0, 4, assert_equal_int);
+    test_arithmetic_division(2147483647, -2, -1073741823, 4, assert_equal_int);
+    test_arithmetic_division(2147483647, -1, -2147483647, 4, assert_equal_int);
     test_arithmetic_division(2147483647, 1, 2147483647, 4, assert_equal_int);
     test_arithmetic_division(2147483647, 2, 1073741823, 4, assert_equal_int);
     test_arithmetic_division(2147483647, 2147483647, 1, 4, assert_equal_int);
@@ -229,6 +253,8 @@ void test_multiplicative_operators()
     test_arithmetic_division(4294967295U, 2U, 2147483647U, 4, assert_equal_unsigned_int);
     test_arithmetic_division(4294967295U, 4294967295U, 1U, 4, assert_equal_unsigned_int);
     test_arithmetic_division(4294967294U, 4294967295U, 0U, 4, assert_equal_unsigned_int);
+    test_arithmetic_division(9223372036854775807L, -2L, -4611686018427387903L, 8, assert_equal_long);
+    test_arithmetic_division(9223372036854775807L, -1L, -9223372036854775807L, 8, assert_equal_long);
     test_arithmetic_division(9223372036854775807L, 1L, 9223372036854775807L, 8, assert_equal_long);
     test_arithmetic_division(9223372036854775807L, 2L, 4611686018427387903L, 8, assert_equal_long);
     test_arithmetic_division(9223372036854775807L, 9223372036854775807L, 1L, 8, assert_equal_long);
@@ -247,10 +273,15 @@ void test_multiplicative_operators()
 
     test_arithmetic_modulation((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((_Bool)1, (_Bool)1, 0, 4, assert_equal_int);
+    test_arithmetic_modulation((_Bool)1, -(_Bool)1, 0, 4, assert_equal_int);
+    test_arithmetic_modulation((char)126, -(char)127, 126, 4, assert_equal_int);
+    test_arithmetic_modulation((char)127, -(char)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((char)127, (char)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((char)127, (char)2, 1, 4, assert_equal_int);
     test_arithmetic_modulation((char)127, (char)127, 0, 4, assert_equal_int);
     test_arithmetic_modulation((char)126, (char)127, 126, 4, assert_equal_int);
+    test_arithmetic_modulation((signed char)126, -(signed char)127, 126, 4, assert_equal_int);
+    test_arithmetic_modulation((signed char)127, -(signed char)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((signed char)127, (signed char)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((signed char)127, (signed char)2, 1, 4, assert_equal_int);
     test_arithmetic_modulation((signed char)127, (signed char)127, 0, 4, assert_equal_int);
@@ -259,6 +290,8 @@ void test_multiplicative_operators()
     test_arithmetic_modulation((unsigned char)255, (unsigned char)2, 1, 4, assert_equal_int);
     test_arithmetic_modulation((unsigned char)255, (unsigned char)255, 0, 4, assert_equal_int);
     test_arithmetic_modulation((unsigned char)254, (unsigned char)255, 254, 4, assert_equal_int);
+    test_arithmetic_modulation((short)32766, -(short)32767, 32766, 4, assert_equal_int);
+    test_arithmetic_modulation((short)32767, -(short)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((short)32767, (short)1, 0, 4, assert_equal_int);
     test_arithmetic_modulation((short)32767, (short)2, 1, 4, assert_equal_int);
     test_arithmetic_modulation((short)32767, (short)32767, 0, 4, assert_equal_int);
@@ -267,6 +300,8 @@ void test_multiplicative_operators()
     test_arithmetic_modulation((unsigned short)65535, (unsigned short)2, 1, 4, assert_equal_int);
     test_arithmetic_modulation((unsigned short)65535, (unsigned short)65535, 0, 4, assert_equal_int);
     test_arithmetic_modulation((unsigned short)65534, (unsigned short)65535, 65534, 4, assert_equal_int);
+    test_arithmetic_modulation(2147483646, -2147483647, 2147483646, 4, assert_equal_int);
+    test_arithmetic_modulation(2147483647, -1, 0, 4, assert_equal_int);
     test_arithmetic_modulation(2147483647, 1, 0, 4, assert_equal_int);
     test_arithmetic_modulation(2147483647, 2, 1, 4, assert_equal_int);
     test_arithmetic_modulation(2147483647, 2147483647, 0, 4, assert_equal_int);
@@ -275,6 +310,8 @@ void test_multiplicative_operators()
     test_arithmetic_modulation(4294967295U, 2U, 1U, 4, assert_equal_unsigned_int);
     test_arithmetic_modulation(4294967295U, 4294967295U, 0U, 4, assert_equal_unsigned_int);
     test_arithmetic_modulation(4294967294U, 4294967295U, 4294967294U, 4, assert_equal_unsigned_int);
+    test_arithmetic_modulation(9223372036854775806L, -9223372036854775807L, 9223372036854775806L, 8, assert_equal_long);
+    test_arithmetic_modulation(9223372036854775807L, -1L, 0L, 8, assert_equal_long);
     test_arithmetic_modulation(9223372036854775807L, 1L, 0L, 8, assert_equal_long);
     test_arithmetic_modulation(9223372036854775807L, 2L, 1L, 8, assert_equal_long);
     test_arithmetic_modulation(9223372036854775807L, 9223372036854775807L, 0L, 8, assert_equal_long);
