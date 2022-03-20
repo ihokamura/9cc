@@ -194,6 +194,52 @@ void test_multiplicative_operators()
 
 #undef test_arithmetic_multiplication
 
+#define test_arithmetic_division(lhs, rhs, sum, size, assert_function)    do { \
+    assert_equal_size_t(size, sizeof(lhs / rhs)); \
+    assert_function(sum, lhs / rhs); \
+    } while(0)
+
+    test_arithmetic_division((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
+    test_arithmetic_division((_Bool)1, (_Bool)1, 1, 4, assert_equal_int);
+    test_arithmetic_division((char)127, (char)1, 127, 4, assert_equal_int);
+    test_arithmetic_division((char)127, (char)2, 63, 4, assert_equal_int);
+    test_arithmetic_division((char)127, (char)127, 1, 4, assert_equal_int);
+    test_arithmetic_division((char)126, (char)127, 0, 4, assert_equal_int);
+    test_arithmetic_division((signed char)127, (signed char)1, 127, 4, assert_equal_int);
+    test_arithmetic_division((signed char)127, (signed char)2, 63, 4, assert_equal_int);
+    test_arithmetic_division((signed char)127, (signed char)127, 1, 4, assert_equal_int);
+    test_arithmetic_division((signed char)126, (signed char)127, 0, 4, assert_equal_int);
+    test_arithmetic_division((unsigned char)255, (unsigned char)1, 255, 4, assert_equal_int);
+    test_arithmetic_division((unsigned char)255, (unsigned char)2, 127, 4, assert_equal_int);
+    test_arithmetic_division((unsigned char)255, (unsigned char)255, 1, 4, assert_equal_int);
+    test_arithmetic_division((unsigned char)254, (unsigned char)255, 0, 4, assert_equal_int);
+    test_arithmetic_division((short)32767, (short)1, 32767, 4, assert_equal_int);
+    test_arithmetic_division((short)32767, (short)2, 16383, 4, assert_equal_int);
+    test_arithmetic_division((short)32767, (short)32767, 1, 4, assert_equal_int);
+    test_arithmetic_division((short)32766, (short)32767, 0, 4, assert_equal_int);
+    test_arithmetic_division((unsigned short)65535, (unsigned short)1, 65535, 4, assert_equal_int);
+    test_arithmetic_division((unsigned short)65535, (unsigned short)2, 32767, 4, assert_equal_int);
+    test_arithmetic_division((unsigned short)65535, (unsigned short)65535, 1, 4, assert_equal_int);
+    test_arithmetic_division((unsigned short)65534, (unsigned short)65535, 0, 4, assert_equal_int);
+    test_arithmetic_division(2147483647, 1, 2147483647, 4, assert_equal_int);
+    test_arithmetic_division(2147483647, 2, 1073741823, 4, assert_equal_int);
+    test_arithmetic_division(2147483647, 2147483647, 1, 4, assert_equal_int);
+    test_arithmetic_division(2147483646, 2147483647, 0, 4, assert_equal_int);
+    test_arithmetic_division(4294967295U, 1U, 4294967295U, 4, assert_equal_unsigned_int);
+    test_arithmetic_division(4294967295U, 2U, 2147483647U, 4, assert_equal_unsigned_int);
+    test_arithmetic_division(4294967295U, 4294967295U, 1U, 4, assert_equal_unsigned_int);
+    test_arithmetic_division(4294967294U, 4294967295U, 0, 4, assert_equal_unsigned_int);
+    test_arithmetic_division(9223372036854775807L, 1L, 9223372036854775807L, 8, assert_equal_long);
+    test_arithmetic_division(9223372036854775807L, 2L, 4611686018427387903L, 8, assert_equal_long);
+    test_arithmetic_division(9223372036854775807L, 9223372036854775807L, 1L, 8, assert_equal_long);
+    test_arithmetic_division(9223372036854775806L, 9223372036854775807L, 0L, 8, assert_equal_long);
+    test_arithmetic_division(18446744073709551615UL, 1UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_division(18446744073709551615UL, 2UL, 9223372036854775807UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_division(18446744073709551615UL, 18446744073709551615UL, 1UL, 8, assert_equal_unsigned_long);
+    test_arithmetic_division(18446744073709551614UL, 18446744073709551615UL, 0UL, 8, assert_equal_unsigned_long);
+
+#undef test_arithmetic_division
+
     assert_equal_int(47, 5 + 6 * 7);
     assert_equal_int(15, 5 * (9 - 6));
     assert_equal_int(4, (3 + 5) / 2);
