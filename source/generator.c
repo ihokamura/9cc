@@ -1465,8 +1465,17 @@ generate assembler code of binary operation of kind BINOP_MOD
 */
 static void generate_binop_mod(const Expression *expr)
 {
-    put_line_with_tab("cqo");
-    put_line_with_tab("idiv rdi");
+    if(is_signed(expr->type))
+    {
+        put_line_with_tab("cqo");
+        put_line_with_tab("idiv rdi");
+    }
+    else
+    {
+        put_line_with_tab("mov rdx, 0");
+        put_line_with_tab("div rdi");
+    }
+
     put_line_with_tab("mov rax, rdx");
 }
 
