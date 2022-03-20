@@ -1445,8 +1445,16 @@ static void generate_binop_div(const Expression *expr)
         break;
 
     default:
-        put_line_with_tab("cqo");
-        put_line_with_tab("idiv rdi");
+        if(is_signed(expr->type))
+        {
+            put_line_with_tab("cqo");
+            put_line_with_tab("idiv rdi");
+        }
+        else
+        {
+            put_line_with_tab("mov rdx, 0");
+            put_line_with_tab("div rdi");
+        }
         break;
     }
 }
