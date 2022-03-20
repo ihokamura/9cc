@@ -28,110 +28,110 @@ void test_constants()
     assert_constant_hexadecimal_all_digit(0X1234567890ABCDEF);
     assert_constant_hexadecimal_all_digit(0x1234567890abcdef);
 
-    assert_equal_size_t(4, sizeof(2147483646)); assert_constant_int_max_minus1(2147483646);
-    assert_equal_size_t(4, sizeof(2147483647)); assert_constant_int_max(2147483647);
-    assert_equal_size_t(8, sizeof(2147483648)); assert_constant_int_max_plus1(2147483648);
-    assert_equal_size_t(8, sizeof(9223372036854775806)); assert_constant_long_max_minus1(9223372036854775806);
-    assert_equal_size_t(8, sizeof(9223372036854775807)); assert_constant_long_max(9223372036854775807);
+    assert_size_of_expression(4, 2147483646); assert_constant_int_max_minus1(2147483646);
+    assert_size_of_expression(4, 2147483647); assert_constant_int_max(2147483647);
+    assert_size_of_expression(8, 2147483648); assert_constant_int_max_plus1(2147483648);
+    assert_size_of_expression(8, 9223372036854775806); assert_constant_long_max_minus1(9223372036854775806);
+    assert_size_of_expression(8, 9223372036854775807); assert_constant_long_max(9223372036854775807);
 
-    assert_equal_size_t(4, sizeof(4294967294U)); assert_constant_unsigned_int_max_minus1(4294967294U);
-    assert_equal_size_t(4, sizeof(4294967295U)); assert_constant_unsigned_int_max(4294967295U);
-    assert_equal_size_t(8, sizeof(4294967296U)); assert_constant_unsigned_int_max_plus1(4294967296U);
-    assert_equal_size_t(8, sizeof(18446744073709551614U)); assert_constant_unsigned_long_max_minus1(18446744073709551614U);
-    assert_equal_size_t(8, sizeof(18446744073709551615U)); assert_constant_unsigned_long_max(18446744073709551615U);
+    assert_size_of_expression(4, 4294967294U); assert_constant_unsigned_int_max_minus1(4294967294U);
+    assert_size_of_expression(4, 4294967295U); assert_constant_unsigned_int_max(4294967295U);
+    assert_size_of_expression(8, 4294967296U); assert_constant_unsigned_int_max_plus1(4294967296U);
+    assert_size_of_expression(8, 18446744073709551614U); assert_constant_unsigned_long_max_minus1(18446744073709551614U);
+    assert_size_of_expression(8, 18446744073709551615U); assert_constant_unsigned_long_max(18446744073709551615U);
 
-    assert_equal_size_t(8, sizeof(9223372036854775806L)); assert_constant_long_max_minus1(9223372036854775806L);
-    assert_equal_size_t(8, sizeof(9223372036854775807L)); assert_constant_long_max(9223372036854775807L);
+    assert_size_of_expression(8, 9223372036854775806L); assert_constant_long_max_minus1(9223372036854775806L);
+    assert_size_of_expression(8, 9223372036854775807L); assert_constant_long_max(9223372036854775807L);
 
-    assert_equal_size_t(8, sizeof(18446744073709551614UL)); assert_constant_unsigned_long_max_minus1(18446744073709551614UL);
-    assert_equal_size_t(8, sizeof(18446744073709551615UL)); assert_constant_unsigned_long_max(18446744073709551615UL);
+    assert_size_of_expression(8, 18446744073709551614UL); assert_constant_unsigned_long_max_minus1(18446744073709551614UL);
+    assert_size_of_expression(8, 18446744073709551615UL); assert_constant_unsigned_long_max(18446744073709551615UL);
 
-    assert_equal_size_t(8, sizeof(9223372036854775806LL)); assert_constant_long_max_minus1(9223372036854775806LL);
-    assert_equal_size_t(8, sizeof(9223372036854775807LL)); assert_constant_long_max(9223372036854775807LL);
+    assert_size_of_expression(8, 9223372036854775806LL); assert_constant_long_max_minus1(9223372036854775806LL);
+    assert_size_of_expression(8, 9223372036854775807LL); assert_constant_long_max(9223372036854775807LL);
 
-    assert_equal_size_t(8, sizeof(18446744073709551614ULL)); assert_constant_unsigned_long_max_minus1(18446744073709551614ULL);
-    assert_equal_size_t(8, sizeof(18446744073709551615ULL)); assert_constant_unsigned_long_max(18446744073709551615ULL);
+    assert_size_of_expression(8, 18446744073709551614ULL); assert_constant_unsigned_long_max_minus1(18446744073709551614ULL);
+    assert_size_of_expression(8, 18446744073709551615ULL); assert_constant_unsigned_long_max(18446744073709551615ULL);
 
-    assert_equal_size_t(4, sizeof(017777777776)); assert_constant_int_max_minus1(017777777776);
-    assert_equal_size_t(4, sizeof(017777777777)); assert_constant_int_max(017777777777);
-    assert_equal_size_t(4, sizeof(020000000000)); assert_constant_int_max_plus1(020000000000);
-    assert_equal_size_t(4, sizeof(037777777777)); assert_constant_unsigned_int_max_minus1(037777777776);
-    assert_equal_size_t(4, sizeof(037777777777)); assert_constant_unsigned_int_max(037777777777);
-    assert_equal_size_t(8, sizeof(040000000000)); assert_constant_unsigned_int_max_plus1(040000000000);
-    assert_equal_size_t(8, sizeof(0777777777777777777776)); assert_constant_long_max_minus1(0777777777777777777776);
-    assert_equal_size_t(8, sizeof(0777777777777777777777)); assert_constant_long_max(0777777777777777777777);
-    assert_equal_size_t(8, sizeof(01000000000000000000000)); assert_constant_long_max_plus1(01000000000000000000000);
-    assert_equal_size_t(8, sizeof(01777777777777777777776)); assert_constant_unsigned_long_max_minus1(01777777777777777777776);
-    assert_equal_size_t(8, sizeof(01777777777777777777777)); assert_constant_unsigned_long_max(01777777777777777777777);
+    assert_size_of_expression(4, 017777777776); assert_constant_int_max_minus1(017777777776);
+    assert_size_of_expression(4, 017777777777); assert_constant_int_max(017777777777);
+    assert_size_of_expression(4, 020000000000); assert_constant_int_max_plus1(020000000000);
+    assert_size_of_expression(4, 037777777777); assert_constant_unsigned_int_max_minus1(037777777776);
+    assert_size_of_expression(4, 037777777777); assert_constant_unsigned_int_max(037777777777);
+    assert_size_of_expression(8, 040000000000); assert_constant_unsigned_int_max_plus1(040000000000);
+    assert_size_of_expression(8, 0777777777777777777776); assert_constant_long_max_minus1(0777777777777777777776);
+    assert_size_of_expression(8, 0777777777777777777777); assert_constant_long_max(0777777777777777777777);
+    assert_size_of_expression(8, 01000000000000000000000); assert_constant_long_max_plus1(01000000000000000000000);
+    assert_size_of_expression(8, 01777777777777777777776); assert_constant_unsigned_long_max_minus1(01777777777777777777776);
+    assert_size_of_expression(8, 01777777777777777777777); assert_constant_unsigned_long_max(01777777777777777777777);
 
-    assert_equal_size_t(4, sizeof(037777777777U)); assert_constant_unsigned_int_max_minus1(037777777776U);
-    assert_equal_size_t(4, sizeof(037777777777U)); assert_constant_unsigned_int_max(037777777777U);
-    assert_equal_size_t(8, sizeof(040000000000U)); assert_constant_unsigned_int_max_plus1(040000000000U);
-    assert_equal_size_t(8, sizeof(01777777777777777777776U)); assert_constant_unsigned_long_max_minus1(01777777777777777777776U);
-    assert_equal_size_t(8, sizeof(01777777777777777777777U)); assert_constant_unsigned_long_max(01777777777777777777777U);
+    assert_size_of_expression(4, 037777777777U); assert_constant_unsigned_int_max_minus1(037777777776U);
+    assert_size_of_expression(4, 037777777777U); assert_constant_unsigned_int_max(037777777777U);
+    assert_size_of_expression(8, 040000000000U); assert_constant_unsigned_int_max_plus1(040000000000U);
+    assert_size_of_expression(8, 01777777777777777777776U); assert_constant_unsigned_long_max_minus1(01777777777777777777776U);
+    assert_size_of_expression(8, 01777777777777777777777U); assert_constant_unsigned_long_max(01777777777777777777777U);
 
-    assert_equal_size_t(8, sizeof(0777777777777777777776L)); assert_constant_long_max_minus1(0777777777777777777776L);
-    assert_equal_size_t(8, sizeof(0777777777777777777777L)); assert_constant_long_max(0777777777777777777777L);
-    assert_equal_size_t(8, sizeof(01000000000000000000000L)); assert_constant_long_max_plus1(01000000000000000000000L);
-    assert_equal_size_t(8, sizeof(01777777777777777777776L)); assert_constant_unsigned_long_max_minus1(01777777777777777777776L);
-    assert_equal_size_t(8, sizeof(01777777777777777777777L)); assert_constant_unsigned_long_max(01777777777777777777777L);
+    assert_size_of_expression(8, 0777777777777777777776L); assert_constant_long_max_minus1(0777777777777777777776L);
+    assert_size_of_expression(8, 0777777777777777777777L); assert_constant_long_max(0777777777777777777777L);
+    assert_size_of_expression(8, 01000000000000000000000L); assert_constant_long_max_plus1(01000000000000000000000L);
+    assert_size_of_expression(8, 01777777777777777777776L); assert_constant_unsigned_long_max_minus1(01777777777777777777776L);
+    assert_size_of_expression(8, 01777777777777777777777L); assert_constant_unsigned_long_max(01777777777777777777777L);
 
-    assert_equal_size_t(8, sizeof(01777777777777777777776UL)); assert_constant_unsigned_long_max_minus1(01777777777777777777776UL);
-    assert_equal_size_t(8, sizeof(01777777777777777777777UL)); assert_constant_unsigned_long_max(01777777777777777777777UL);
+    assert_size_of_expression(8, 01777777777777777777776UL); assert_constant_unsigned_long_max_minus1(01777777777777777777776UL);
+    assert_size_of_expression(8, 01777777777777777777777UL); assert_constant_unsigned_long_max(01777777777777777777777UL);
 
-    assert_equal_size_t(8, sizeof(01777777777777777777776ULL)); assert_constant_unsigned_long_max_minus1(01777777777777777777776ULL);
-    assert_equal_size_t(8, sizeof(01777777777777777777777ULL)); assert_constant_unsigned_long_max(01777777777777777777777ULL);
+    assert_size_of_expression(8, 01777777777777777777776ULL); assert_constant_unsigned_long_max_minus1(01777777777777777777776ULL);
+    assert_size_of_expression(8, 01777777777777777777777ULL); assert_constant_unsigned_long_max(01777777777777777777777ULL);
 
-    assert_equal_size_t(4, sizeof(0x7FFFFFFE)); assert_constant_int_max_minus1(0x7FFFFFFE);
-    assert_equal_size_t(4, sizeof(0x7FFFFFFF)); assert_constant_int_max(0x7FFFFFFF);
-    assert_equal_size_t(4, sizeof(0x80000000)); assert_constant_int_max_plus1(0x80000000);
-    assert_equal_size_t(4, sizeof(0xFFFFFFFF)); assert_constant_unsigned_int_max_minus1(037777777776);
-    assert_equal_size_t(4, sizeof(0xFFFFFFFF)); assert_constant_unsigned_int_max(0xFFFFFFFF);
-    assert_equal_size_t(8, sizeof(0x100000000)); assert_constant_unsigned_int_max_plus1(0x100000000);
-    assert_equal_size_t(8, sizeof(0x7FFFFFFFFFFFFFFE)); assert_constant_long_max_minus1(0x7FFFFFFFFFFFFFFE);
-    assert_equal_size_t(8, sizeof(0x7FFFFFFFFFFFFFFF)); assert_constant_long_max(0x7FFFFFFFFFFFFFFF);
-    assert_equal_size_t(8, sizeof(0x8000000000000000)); assert_constant_long_max_plus1(0x8000000000000000);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFE)); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFE);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFF)); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFF);
+    assert_size_of_expression(4, 0x7FFFFFFE); assert_constant_int_max_minus1(0x7FFFFFFE);
+    assert_size_of_expression(4, 0x7FFFFFFF); assert_constant_int_max(0x7FFFFFFF);
+    assert_size_of_expression(4, 0x80000000); assert_constant_int_max_plus1(0x80000000);
+    assert_size_of_expression(4, 0xFFFFFFFF); assert_constant_unsigned_int_max_minus1(037777777776);
+    assert_size_of_expression(4, 0xFFFFFFFF); assert_constant_unsigned_int_max(0xFFFFFFFF);
+    assert_size_of_expression(8, 0x100000000); assert_constant_unsigned_int_max_plus1(0x100000000);
+    assert_size_of_expression(8, 0x7FFFFFFFFFFFFFFE); assert_constant_long_max_minus1(0x7FFFFFFFFFFFFFFE);
+    assert_size_of_expression(8, 0x7FFFFFFFFFFFFFFF); assert_constant_long_max(0x7FFFFFFFFFFFFFFF);
+    assert_size_of_expression(8, 0x8000000000000000); assert_constant_long_max_plus1(0x8000000000000000);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFE); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFE);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFF); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFF);
 
-    assert_equal_size_t(4, sizeof(0xFFFFFFFFU)); assert_constant_unsigned_int_max_minus1(037777777776U);
-    assert_equal_size_t(4, sizeof(0xFFFFFFFFU)); assert_constant_unsigned_int_max(0xFFFFFFFFU);
-    assert_equal_size_t(8, sizeof(0x100000000U)); assert_constant_unsigned_int_max_plus1(0x100000000U);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFEU)); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEU);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFFU)); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFU);
+    assert_size_of_expression(4, 0xFFFFFFFFU); assert_constant_unsigned_int_max_minus1(037777777776U);
+    assert_size_of_expression(4, 0xFFFFFFFFU); assert_constant_unsigned_int_max(0xFFFFFFFFU);
+    assert_size_of_expression(8, 0x100000000U); assert_constant_unsigned_int_max_plus1(0x100000000U);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFEU); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEU);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFFU); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFU);
 
-    assert_equal_size_t(8, sizeof(0x7FFFFFFFFFFFFFFEL)); assert_constant_long_max_minus1(0x7FFFFFFFFFFFFFFEL);
-    assert_equal_size_t(8, sizeof(0x7FFFFFFFFFFFFFFFL)); assert_constant_long_max(0x7FFFFFFFFFFFFFFFL);
-    assert_equal_size_t(8, sizeof(0x8000000000000000L)); assert_constant_long_max_plus1(0x8000000000000000L);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFEL)); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEL);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFFL)); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFL);
+    assert_size_of_expression(8, 0x7FFFFFFFFFFFFFFEL); assert_constant_long_max_minus1(0x7FFFFFFFFFFFFFFEL);
+    assert_size_of_expression(8, 0x7FFFFFFFFFFFFFFFL); assert_constant_long_max(0x7FFFFFFFFFFFFFFFL);
+    assert_size_of_expression(8, 0x8000000000000000L); assert_constant_long_max_plus1(0x8000000000000000L);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFEL); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEL);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFFL); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFL);
 
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFEUL)); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEUL);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFFUL)); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFUL);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFEUL); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEUL);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFFUL); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFUL);
 
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFEULL)); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEULL);
-    assert_equal_size_t(8, sizeof(0xFFFFFFFFFFFFFFFFULL)); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFULL);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFEULL); assert_constant_unsigned_long_max_minus1(0xFFFFFFFFFFFFFFFEULL);
+    assert_size_of_expression(8, 0xFFFFFFFFFFFFFFFFULL); assert_constant_unsigned_long_max(0xFFFFFFFFFFFFFFFFULL);
 
-    assert_equal_size_t(4, sizeof(1));
-    assert_equal_size_t(4, sizeof(1U)); assert_equal_size_t(4, sizeof(1u));
-    assert_equal_size_t(8, sizeof(1L)); assert_equal_size_t(8, sizeof(1l));
-    assert_equal_size_t(8, sizeof(1UL)); assert_equal_size_t(8, sizeof(1Ul)); assert_equal_size_t(8, sizeof(1uL)); assert_equal_size_t(8, sizeof(1ul));
-    assert_equal_size_t(8, sizeof(1LL)); assert_equal_size_t(8, sizeof(1ll));
-    assert_equal_size_t(8, sizeof(1ULL)); assert_equal_size_t(8, sizeof(1Ull)); assert_equal_size_t(8, sizeof(1uLL)); assert_equal_size_t(8, sizeof(1ull));
+    assert_size_of_expression(4, 1);
+    assert_size_of_expression(4, 1U); assert_size_of_expression(4, 1u);
+    assert_size_of_expression(8, 1L); assert_size_of_expression(8, 1l);
+    assert_size_of_expression(8, 1UL); assert_size_of_expression(8, 1Ul); assert_size_of_expression(8, 1uL); assert_size_of_expression(8, 1ul);
+    assert_size_of_expression(8, 1LL); assert_size_of_expression(8, 1ll);
+    assert_size_of_expression(8, 1ULL); assert_size_of_expression(8, 1Ull); assert_size_of_expression(8, 1uLL); assert_size_of_expression(8, 1ull);
 
-    assert_equal_size_t(4, sizeof(01));
-    assert_equal_size_t(4, sizeof(01U)); assert_equal_size_t(4, sizeof(01u));
-    assert_equal_size_t(8, sizeof(01L)); assert_equal_size_t(8, sizeof(01l));
-    assert_equal_size_t(8, sizeof(01UL)); assert_equal_size_t(8, sizeof(01Ul)); assert_equal_size_t(8, sizeof(01uL)); assert_equal_size_t(8, sizeof(01ul));
-    assert_equal_size_t(8, sizeof(01LL)); assert_equal_size_t(8, sizeof(01ll));
-    assert_equal_size_t(8, sizeof(01ULL)); assert_equal_size_t(8, sizeof(01Ull)); assert_equal_size_t(8, sizeof(01uLL)); assert_equal_size_t(8, sizeof(01ull));
+    assert_size_of_expression(4, 01);
+    assert_size_of_expression(4, 01U); assert_size_of_expression(4, 01u);
+    assert_size_of_expression(8, 01L); assert_size_of_expression(8, 01l);
+    assert_size_of_expression(8, 01UL); assert_size_of_expression(8, 01Ul); assert_size_of_expression(8, 01uL); assert_size_of_expression(8, 01ul);
+    assert_size_of_expression(8, 01LL); assert_size_of_expression(8, 01ll);
+    assert_size_of_expression(8, 01ULL); assert_size_of_expression(8, 01Ull); assert_size_of_expression(8, 01uLL); assert_size_of_expression(8, 01ull);
 
-    assert_equal_size_t(4, sizeof(0x1));
-    assert_equal_size_t(4, sizeof(0x1U)); assert_equal_size_t(4, sizeof(0x1u));
-    assert_equal_size_t(8, sizeof(0x1L)); assert_equal_size_t(8, sizeof(0x1l));
-    assert_equal_size_t(8, sizeof(0x1UL)); assert_equal_size_t(8, sizeof(0x1Ul)); assert_equal_size_t(8, sizeof(0x1uL)); assert_equal_size_t(8, sizeof(0x1ul));
-    assert_equal_size_t(8, sizeof(0x1LL)); assert_equal_size_t(8, sizeof(0x1ll));
-    assert_equal_size_t(8, sizeof(0x1ULL)); assert_equal_size_t(8, sizeof(0x1Ull)); assert_equal_size_t(8, sizeof(0x1uLL)); assert_equal_size_t(8, sizeof(0x1ull));
+    assert_size_of_expression(4, 0x1);
+    assert_size_of_expression(4, 0x1U); assert_size_of_expression(4, 0x1u);
+    assert_size_of_expression(8, 0x1L); assert_size_of_expression(8, 0x1l);
+    assert_size_of_expression(8, 0x1UL); assert_size_of_expression(8, 0x1Ul); assert_size_of_expression(8, 0x1uL); assert_size_of_expression(8, 0x1ul);
+    assert_size_of_expression(8, 0x1LL); assert_size_of_expression(8, 0x1ll);
+    assert_size_of_expression(8, 0x1ULL); assert_size_of_expression(8, 0x1Ull); assert_size_of_expression(8, 0x1uLL); assert_size_of_expression(8, 0x1ull);
 
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     // 6.4.4.2 Floating constants
@@ -148,9 +148,9 @@ void test_multiplicative_operators()
 {
     put_title("Multiplicative operators");
 
-#define test_arithmetic_multiplication(lhs, rhs, sum, size, assert_function)    do { \
-    assert_equal_size_t(size, sizeof(lhs * rhs)); \
-    assert_function(sum, lhs * rhs); \
+#define test_arithmetic_multiplication(lhs, rhs, product, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs * rhs); \
+    assert_function(product, lhs * rhs); \
     } while(0)
 
     test_arithmetic_multiplication((_Bool)0, (_Bool)0, 0, 4, assert_equal_int);
@@ -194,9 +194,9 @@ void test_multiplicative_operators()
 
 #undef test_arithmetic_multiplication
 
-#define test_arithmetic_division(lhs, rhs, sum, size, assert_function)    do { \
-    assert_equal_size_t(size, sizeof(lhs / rhs)); \
-    assert_function(sum, lhs / rhs); \
+#define test_arithmetic_division(lhs, rhs, quotient, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs / rhs); \
+    assert_function(quotient, lhs / rhs); \
     } while(0)
 
     test_arithmetic_division((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
@@ -240,9 +240,9 @@ void test_multiplicative_operators()
 
 #undef test_arithmetic_division
 
-#define test_arithmetic_modulation(lhs, rhs, sum, size, assert_function)    do { \
-    assert_equal_size_t(size, sizeof(lhs % rhs)); \
-    assert_function(sum, lhs % rhs); \
+#define test_arithmetic_modulation(lhs, rhs, remainder, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs % rhs); \
+    assert_function(remainder, lhs % rhs); \
     } while(0)
 
     test_arithmetic_modulation((_Bool)0, (_Bool)1, 0, 4, assert_equal_int);
@@ -286,12 +286,6 @@ void test_multiplicative_operators()
 
 #undef test_arithmetic_modulation
 
-    assert_equal_int(47, 5 + 6 * 7);
-    assert_equal_int(15, 5 * (9 - 6));
-    assert_equal_int(4, (3 + 5) / 2);
-    assert_equal_int(0, 123 % 3);
-    assert_equal_int(1, ((123 + 1) % 5) % 3);
-
 #if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
     assert_equal_float(3.0f, 0.5f * (9.0f - 6.0f / 2.0f));
     assert_equal_double(3.0, 0.5 * (9.0 - 6.0 / 2.0));
@@ -318,7 +312,7 @@ void test_additive_operators()
     unsigned long ul1, ul2;
 
 #define test_arithmetic_addition(lhs, rhs, sum, size, assert_function)    do { \
-    assert_equal_size_t(size, sizeof(lhs + rhs)); \
+    assert_size_of_expression(size, lhs + rhs); \
     assert_function(sum, lhs + rhs); \
     } while(0)
 
@@ -394,9 +388,9 @@ void test_additive_operators()
 
 #undef test_arithmetic_addition
 
-#define test_arithmetic_subtraction(lhs, rhs, sum, size, assert_function)    do { \
-    assert_equal_size_t(size, sizeof(lhs - rhs)); \
-    assert_function(sum, lhs - rhs); \
+#define test_arithmetic_subtraction(lhs, rhs, difference, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs - rhs); \
+    assert_function(difference, lhs - rhs); \
     } while(0)
 
     test_arithmetic_subtraction((_Bool)0, (_Bool)0, 0, 4, assert_equal_int);

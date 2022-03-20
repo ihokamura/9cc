@@ -30,6 +30,7 @@
 #define assert_constant_unsigned_long_max(actual)  assert_constant_unsigned_long_max_func(__FILE__, __LINE__, actual)
 
 #define assert_equal_size_t(expected, actual)    assert_equal_unsigned_long(expected, actual)
+#define assert_size_of_expression(size, expression)    assert_equal_size_t(size, sizeof(expression))
 
 // function declaration
 void assert_equal_bool_func(const char *file, int line, _Bool expected, _Bool actual);
