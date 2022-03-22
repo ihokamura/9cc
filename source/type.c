@@ -388,7 +388,8 @@ check if a given type is a signed integer type
 bool is_signed(const Type *type)
 {
     return (
-           (type->kind == TY_SCHAR)
+           (type->kind == TY_CHAR)
+        || (type->kind == TY_SCHAR)
         || (type->kind == TY_SHORT)
         || (type->kind == TY_INT)
         || (type->kind == TY_LONG)

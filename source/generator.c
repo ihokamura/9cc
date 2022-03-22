@@ -1971,7 +1971,13 @@ static void generate_expr_cast(const Expression *expr)
         }
         else
         {
-            if(expr->type->size == 1)
+            if(is_bool(expr->type))
+            {
+                put_line_with_tab("cmp rax, 0");
+                put_line_with_tab("setne al");
+                put_line_with_tab("movzx rax, al");
+            }
+            else if(expr->type->size == 1)
             {
                 const char *instruction = is_signed(expr->type) ? "movsx" : "movzx";
                 put_line_with_tab("%s rax, al", instruction);
