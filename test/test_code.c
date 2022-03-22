@@ -142,6 +142,128 @@ void test_constants()
 #endif /* ENABLE_TEST_CASE(TEST_CONSTANTS) */
 
 
+#if ENABLE_TEST_CASE(TEST_CAST_OPERATORS)
+// 6.5.4 Cast operators
+void test_cast_operators()
+{
+    put_title("Cast operators");
+
+#define test_conversion_by_cast(expression, value, size, assert_function)    do { \
+    assert_size_of_expression(size, expression); \
+    assert_function(value, expression); \
+    } while(0)
+
+    test_conversion_by_cast((_Bool)(-2), 1, 1, assert_equal_int);
+    test_conversion_by_cast((_Bool)(-1), 1, 1, assert_equal_int);
+    test_conversion_by_cast((_Bool)0, 0, 1, assert_equal_int);
+    test_conversion_by_cast((_Bool)1, 1, 1, assert_equal_int);
+    test_conversion_by_cast((_Bool)2, 1, 1, assert_equal_int);
+    test_conversion_by_cast((char)(-129), 127, 1, assert_equal_int);
+    test_conversion_by_cast((char)(-128), -128, 1, assert_equal_int);
+    test_conversion_by_cast((char)(-127), -127, 1, assert_equal_int);
+    test_conversion_by_cast((char)(-1), -1, 1, assert_equal_int);
+    test_conversion_by_cast((char)0, 0, 1, assert_equal_int);
+    test_conversion_by_cast((char)1, 1, 1, assert_equal_int);
+    test_conversion_by_cast((char)127, 127, 1, assert_equal_int);
+    test_conversion_by_cast((char)128, -128, 1, assert_equal_int);
+    test_conversion_by_cast((char)129, -127, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)(-129), 127, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)(-128), -128, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)(-127), -127, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)(-1), -1, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)0, 0, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)1, 1, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)127, 127, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)128, -128, 1, assert_equal_int);
+    test_conversion_by_cast((signed char)129, -127, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)(-257), 255, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)(-256), 0, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)(-255), 1, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)(-1), 255, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)0, 0, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)1, 1, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)255, 255, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)256, 0, 1, assert_equal_int);
+    test_conversion_by_cast((unsigned char)257, 1, 1, assert_equal_int);
+    test_conversion_by_cast((signed short)(-32769), 32767, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)(-32768), -32768, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)(-32767), -32767, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)(-1), -1, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)0, 0, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)1, 1, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)32767, 32767, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)32768, -32768, 2, assert_equal_int);
+    test_conversion_by_cast((signed short)32769, -32767, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)(-65537), 65535, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)(-65536), 0, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)(-65535), 1, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)(-1), 65535, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)0, 0, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)1, 1, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)65535, 65535, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)65536, 0, 2, assert_equal_int);
+    test_conversion_by_cast((unsigned short)65537, 1, 2, assert_equal_int);
+    test_conversion_by_cast((int)(-2147483649), 2147483647, 4, assert_equal_int);
+    test_conversion_by_cast((int)(-2147483648), -2147483648, 4, assert_equal_int);
+    test_conversion_by_cast((int)(-2147483647), -2147483647, 4, assert_equal_int);
+    test_conversion_by_cast((int)(-1), -1, 4, assert_equal_int);
+    test_conversion_by_cast((int)0, 0, 4, assert_equal_int);
+    test_conversion_by_cast((int)1, 1, 4, assert_equal_int);
+    test_conversion_by_cast((int)2147483647, 2147483647, 4, assert_equal_int);
+    test_conversion_by_cast((int)2147483648, -2147483648, 4, assert_equal_int);
+    test_conversion_by_cast((int)2147483649, -2147483647, 4, assert_equal_int);
+    test_conversion_by_cast((unsigned int)(-4294967297), 4294967295U, 4, assert_equal_int);
+    test_conversion_by_cast((unsigned int)(-4294967296), 0U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)(-4294967295), 1U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)(-1), 4294967295U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)0, 0U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)1, 1U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)4294967295, 4294967295U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)4294967296, 0U, 4, assert_equal_unsigned_int);
+    test_conversion_by_cast((unsigned int)4294967297, 1U, 4, assert_equal_unsigned_int);
+    // test_conversion_by_cast((long)(-9223372036854775809), 9223372036854775807L, 8, assert_equal_long);
+    // test_conversion_by_cast((long)(-9223372036854775808), -9223372036854775808L, 8, assert_equal_long);
+    test_conversion_by_cast((long)(-9223372036854775807), -9223372036854775807L, 8, assert_equal_long);
+    test_conversion_by_cast((long)(-1), -1L, 8, assert_equal_long);
+    test_conversion_by_cast((long)0, 0L, 8, assert_equal_long);
+    test_conversion_by_cast((long)1, 1L, 8, assert_equal_long);
+    test_conversion_by_cast((long)9223372036854775807, 9223372036854775807L, 8, assert_equal_long);
+    // test_conversion_by_cast((long)9223372036854775808, -9223372036854775808L, 8, assert_equal_long);
+    // test_conversion_by_cast((long)9223372036854775809, -9223372036854775807L, 8, assert_equal_long);
+    // test_conversion_by_cast((unsigned long)(-18446744073709551617UL), 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    // test_conversion_by_cast((unsigned long)(-18446744073709551616UL), 0UL, 8, assert_equal_unsigned_long);
+    test_conversion_by_cast((unsigned long)(-18446744073709551615UL), 1UL, 8, assert_equal_unsigned_long);
+    test_conversion_by_cast((unsigned long)(-1), 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    test_conversion_by_cast((unsigned long)0, 0UL, 8, assert_equal_unsigned_long);
+    test_conversion_by_cast((unsigned long)1, 1UL, 8, assert_equal_unsigned_long);
+    test_conversion_by_cast((unsigned long)18446744073709551615UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    // test_conversion_by_cast((unsigned long)18446744073709551616UL, 0UL, 8, assert_equal_unsigned_long);
+    // test_conversion_by_cast((unsigned long)18446744073709551617UL, 1UL, 8, assert_equal_unsigned_long);
+
+#undef test_conversion_by_cast
+
+    long l;
+
+    char c;
+    l = 255; c = (char)l; assert_equal_char(255, c);
+    l = 256; c = (char)l; assert_equal_char(0, c);
+
+    short s;
+    l = 65535; s = (short)l; assert_equal_short(65535, s);
+    l = 65536; s = (short)l; assert_equal_short(0, s);
+
+    int i;
+    l = 4294967295; i = (int)l; assert_equal_int(4294967295, i);
+    l = 4294967296; i = (int)l; assert_equal_int(0, i);
+
+#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
+    float f = 1.0f; assert_equal_double(1.0, (double)f); assert_equal_int(1, (int)f); assert_equal_float(f, (float)1);
+    double d = 2.0; assert_equal_float(2.0f, (float)d); assert_equal_int(2, (int)d); assert_equal_double(d, (double)2);
+#endif /* INCLUDE_FLOATING_POINT_TYPE */
+}
+#endif /* ENABLE_TEST_CASE(TEST_CAST_OPERATORS) */
+
+
 #if ENABLE_TEST_CASE(TEST_MULTIPLICATIVE_OPERATORS)
 // 6.5.5 Multiplicative operators
 void test_multiplicative_operators()
@@ -703,34 +825,6 @@ int test_unary()
     --p; assert_equal_int(1, *(--p)); assert_equal_int(1, *p);
     p++; assert_equal_int(2, *(p++)); assert_equal_int(4, *p);
     p--; assert_equal_int(2, *(p--)); assert_equal_int(1, *p);
-
-    return 0;
-}
-
-
-/*
-cast operator
-*/
-int test_cast()
-{
-    long l;
-
-    char c;
-    l = 255; c = (char)l; assert_equal_char(255, c);
-    l = 256; c = (char)l; assert_equal_char(0, c);
-
-    short s;
-    l = 65535; s = (short)l; assert_equal_short(65535, s);
-    l = 65536; s = (short)l; assert_equal_short(0, s);
-
-    int i;
-    l = 4294967295; i = (int)l; assert_equal_int(4294967295, i);
-    l = 4294967296; i = (int)l; assert_equal_int(0, i);
-
-#if (INCLUDE_FLOATING_POINT_TYPE == ENABLED)
-    float f = 1.0f; assert_equal_double(1.0, (double)f); assert_equal_int(1, (int)f); assert_equal_float(f, (float)1);
-    double d = 2.0; assert_equal_float(2.0f, (float)d); assert_equal_int(2, (int)d); assert_equal_double(d, (double)2);
-#endif /* INCLUDE_FLOATING_POINT_TYPE */
 
     return 0;
 }
@@ -2111,12 +2205,15 @@ int main()
 #if ENABLE_TEST_CASE(TEST_CONSTANTS)
     test_constants();
 #endif /* ENABLE_TEST_CASE(TEST_CONSTANTS) */
-#if ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS)
-    test_additive_operators();
-#endif /* ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS) */
+#if ENABLE_TEST_CASE(TEST_CAST_OPERATORS)
+    test_cast_operators();
+#endif /* ENABLE_TEST_CASE(TEST_CAST_OPERATORS) */
 #if ENABLE_TEST_CASE(TEST_MULTIPLICATIVE_OPERATORS)
     test_multiplicative_operators();
 #endif /* ENABLE_TEST_CASE(TEST_MULTIPLICATIVE_OPERATORS) */
+#if ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS)
+    test_additive_operators();
+#endif /* ENABLE_TEST_CASE(TEST_ADDITIVE_OPERATORS) */
 #if ENABLE_TEST_CASE(TEST_OTHERS)
     test_shift();
     test_bitwise_and();
@@ -2128,7 +2225,6 @@ int main()
     test_generic_selection();
     test_compound_literal();
     test_unary();
-    test_cast();
     test_comparision();
     test_local_variable();
     test_assignment();
