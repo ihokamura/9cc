@@ -30,6 +30,10 @@ TEST_BINARY_GEN1:=$(TEST_BINARY)
 TEST_BINARY_GEN2:=$(TEST_DIRECTORY)/test_bin_9cc_gen2
 TEST_BINARY_GEN3:=$(TEST_DIRECTORY)/test_bin_9cc_gen3
 
+PROFILE_DIRECTORY:=profile
+PORFILE_LOG:=$(PROFILE_DIRECTORY)/profile.log
+PROFILE_OBJ:=$(PROFILE_DIRECTORY)/9cc
+PROFILE_OUTPUT:=gmon.out
 
 $(OBJ): $(OBJECT_DIRECTORY) $(SRCS)
 	$(CC) $(SRCS) $(CFLAGS) -o $(OBJ)
@@ -40,6 +44,12 @@ $(COMPILER_GEN2): $(COMPILER_GEN1) $(SELF_BUILD_DIRECTORY)
 $(COMPILER_GEN3): $(COMPILER_GEN2) $(SELF_BUILD_DIRECTORY)
 	$(SELF_BUILD_SCRIPT) $(COMPILER_GEN2) $(COMPILER_GEN3)
 
+$(PROFILE_OBJ): $(PROFILE_DIRECTORY) $(SRCS)
+	$(CC) $(SRCS) $(CFLAGS) -p -o $(PROFILE_OBJ)
+
+$(PROFILE_DIRECTORY):
+	mkdir $(PROFILE_DIRECTORY)
+
 $(OBJECT_DIRECTORY):
 	mkdir $(OBJECT_DIRECTORY)
 
@@ -49,6 +59,8 @@ $(SELF_BUILD_DIRECTORY):
 clean:
 	$(RM) \
 		$(OBJECT_DIRECTORY) \
+		$(PROFILE_OUTPUT) \
+		$(PROFILE_DIRECTORY) \
 		$(SOURCE_DIRECTORY)/*.o \
 		$(TEST_DIRECTORY)/*.s $(TEST_DIRECTORY)/test_bin_* $(TEST_DIRECTORY)/9cc_* \
 		$(SELF_BUILD_DIRECTORY)
@@ -56,6 +68,10 @@ clean:
 debug_test:
 	$(CC) $(TEST_DIRECTORY)/*.c $(CFLAGS) -o $(TEST_DEBUG_BINARY)
 	$(EXECUTE_SCRIPT) $(TEST_DEBUG_BINARY)
+
+profile_test: $(PROFILE_OBJ) $(SRCS)
+	$(BUILD_SCRIPT) $(PROFILE_OBJ) $(TEST_ASSEMBLY) $(TEST_BINARY) TEST_ALL
+	gprof $(PROFILE_OBJ) $(PROFILE_OUTPUT) > $(PORFILE_LOG)
 
 test: $(OBJ)
 	$(BUILD_SCRIPT) $(OBJ) $(TEST_ASSEMBLY) $(TEST_BINARY) TEST_ALL
@@ -88,4 +104,4 @@ test_gen3: $(COMPILER_GEN3)
 test_self_build: test_gen2 test_gen3
 	diff -q $(TEST_ASSEMBLY_GEN2) $(TEST_ASSEMBLY_GEN3)
 
-.PHONY: clean test test_gen2 test_gen3 test_self_build
+.PHONY: clean debug_test profile_test test test_constants test_cast_operators test_multiplicative_operators test_additive_operators test_gen2 test_gen3 test_self_build
