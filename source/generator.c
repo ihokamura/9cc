@@ -401,17 +401,36 @@ static void generate_load(const Type *type)
     {
         if(type->size == 1)
         {
-            const char *instruction = is_signed(type) ? "movsx" : "movzx";
-            put_line_with_tab("%s rax, byte ptr [rax]", instruction);
+            if(is_signed(type))
+            {
+                put_line_with_tab("movsx rax, byte ptr [rax]");
+            }
+            else
+            {
+                put_line_with_tab("movzx rax, byte ptr [rax]");
+            }
         }
         else if(type->size == 2)
         {
-            const char *instruction = is_signed(type) ? "movsx" : "movzx";
-            put_line_with_tab("%s rax, word ptr [rax]", instruction);
+            if(is_signed(type))
+            {
+                put_line_with_tab("movsx rax, word ptr [rax]");
+            }
+            else
+            {
+                put_line_with_tab("movzx rax, word ptr [rax]");
+            }
         }
         else if(type->size <= 4)
         {
-            put_line_with_tab("movsxd rax, dword ptr [rax]");
+            if(is_signed(type))
+            {
+                put_line_with_tab("movsxd rax, dword ptr [rax]");
+            }
+            else
+            {
+                put_line_with_tab("mov eax, dword ptr [rax]");
+            }
         }
         else if(type->size <= 8)
         {
@@ -1979,17 +1998,32 @@ static void generate_expr_cast(const Expression *expr)
             }
             else if(expr->type->size == 1)
             {
-                const char *instruction = is_signed(expr->type) ? "movsx" : "movzx";
-                put_line_with_tab("%s rax, al", instruction);
+                if(is_signed(expr->type))
+                {
+                    put_line_with_tab("movsx rax, al");
+                }
+                else
+                {
+                    put_line_with_tab("movzx rax, al");
+                }
             }
             else if(expr->type->size == 2)
             {
-                const char *instruction = is_signed(expr->type) ? "movsx" : "movzx";
-                put_line_with_tab("%s rax, ax", instruction);
+                if(is_signed(expr->type))
+                {
+                    put_line_with_tab("movsx rax, ax");
+                }
+                else
+                {
+                    put_line_with_tab("movzx rax, ax");
+                }
             }
             else if(expr->type->size == 4)
             {
-                put_line_with_tab("movsxd rax, eax");
+                if(is_signed(expr->operand->type))
+                {
+                    put_line_with_tab("movsxd rax, eax");
+                }
             }
         }
     }
