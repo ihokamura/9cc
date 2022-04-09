@@ -66,7 +66,7 @@ clean:
 		$(SELF_BUILD_DIRECTORY)
 
 debug_test:
-	$(CC) $(TEST_DIRECTORY)/*.c $(CFLAGS) -o $(TEST_DEBUG_BINARY)
+	$(CC) $(TEST_DIRECTORY)/*.c $(CFLAGS) -DTEST_ALL -o $(TEST_DEBUG_BINARY)
 	$(EXECUTE_SCRIPT) $(TEST_DEBUG_BINARY)
 
 profile_test: $(PROFILE_OBJ) $(SRCS)
@@ -91,6 +91,10 @@ test_multiplicative_operators: $(OBJ)
 
 test_additive_operators: $(OBJ)
 	$(BUILD_SCRIPT) $(OBJ) $(TEST_ASSEMBLY) $(TEST_BINARY) TEST_ADDITIVE_OPERATORS
+	$(EXECUTE_SCRIPT) $(TEST_BINARY)
+
+test_bitwise_shift_operators: $(OBJ)
+	$(BUILD_SCRIPT) $(OBJ) $(TEST_ASSEMBLY) $(TEST_BINARY) TEST_BITWISE_SHIFT_OPERATORS
 	$(EXECUTE_SCRIPT) $(TEST_BINARY)
 
 test_gen2: $(COMPILER_GEN2)
