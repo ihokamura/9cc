@@ -253,7 +253,7 @@ static Statement *statement(void)
     }
     else
     {
-        Token *saved_token = get_token();
+        push_token();
         Token *token;
         if(consume_token(TK_IDENT, &token))
         {
@@ -263,14 +263,11 @@ static Statement *statement(void)
                 stmt = new_statement(STMT_LABEL);
                 stmt->body = statement();
                 stmt->ident = make_identifier(token);
+                discard_token();
                 goto statement_end;
             }
-            else
-            {
-                // resume the token since it is not a label
-                set_token(saved_token);
-            }
         }
+        pop_token();
 
         // expression statement
         stmt = new_statement(STMT_EXPR);

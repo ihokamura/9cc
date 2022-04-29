@@ -369,7 +369,7 @@ static bool peek_func(void)
 {
     // save the currently parsing token and the current scope
     // since the parser twice reads declaration specifiers and/or declarators in external definitions
-    Token *saved_token = get_token();
+    push_token();
     Scope scope = enter_scope();
 
     // parse declaration specifier and declarator
@@ -384,7 +384,7 @@ static bool peek_func(void)
     bool is_func = consume_reserved("{");
 
     // restore the saved token and scope
-    set_token(saved_token);
+    pop_token();
     leave_scope(scope);
 
     if(is_func)

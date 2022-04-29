@@ -1287,7 +1287,7 @@ declarator-suffix ::= ("[" const-expression* "]" | "(" ("void" | parameter-type-
 */
 static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_vars)
 {
-    Token *saved_token = get_token();
+    push_token();
     if(consume_reserved("("))
     {
         if(peek_declarator())
@@ -1303,14 +1303,11 @@ static Type *direct_declarator(Type *type, Token **token, List(Variable) **arg_v
             // overwrite the placeholder to fix the type
             *placeholder = *type;
             type = whole_type;
+            discard_token();
             goto direct_declarator_end;
         }
-        else
-        {
-            // restore the saved token
-            set_token(saved_token);
-        }
     }
+    pop_token();
 
     if(consume_token(TK_IDENT, token))
     {
@@ -1408,7 +1405,7 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
 
     while(true)
     {
-        Token *token = get_token();
+        push_token();
         if(consume_reserved(","))
         {
             if(!consume_reserved("..."))
@@ -1425,13 +1422,11 @@ static List(Type) *parameter_list(List(Variable) **arg_vars)
                         add_list_entry_tail(Variable)(*arg_vars, arg_var);
                     }
                 }
+                discard_token();
                 continue;
             }
-            else
-            {
-                set_token(token);
-            }
         }
+        pop_token();
         break;
     }
 
@@ -1552,6 +1547,7 @@ declarator-suffix ::= ("[" const-expression "]" | "(" ("void" | parameter-type-l
 static Type *direct_abstract_declarator(Type *type)
 {
     Token *saved_token = get_token();
+    push_token();
     if(consume_reserved("("))
     {
         if(peek_abstract_declarator())
@@ -1567,14 +1563,11 @@ static Type *direct_abstract_declarator(Type *type)
             // overwrite the placeholder to fix the type
             *placeholder = *type;
             type = whole_type;
+            discard_token();
             goto direct_abstract_declarator_end;
         }
-        else
-        {
-            // restore the saved token
-            set_token(saved_token);
-        }
     }
+    pop_token();
 
     if(!peek_declarator_suffix())
     {
@@ -2358,7 +2351,6 @@ static bool peek_atomic(bool spec)
 {
     bool peek = false;
 
-    Token *token = get_token();
     if(consume_reserved("_Atomic"))
     {
         if(spec)
@@ -2369,7 +2361,7 @@ static bool peek_atomic(bool spec)
         {
             peek = !peek_reserved("(");
         }
-        set_token(token);
+        reverse_token();
     }
 
     return peek;

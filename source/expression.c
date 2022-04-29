@@ -433,7 +433,6 @@ static Expression *postfix(void)
 {
     Expression *node;
 
-    Token *saved_token = get_token();
     if(consume_reserved("("))
     {
         if(peek_type_name())
@@ -447,8 +446,11 @@ static Expression *postfix(void)
             node->var->inits = make_initializer_map(type, initializer());
             goto postfix_end;
         }
+        else
+        {
+            reverse_token();
+        }
     }
-    set_token(saved_token);
 
     // parse tokens while finding a postfix operator
     node = primary();
@@ -625,7 +627,6 @@ static Expression *unary(void)
 
     if(consume_reserved("sizeof"))
     {
-        Token *saved_token = get_token();
         if(consume_reserved("("))
         {
             if(peek_type_name())
@@ -637,7 +638,7 @@ static Expression *unary(void)
             }
             else
             {
-                set_token(saved_token);
+                reverse_token();
             }
         }
 
@@ -773,7 +774,7 @@ static Expression *cast(void)
 {
     Expression *node;
 
-    Token *saved_token = get_token();
+    push_token();
     if(consume_reserved("("))
     {
         if(peek_type_name())
@@ -795,11 +796,12 @@ static Expression *cast(void)
                 }
 
                 node = new_node_cast(type, operand);
+                discard_token();
                 goto cast_end;
             }
         }
     }
-    set_token(saved_token);
+    pop_token();
 
     node = unary();
 

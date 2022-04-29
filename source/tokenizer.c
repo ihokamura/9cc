@@ -189,6 +189,9 @@ static const size_t INTEGER_SUFFIX_LIST_SIZE = sizeof(integer_suffix_list) / siz
 static char *user_input; // input of compiler
 static List(Token) *token_list; // list of tokens
 static ListEntry(Token) *current_token; // currently parsing token
+static ListEntry(Token) *previous_token; // token just before currently parsing token
+static ListEntry(Token) *saved_token[100]; // tokens saved in stack for later use
+static size_t top_index; // top index of stack of tokens
 static int source_type; // type of source
 static const char *file_name; // name of source file
 
@@ -269,6 +272,7 @@ bool consume_reserved(const char *str)
         return false;
     }
 
+    previous_token = current_token;
     current_token = next_entry(Token, current_token);
 
     return true;
@@ -287,6 +291,7 @@ bool consume_token(TokenKind kind, Token **token)
         return false;
     }
 
+    previous_token = current_token;
     current_token = next_entry(Token, current_token);
 
     return true;
@@ -303,18 +308,40 @@ Token *get_token(void)
 
 
 /*
-set the currently parsing token
+reverse the currently parsing token
 */
-void set_token(Token *token)
+void reverse_token(void)
 {
-    for_each_entry(Token, cursor, token_list)
-    {
-        if(get_element(Token)(cursor) == token)
-        {
-            current_token = cursor;
-            return;
-        }
-    }
+    current_token = previous_token;
+}
+
+
+/*
+push the currently parsing token
+*/
+void push_token(void)
+{
+    saved_token[top_index] = current_token;
+    top_index++;
+}
+
+
+/*
+pop the currently parsing token
+*/
+void pop_token(void)
+{
+    top_index--;
+    current_token = saved_token[top_index];
+}
+
+
+/*
+discard the currently parsing token
+*/
+void discard_token(void)
+{
+    top_index--;
 }
 
 
@@ -345,6 +372,7 @@ Token *expect_identifier(void)
         report_error(current->str, "expected an identifier.");
     }
 
+    previous_token = current_token;
     current_token = next_entry(Token, current_token);
 
     return current;
@@ -364,6 +392,7 @@ Token *expect_constant(void)
         report_error(current->str, "expected a constant.");
     }
 
+    previous_token = current_token;
     current_token = next_entry(Token, current_token);
 
     return current;
