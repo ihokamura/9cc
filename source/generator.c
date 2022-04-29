@@ -1515,7 +1515,7 @@ generate assembler code of binary operation of kind BINOP_RSHIFT
 static void generate_binop_rshift(const Expression *expr)
 {
     put_line_with_tab("mov rcx, rdi");
-    put_line_with_tab("shr rax, cl");
+    put_line_with_tab("%s rax, cl", (is_signed(expr->type) ? "sar" : "shr"));
 }
 
 
