@@ -1515,7 +1515,7 @@ generate assembler code of binary operation of kind BINOP_RSHIFT
 static void generate_binop_rshift(const Expression *expr)
 {
     put_line_with_tab("mov rcx, rdi");
-    put_line_with_tab("sar rax, cl");
+    put_line_with_tab("shr rax, cl");
 }
 
 
@@ -1642,16 +1642,15 @@ static void generate_expr_const(const Expression *expr)
     }
     else
     {
-        // It is assumed that the size of 'int' is 4 bytes.
-        if(expr->value->int_value == (int)expr->value->int_value)
+        if(is_signed(expr->type))
         {
-            generate_push_imm(expr->value->int_value);
+            put_line_with_tab("mov rax, %ld", expr->value->int_value);
         }
         else
         {
-            put_line_with_tab("mov rax, %ld", expr->value->int_value);
-            generate_push_reg_or_mem("rax");
+            put_line_with_tab("mov rax, %lu", expr->value->int_value);
         }
+        generate_push_reg_or_mem("rax");
     }
 }
 
