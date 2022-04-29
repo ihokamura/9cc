@@ -42,6 +42,7 @@ int vfprintf(FILE *stream, const char *format, va_list ap);
 void *calloc(size_t count, size_t size);
 void exit(int status);
 void qsort(void *base, size_t nel, size_t width, int (*compar)(const void *, const void *));
+void *realloc(void *ptr, size_t size);
 double strtod(const char *nptr, char **endptr);
 long strtol(const char *str, char **endptr, int base);
 unsigned long strtoul(const char *str, char **endptr, int base);

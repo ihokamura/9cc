@@ -15,6 +15,9 @@
 define_list(Token)
 define_list_operations(Token)
 
+// macro
+#define STACK_ALLOCATION_SIZE ((size_t)1024) // number of elements to extend buffer of stack
+
 // type definition
 typedef enum IntegerSuffix IntegerSuffix;
 enum IntegerSuffix
@@ -28,8 +31,17 @@ enum IntegerSuffix
 };
 
 
+typedef struct TokenStack TokenStack;
+struct TokenStack
+{
+    ListEntry(Token) **buffer;
+    size_t size;
+    size_t top;
+};
+
 // function prototype
 static Token *new_token(TokenKind kind, char *str, int len);
+static void advance_token(void);
 static int is_space(const char *str);
 static int is_comment(const char *str);
 static int is_reserved(const char *str);
@@ -190,8 +202,7 @@ static char *user_input; // input of compiler
 static List(Token) *token_list; // list of tokens
 static ListEntry(Token) *current_token; // currently parsing token
 static ListEntry(Token) *previous_token; // token just before currently parsing token
-static ListEntry(Token) *saved_token[100]; // tokens saved in stack for later use
-static size_t top_index; // top index of stack of tokens
+static TokenStack token_stack; // stack of tokens
 static int source_type; // type of source
 static const char *file_name; // name of source file
 
@@ -220,6 +231,16 @@ static Token *new_token(TokenKind kind, char *str, int len)
     token->value = NULL;
 
     return token;
+}
+
+
+/*
+advance the currently parsing token
+*/
+static void advance_token(void)
+{
+    previous_token = current_token;
+    current_token = next_entry(Token, current_token);
 }
 
 
@@ -267,15 +288,13 @@ consume a reserved string
 */
 bool consume_reserved(const char *str)
 {
-    if(!peek_reserved(str))
+    bool match = peek_reserved(str);
+    if(match)
     {
-        return false;
+        advance_token();
     }
 
-    previous_token = current_token;
-    current_token = next_entry(Token, current_token);
-
-    return true;
+    return match;
 }
 
 
@@ -286,15 +305,13 @@ consume a token
 */
 bool consume_token(TokenKind kind, Token **token)
 {
-    if(!peek_token(kind, token))
+    bool match = peek_token(kind, token);
+    if(match)
     {
-        return false;
+        advance_token();
     }
 
-    previous_token = current_token;
-    current_token = next_entry(Token, current_token);
-
-    return true;
+    return match;
 }
 
 
@@ -321,8 +338,13 @@ push the currently parsing token
 */
 void push_token(void)
 {
-    saved_token[top_index] = current_token;
-    top_index++;
+    if(token_stack.top == token_stack.size)
+    {
+        token_stack.size += STACK_ALLOCATION_SIZE;
+        token_stack.buffer = realloc(token_stack.buffer, token_stack.size);
+    }
+    token_stack.buffer[token_stack.top] = current_token;
+    token_stack.top++;
 }
 
 
@@ -331,17 +353,17 @@ pop the currently parsing token
 */
 void pop_token(void)
 {
-    top_index--;
-    current_token = saved_token[top_index];
+    token_stack.top--;
+    current_token = token_stack.buffer[token_stack.top];
 }
 
 
 /*
-discard the currently parsing token
+discard push of the currently parsing token
 */
 void discard_token(void)
 {
-    top_index--;
+    token_stack.top--;
 }
 
 
@@ -372,8 +394,7 @@ Token *expect_identifier(void)
         report_error(current->str, "expected an identifier.");
     }
 
-    previous_token = current_token;
-    current_token = next_entry(Token, current_token);
+    advance_token();
 
     return current;
 }
@@ -392,8 +413,7 @@ Token *expect_constant(void)
         report_error(current->str, "expected a constant.");
     }
 
-    previous_token = current_token;
-    current_token = next_entry(Token, current_token);
+    advance_token();
 
     return current;
 }
