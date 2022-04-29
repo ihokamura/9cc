@@ -1042,7 +1042,6 @@ void test_bitwise_shift_operators()
 
     test_bitwise_left_shift(_Bool, 0, 0, 0, 4, assert_equal_int);
     test_bitwise_left_shift(_Bool, 0, 1, 0, 4, assert_equal_int);
-    test_bitwise_left_shift(_Bool, 0, 31, 0, 4, assert_equal_int);
     test_bitwise_left_shift(_Bool, 1, 0, 1, 4, assert_equal_int);
     test_bitwise_left_shift(_Bool, 1, 1, 2, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 0, 0, 0, 4, assert_equal_int);
@@ -1050,7 +1049,6 @@ void test_bitwise_shift_operators()
     test_bitwise_left_shift(unsigned char, 0, 2, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 0, 6, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 0, 7, 0, 4, assert_equal_int);
-    test_bitwise_left_shift(unsigned char, 0, 31, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 1, 0, 1, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 1, 1, 2, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned char, 1, 2, 4, 4, assert_equal_int);
@@ -1076,7 +1074,6 @@ void test_bitwise_shift_operators()
     test_bitwise_left_shift(unsigned short, 0, 2, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned short, 0, 14, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned short, 0, 15, 0, 4, assert_equal_int);
-    test_bitwise_left_shift(unsigned short, 0, 31, 0, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned short, 1, 0, 1, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned short, 1, 1, 2, 4, assert_equal_int);
     test_bitwise_left_shift(unsigned short, 1, 2, 4, 4, assert_equal_int);
@@ -1148,11 +1145,128 @@ void test_bitwise_shift_operators()
     test_bitwise_left_shift(unsigned long, 18446744073709551615UL, 62UL, 13835058055282163712UL, 8, assert_equal_unsigned_long);
     test_bitwise_left_shift(unsigned long, 18446744073709551615UL, 63UL, 9223372036854775808UL, 8, assert_equal_unsigned_long);
 
-    assert_equal_int(2, 16 >> 3);
-    assert_equal_int(1, 15 >> 3);
-
 #undef test_bitwise_left_shift
 #undef assert_bitwise_left_shift
+
+#define assert_bitwise_right_shift(lhs, rhs, result, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs >> rhs); \
+    assert_function(result, lhs >> rhs); \
+    } while(0)
+#define test_bitwise_right_shift(type, lhs, rhs, result, size, assert_function)    do { \
+    type lhs_var = (type)lhs; \
+    type rhs_var = (type)rhs; \
+    assert_bitwise_right_shift((type)lhs, (type)rhs, result, size, assert_function); \
+    assert_bitwise_right_shift((type)lhs, rhs_var, result, size, assert_function); \
+    assert_bitwise_right_shift(lhs_var, (type)rhs, result, size, assert_function); \
+    assert_bitwise_right_shift(lhs_var, rhs_var, result, size, assert_function); \
+    } while(0)
+
+    test_bitwise_right_shift(_Bool, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(_Bool, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(_Bool, 1, 0, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(_Bool, 1, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 0, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 0, 6, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 0, 7, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 1, 0, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 1, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 1, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 1, 6, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 1, 7, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 2, 0, 2, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 2, 1, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 2, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 2, 6, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 2, 7, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 254, 0, 254, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 254, 1, 127, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 254, 2, 63, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 254, 6, 3, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 254, 7, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 255, 0, 255, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 255, 1, 127, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 255, 2, 63, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 255, 6, 3, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned char, 255, 7, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 0, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 0, 14, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 0, 15, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 1, 0, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 1, 1, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 1, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 1, 14, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 1, 15, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 2, 0, 2, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 2, 1, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 2, 2, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 2, 14, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 2, 15, 0, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65534, 0, 65534, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65534, 1, 32767, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65534, 2, 16383, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65534, 14, 3, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65534, 15, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65535, 0, 65535, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65535, 1, 32767, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65535, 2, 16383, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65535, 14, 3, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned short, 65535, 15, 1, 4, assert_equal_int);
+    test_bitwise_right_shift(unsigned int, 0U, 0U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 0U, 1U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 0U, 2U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 0U, 30U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 0U, 31U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 1U, 0U, 1U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 1U, 1U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 1U, 2U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 1U, 30U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 1U, 31U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 2U, 0U, 2U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 2U, 1U, 1U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 2U, 2U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 2U, 30U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 2U, 31U, 0U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967294U, 0U, 4294967294U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967294U, 1U, 2147483647U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967294U, 2U, 1073741823U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967294U, 30U, 3U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967294U, 31U, 1U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967295U, 0U, 4294967295U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967295U, 1U, 2147483647U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967295U, 2U, 1073741823U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967295U, 30U, 3U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned int, 4294967295U, 31U, 1U, 4, assert_equal_unsigned_int);
+    test_bitwise_right_shift(unsigned long, 0UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 0UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 0UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 0UL, 30UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 0UL, 31UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 1UL, 0UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 1UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 1UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 1UL, 62UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 1UL, 63UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 2UL, 0UL, 2UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 2UL, 1UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 2UL, 2UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 2UL, 62UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 2UL, 63UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551614UL, 0UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551614UL, 1UL, 9223372036854775807UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551614UL, 2UL, 4611686018427387903UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551614UL, 62UL, 3UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551614UL, 63UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551615UL, 0UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551615UL, 1UL, 9223372036854775807UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551615UL, 2UL, 4611686018427387903UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551615UL, 62UL, 3UL, 8, assert_equal_unsigned_long);
+    test_bitwise_right_shift(unsigned long, 18446744073709551615UL, 63UL, 1UL, 8, assert_equal_unsigned_long);
+#undef test_bitwise_right_shift
+#undef assert_bitwise_right_shift
 }
 #endif /* ENABLE_TEST_CASE(TEST_BITWISE_SHIFT_OPERATORS) */
 
