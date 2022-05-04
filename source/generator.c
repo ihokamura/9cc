@@ -9,7 +9,7 @@
 #include "statement.h"
 #include "type.h"
 
-#define CHECK_STACK_SIZE    (ENABLED) // check stack size
+#define CHECK_STACK_SIZE    (DISABLED) // check stack size
 #if(CHECK_STACK_SIZE == ENABLED)
 #include <assert.h>
 #endif /* CHECK_STACK_SIZE */
