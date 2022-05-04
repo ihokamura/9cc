@@ -2019,7 +2019,7 @@ static void generate_expr_cast(const Expression *expr)
             }
             else if(expr->type->size == 4)
             {
-                if(is_signed(expr->operand->type))
+                if(is_signed(expr->type))
                 {
                     put_line_with_tab("movsxd rax, eax");
                 }
