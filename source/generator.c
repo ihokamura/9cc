@@ -1642,15 +1642,22 @@ static void generate_expr_const(const Expression *expr)
     }
     else
     {
-        if(is_signed(expr->type))
+        if((expr->value->type->size <= 4) & is_signed(expr->type))
         {
-            put_line_with_tab("mov rax, %ld", expr->value->int_value);
+            generate_push_imm(expr->value->int_value);
         }
         else
         {
-            put_line_with_tab("mov rax, %lu", expr->value->int_value);
+            if(is_signed(expr->type))
+            {
+                put_line_with_tab("mov rax, %ld", expr->value->int_value);
+            }
+            else
+            {
+                put_line_with_tab("mov rax, %lu", expr->value->int_value);
+            }
+            generate_push_reg_or_mem("rax");
         }
-        generate_push_reg_or_mem("rax");
     }
 }
 
