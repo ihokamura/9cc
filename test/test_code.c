@@ -2683,21 +2683,388 @@ void test_equality_operators()
 }
 #endif /* ENABLE_TEST_CASE(TEST_EQUALITY_OPERATORS) */
 
-#if ENABLE_TEST_CASE(TEST_OTHERS)
-/*
-bitwise AND operator
-*/
-int test_bitwise_and()
+#if ENABLE_TEST_CASE(TEST_BITWISE_AND_OPERATOR)
+// 6.5.10 Bitwise AND operator
+void test_bitwise_and_operator()
 {
-    assert_equal_int(0, 1 & 16);
-    assert_equal_int(1, 1 & 15);
-    assert_equal_int(0, 3 & 12);
-    assert_equal_int(0, 0 & 12);
+    put_title("Bitwise AND operator");
 
-    return 0;
+#define assert_bitwise_and(lhs, rhs, result, size, assert_function)    do { \
+    assert_size_of_expression(size, lhs & rhs); \
+    assert_function(result, lhs & rhs); \
+    } while(0)
+#define test_bitwise_and(type, lhs, rhs, result, size, assert_function)    do { \
+    type lhs_var = (type)lhs; \
+    type rhs_var = (type)rhs; \
+    assert_bitwise_and((type)lhs, (type)rhs, result, size, assert_function); \
+    assert_bitwise_and((type)lhs, rhs_var, result, size, assert_function); \
+    assert_bitwise_and(lhs_var, (type)rhs, result, size, assert_function); \
+    assert_bitwise_and(lhs_var, rhs_var, result, size, assert_function); \
+    } while(0)
+
+    test_bitwise_and(_Bool, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(_Bool, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(_Bool, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(_Bool, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(char, -128, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -128, -127, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -128, -1, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -128, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -128, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -128, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -128, 127, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -127, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -127, -127, -127, 4, assert_equal_int);
+    test_bitwise_and(char, -127, -126, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -127, -1, -127, 4, assert_equal_int);
+    test_bitwise_and(char, -127, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -127, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(char, -127, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -127, 127, 1, 4, assert_equal_int);
+    test_bitwise_and(char, -126, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -126, -127, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -126, -126, -126, 4, assert_equal_int);
+    test_bitwise_and(char, -126, -1, -126, 4, assert_equal_int);
+    test_bitwise_and(char, -126, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -126, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -126, 126, 2, 4, assert_equal_int);
+    test_bitwise_and(char, -126, 127, 2, 4, assert_equal_int);
+    test_bitwise_and(char, -1, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(char, -1, -127, -127, 4, assert_equal_int);
+    test_bitwise_and(char, -1, -126, -126, 4, assert_equal_int);
+    test_bitwise_and(char, -1, -1, -1, 4, assert_equal_int);
+    test_bitwise_and(char, -1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, -1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(char, -1, 126, 126, 4, assert_equal_int);
+    test_bitwise_and(char, -1, 127, 127, 4, assert_equal_int);
+    test_bitwise_and(char, 0, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, -127, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, -126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, -1, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 0, 127, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 1, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 1, -127, 1, 4, assert_equal_int);
+    test_bitwise_and(char, 1, -126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 1, -1, 1, 4, assert_equal_int);
+    test_bitwise_and(char, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(char, 1, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 1, 127, 1, 4, assert_equal_int);
+    test_bitwise_and(char, 2, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 2, -127, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 2, -126, 2, 4, assert_equal_int);
+    test_bitwise_and(char, 2, -1, 2, 4, assert_equal_int);
+    test_bitwise_and(char, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(char, 2, 126, 2, 4, assert_equal_int);
+    test_bitwise_and(char, 2, 127, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, -127, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, -1, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -128, 127, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, -127, -127, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, -126, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, -1, -127, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -127, 127, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, -127, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, -126, -126, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, -1, -126, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, 126, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, -126, 127, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, -128, -128, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, -127, -127, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, -126, -126, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, -1, -1, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, 126, 126, 4, assert_equal_int);
+    test_bitwise_and(signed char, -1, 127, 127, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, -127, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, -126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, -1, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 0, 127, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, -127, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, -126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, -1, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, 126, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 1, 127, 1, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, -128, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, -127, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, -126, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, -1, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, 126, 2, 4, assert_equal_int);
+    test_bitwise_and(signed char, 2, 127, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 0, 254, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 0, 255, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 1, 2, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 1, 254, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 1, 255, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 2, 2, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 2, 254, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 2, 255, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 254, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 254, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 254, 253, 252, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 254, 254, 254, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 254, 255, 254, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 255, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 255, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 255, 254, 254, 4, assert_equal_int);
+    test_bitwise_and(unsigned char, 255, 255, 255, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, -32768, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, -32767, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, -1, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, 32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32768, 32767, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, -32768, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, -32767, -32767, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, -32766, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, -1, -32767, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, 32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32767, 32767, 1, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, -32768, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, -32767, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, -32766, -32766, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, -1, -32766, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, 32766, 2, 4, assert_equal_int);
+    test_bitwise_and(short, -32766, 32767, 2, 4, assert_equal_int);
+    test_bitwise_and(short, -1, -32768, -32768, 4, assert_equal_int);
+    test_bitwise_and(short, -1, -32767, -32767, 4, assert_equal_int);
+    test_bitwise_and(short, -1, -32766, -32766, 4, assert_equal_int);
+    test_bitwise_and(short, -1, -1, -1, 4, assert_equal_int);
+    test_bitwise_and(short, -1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, -1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(short, -1, 32766, 32766, 4, assert_equal_int);
+    test_bitwise_and(short, -1, 32767, 32767, 4, assert_equal_int);
+    test_bitwise_and(short, 0, -32768, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, -32767, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, -32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, -1, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, 32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 0, 32767, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 1, -32768, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 1, -32767, 1, 4, assert_equal_int);
+    test_bitwise_and(short, 1, -32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 1, -1, 1, 4, assert_equal_int);
+    test_bitwise_and(short, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(short, 1, 32766, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 1, 32767, 1, 4, assert_equal_int);
+    test_bitwise_and(short, 2, -32768, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 2, -32767, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 2, -32766, 2, 4, assert_equal_int);
+    test_bitwise_and(short, 2, -1, 2, 4, assert_equal_int);
+    test_bitwise_and(short, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(short, 2, 32766, 2, 4, assert_equal_int);
+    test_bitwise_and(short, 2, 32767, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 0, 65534, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 0, 65535, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 1, 2, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 1, 65534, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 1, 65535, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 2, 2, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 2, 65534, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 2, 65535, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65534, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65534, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65534, 65533, 65532, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65534, 65534, 65534, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65534, 65535, 65534, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65535, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65535, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65535, 65534, 65534, 4, assert_equal_int);
+    test_bitwise_and(unsigned short, 65535, 65535, 65535, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, -2147483648, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, -2147483647, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, -1, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, 2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483648, 2147483647, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, -2147483648, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, -2147483647, -2147483647, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, -2147483646, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, -1, -2147483647, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, 2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483647, 2147483647, 1, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, -2147483648, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, -2147483647, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, -2147483646, -2147483646, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, -1, -2147483646, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, 2147483646, 2, 4, assert_equal_int);
+    test_bitwise_and(int, -2147483646, 2147483647, 2, 4, assert_equal_int);
+    test_bitwise_and(int, -1, -2147483648, -2147483648, 4, assert_equal_int);
+    test_bitwise_and(int, -1, -2147483647, -2147483647, 4, assert_equal_int);
+    test_bitwise_and(int, -1, -2147483646, -2147483646, 4, assert_equal_int);
+    test_bitwise_and(int, -1, -1, -1, 4, assert_equal_int);
+    test_bitwise_and(int, -1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, -1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(int, -1, 2147483646, 2147483646, 4, assert_equal_int);
+    test_bitwise_and(int, -1, 2147483647, 2147483647, 4, assert_equal_int);
+    test_bitwise_and(int, 0, -2147483648, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, -2147483647, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, -2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, -1, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, 2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 0, 2147483647, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 1, -2147483648, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 1, -2147483647, 1, 4, assert_equal_int);
+    test_bitwise_and(int, 1, -2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 1, -1, 1, 4, assert_equal_int);
+    test_bitwise_and(int, 1, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 1, 1, 1, 4, assert_equal_int);
+    test_bitwise_and(int, 1, 2147483646, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 1, 2147483647, 1, 4, assert_equal_int);
+    test_bitwise_and(int, 2, -2147483648, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 2, -2147483647, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 2, -2147483646, 2, 4, assert_equal_int);
+    test_bitwise_and(int, 2, -1, 2, 4, assert_equal_int);
+    test_bitwise_and(int, 2, 0, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 2, 1, 0, 4, assert_equal_int);
+    test_bitwise_and(int, 2, 2147483646, 2, 4, assert_equal_int);
+    test_bitwise_and(int, 2, 2147483647, 2, 4, assert_equal_int);
+    test_bitwise_and(unsigned int, 0, 0, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 0, 1, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 0, 4294967294, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 0, 4294967295, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 1, 0, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 1, 1, 1, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 1, 2, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 1, 4294967294, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 1, 4294967295, 1, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 2, 0, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 2, 1, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 2, 2, 2, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 2, 4294967294, 2, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 2, 4294967295, 2, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967294, 0, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967294, 1, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967294, 4294967293, 4294967292, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967294, 4294967294, 4294967294, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967294, 4294967295, 4294967294, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967295, 0, 0, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967295, 1, 1, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967295, 4294967294, 4294967294, 4, assert_equal_unsigned_int);
+    test_bitwise_and(unsigned int, 4294967295, 4294967295, 4294967295, 4, assert_equal_unsigned_int);
+    test_bitwise_and(long, -9223372036854775807L, -9223372036854775807L, -9223372036854775807L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775807L, -1L, -9223372036854775807L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775807L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775807L, 1L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775807L, 9223372036854775806L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775807L, 9223372036854775807L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, -9223372036854775806L, -9223372036854775806L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, -1L, -9223372036854775806L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, 1L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, 9223372036854775806L, 2L, 8, assert_equal_long);
+    test_bitwise_and(long, -9223372036854775806L, 9223372036854775807L, 2L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, -9223372036854775807L, -9223372036854775807L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, -9223372036854775806L, -9223372036854775806L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, -1L, -1L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, 1L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, 9223372036854775806L, 9223372036854775806L, 8, assert_equal_long);
+    test_bitwise_and(long, -1L, 9223372036854775807L, 9223372036854775807L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, -9223372036854775807L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, -9223372036854775806L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, -1L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, 1L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, 9223372036854775806L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 0L, 9223372036854775807L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, -9223372036854775807L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, -9223372036854775806L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, -1L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, 1L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, 9223372036854775806L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 1L, 9223372036854775807L, 1L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, -9223372036854775807L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, -9223372036854775806L, 2L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, -1L, 2L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, 0L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, 1L, 0L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, 9223372036854775806L, 2L, 8, assert_equal_long);
+    test_bitwise_and(long, 2L, 9223372036854775807L, 2L, 8, assert_equal_long);
+    test_bitwise_and(unsigned long, 0UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 0UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 0UL, 18446744073709551614UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 0UL, 18446744073709551615UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 1UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 1UL, 1UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 1UL, 2, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 1UL, 18446744073709551614UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 1UL, 18446744073709551615UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 2, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 2, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 2, 2, 2, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 2, 18446744073709551614UL, 2, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 2, 18446744073709551615UL, 2, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551614UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551614UL, 1UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551614UL, 18446744073709551613UL, 18446744073709551612UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551614UL, 18446744073709551614UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551614UL, 18446744073709551615UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551615UL, 0UL, 0UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551615UL, 1UL, 1UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551615UL, 18446744073709551614UL, 18446744073709551614UL, 8, assert_equal_unsigned_long);
+    test_bitwise_and(unsigned long, 18446744073709551615UL, 18446744073709551615UL, 18446744073709551615UL, 8, assert_equal_unsigned_long);
+
+#undef test_bitwise_and
+#undef assert_bitwise_and
 }
+#endif /* ENABLE_TEST_CASE(TEST_BITWISE_AND_OPERATOR) */
 
-
+#if ENABLE_TEST_CASE(TEST_OTHERS)
 /*
 bitwise exclusive OR operator
 */
@@ -4209,9 +4576,11 @@ int main()
 #if ENABLE_TEST_CASE(TEST_EQUALITY_OPERATORS)
     test_equality_operators();
 #endif /* ENABLE_TEST_CASE(TEST_EQUALITY_OPERATORS) */
+#if ENABLE_TEST_CASE(TEST_BITWISE_AND_OPERATOR)
+    test_bitwise_and_operator();
+#endif /* ENABLE_TEST_CASE(TEST_BITWISE_AND_OPERATOR) */
 
 #if ENABLE_TEST_CASE(TEST_OTHERS)
-    test_bitwise_and();
     test_bitwise_xor();
     test_bitwise_or();
     test_logical_and();
