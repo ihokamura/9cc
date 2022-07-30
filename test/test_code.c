@@ -2323,9 +2323,13 @@ void test_equality_operators()
 
 #define assert_arithmetic_relation_equal(lhs, rhs, result)    do { \
     assert_size_of_expression(sizeof(int), lhs == rhs); \
+    assert_size_of_expression(sizeof(int), rhs == lhs); \
     assert_size_of_expression(sizeof(int), lhs != rhs); \
+    assert_size_of_expression(sizeof(int), rhs != lhs); \
     assert_equal_int(result, lhs == rhs); \
+    assert_equal_int(result, rhs == lhs); \
     assert_equal_int(1 - result, lhs != rhs); \
+    assert_equal_int(1 - result, rhs != lhs); \
     } while(0)
 #define test_arithmetic_relation_equal(type, lhs, rhs, result)    do { \
     type lhs_var = (type)lhs; \
@@ -2691,7 +2695,9 @@ void test_bitwise_and_operator()
 
 #define assert_bitwise_and(lhs, rhs, result, size, assert_function)    do { \
     assert_size_of_expression(size, lhs & rhs); \
+    assert_size_of_expression(size, rhs & lhs); \
     assert_function(result, lhs & rhs); \
+    assert_function(result, rhs & lhs); \
     } while(0)
 #define test_bitwise_and(type, lhs, rhs, result, size, assert_function)    do { \
     type lhs_var = (type)lhs; \
