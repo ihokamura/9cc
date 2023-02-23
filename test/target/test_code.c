@@ -1,19 +1,4 @@
-#ifndef QCC_COMPILER
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#endif /* !QCC_COMPILER */
-#include "../common/check.h"
 #include "test_code.h"
-
-
-/*
-print title of a test case
-*/
-int put_title(const char *title)
-{
-    return printf("# %s\n", title);
-}
 
 
 #if ENABLE_TEST_CASE(TEST_CONSTANTS)
@@ -4860,6 +4845,12 @@ int test_character_constant()
 /*
 initializer
 */
+void gvar_func(void)
+{
+    printf("This is dummy function.\n");
+
+    return;
+}
 char gvar_init_char = 1;
 short gvar_init_short = 2;
 int gvar_init_int = 3;
@@ -4890,8 +4881,8 @@ gvar_init_st_type gvar_init_st = {111, {222, 333, &gvar_init_int}};
 int *gvar_init_p1 = &gvar_init_int + 3;
 int *gvar_init_p2 = &gvar_init_a1[3] - 3;
 int *gvar_init_p3 = 1 + 2 + gvar_init_a1 - 2 - 1;
-int (*gvar_init_p4)(const char *) = put_title;
-int (*gvar_init_p5)(const char *) = put_title + 3;
+void (*gvar_init_p4)(void) = gvar_func;
+void (*gvar_init_p5)(void) = gvar_func + 3;
 char *gvar_init_p6 = &gvar_init_st.m1;
 int *gvar_init_p7 = &gvar_init_st.m2.mm1;
 short *gvar_init_p8 = &*&gvar_init_st.m2.mm2;
@@ -4943,8 +4934,8 @@ int test_initializer()
     assert_equal_pointer(&gvar_init_int + 3, gvar_init_p1);
     assert_equal_pointer(&gvar_init_a1[0], gvar_init_p2);
     assert_equal_pointer(&gvar_init_a1[0], gvar_init_p3);
-    assert_equal_pointer(&put_title, gvar_init_p4);
-    assert_equal_pointer(&put_title + 3, gvar_init_p5);
+    assert_equal_pointer(&gvar_func, gvar_init_p4);
+    assert_equal_pointer(&gvar_func + 3, gvar_init_p5);
     assert_equal_pointer(&gvar_init_st.m1, gvar_init_p6);
     assert_equal_pointer(&gvar_init_st.m2.mm1, gvar_init_p7);
     assert_equal_pointer(&gvar_init_st.m2.mm2, gvar_init_p8);

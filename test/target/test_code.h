@@ -1,7 +1,12 @@
 #ifndef TEST_CODE_H
 #define TEST_CODE_H
 
-#include "../common/configuration.h"
+#ifndef QCC_COMPILER
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#endif /* !QCC_COMPILER */
+#include "../common/check.h"
 
 #ifdef QCC_COMPILER
 // definition from standard header
@@ -20,6 +25,8 @@ extern void exit(int code);
 // macro to select test case
 #define ENABLE_TEST_CASE(TEST_CASE_NAME)    (TEST_CASE_NAME || (TEST_ALL == ENABLED))
 
+// macro for utility
+#define put_title(title) printf("# %s\n", title)
 
 // type definition
 struct param_t1 {long m0; long m1; char m2;};
