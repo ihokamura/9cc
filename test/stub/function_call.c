@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../target/test_code.h"
-#include "../common/check.h"
+#include "function_call.h"
 
 // return 0
 int func_call_return0()
