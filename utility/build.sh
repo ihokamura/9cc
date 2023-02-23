@@ -1,26 +1,30 @@
 #!/bin/bash
 
 COMPILER=$1
-ASSEMBLY=$2
-BINARY=$3
-DEFINE=$4
+BINARY=$2
+DEFINE=$3
 
-C_PREPROCESSED=$TEST_DIRECTORY/test_code_pp.c
 C_STUB="$TEST_DIRECTORY/common/*.c $TEST_DIRECTORY/stub/*.c"
-C_TARGET=$TEST_DIRECTORY/target/test_code.c
-ASSEMBLY_TEMPORAL=$TEST_DIRECTORY/test_code_tmp.s
+C_TARGET="$TEST_DIRECTORY/target/*.c"
+S_TARGET="$TEST_DIRECTORY/target/*_$(basename $COMPILER).s"
 
 # build test code
-gcc -DQCC_COMPILER -D${DEFINE} -E $C_TARGET | grep -v '^#' > $C_PREPROCESSED
-$COMPILER $C_PREPROCESSED > $ASSEMBLY_TEMPORAL
-cat $ASSEMBLY_TEMPORAL | sed -rz -e '
+for c_src in $(ls $C_TARGET)
+do
+    c_preprocessed=${c_src/\.c/_pp.c}
+    assembly_temporal=${c_src/\.c/_$(basename $COMPILER)_tmp.s}
+
+    gcc -DQCC_COMPILER -D${DEFINE} -E $c_src | grep -v '^#' > $c_preprocessed
+    $COMPILER $c_preprocessed > $assembly_temporal
+    cat $assembly_temporal | sed -rz -e '
     s/\tpush ([a-z0-9]+)\n\tpop ([a-z][a-z0-9]+)\n/\tmov \2, \1\n/g;
     s/\tmov ([a-z]+), ([a-z]+)\n\tmov ([a-z]+), \1\n/\tmov \3, \2\n/g
     s/\tmov ([a-z]+), \1\n//g;
     s/\tadd ([a-z][a-z0-9]+), ([0-9]+)\n\tsub \1, \2\n//g;
-' > $ASSEMBLY
-gcc $ASSEMBLY $C_STUB $CFLAGS_BASE -static -o $BINARY
-rm $C_PREPROCESSED $ASSEMBLY_TEMPORAL
+' > ${c_src/\.c/_$(basename $COMPILER).s}
+    rm $c_preprocessed $assembly_temporal
+done
+gcc $S_TARGET $C_STUB $CFLAGS_BASE -static -o $BINARY
 
 if [ "$?" != 0 ]; then
     echo "failed to compile"
