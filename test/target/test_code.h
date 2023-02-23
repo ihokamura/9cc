@@ -1,7 +1,7 @@
 #ifndef TEST_CODE_H
 #define TEST_CODE_H
 
-#include "configuration.h"
+#include "../common/configuration.h"
 
 #ifdef QCC_COMPILER
 // definition from standard header

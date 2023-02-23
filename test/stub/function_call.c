@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "test_code.h"
-#include "lib_assert.h"
+#include "../target/test_code.h"
+#include "../common/check.h"
 
 // return 0
 int func_call_return0()

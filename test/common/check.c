@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "lib_assert.h"
+#include "check.h"
 
 
 #define assert_equal_integer(file, line, expected, actual) do \

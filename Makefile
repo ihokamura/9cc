@@ -7,7 +7,7 @@ export OBJECT_DIRECTORY:=build
 export SELF_BUILD_DIRECTORY:=self
 export SOURCE_DIRECTORY:=source
 export TEST_DIRECTORY:=test
-export UTILITY_DIRECTORY:=util
+export UTILITY_DIRECTORY:=utility
 
 BUILD_SCRIPT:=$(UTILITY_DIRECTORY)/build.sh
 EXECUTE_SCRIPT:=$(UTILITY_DIRECTORY)/execute_binary.sh
@@ -66,7 +66,7 @@ clean:
 		$(SELF_BUILD_DIRECTORY)
 
 debug_test:
-	$(CC) $(TEST_DIRECTORY)/*.c $(CFLAGS) -DTEST_ALL -o $(TEST_DEBUG_BINARY)
+	$(CC) $(TEST_DIRECTORY)/*/*.c $(CFLAGS) -DTEST_ALL -o $(TEST_DEBUG_BINARY)
 	$(EXECUTE_SCRIPT) $(TEST_DEBUG_BINARY)
 
 profile_test: $(PROFILE_OBJ) $(SRCS)

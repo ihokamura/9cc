@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif /* !QCC_COMPILER */
-#include "lib_assert.h"
+#include "../common/check.h"
 #include "test_code.h"
 
 

@@ -1,5 +1,5 @@
-#ifndef LIB_ASSERT_H
-#define LIB_ASSERT_H
+#ifndef CHECK_H
+#define CHECK_H
 
 #include "configuration.h"
 
@@ -61,4 +61,4 @@ void assert_constant_long_max_plus1_func(const char *file, int line, unsigned lo
 void assert_constant_unsigned_long_max_minus1_func(const char *file, int line, unsigned long actual);
 void assert_constant_unsigned_long_max_func(const char *file, int line, unsigned long actual);
 
-#endif /* !LIB_ASSERT_H */
+#endif /* !CHECK_H */
