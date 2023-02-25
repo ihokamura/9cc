@@ -81,7 +81,8 @@ Expression *new_node_constant(const Constant *value)
     node->value = new_constant(value);
     if(is_floating(value->type))
     {
-        node->var = new_gvar(value->float_label, value->type, value->type->align, SC_NONE, true);
+        // regard floating constant as static variable to avoid name collision
+        node->var = new_gvar(value->float_label, value->type, value->type->align, SC_STATIC, true);
         node->var->inits = new_list(InitializerMap)();
         add_list_entry_tail(InitializerMap)(node->var->inits, new_initializer_map(value->type, node, 0));
     }
